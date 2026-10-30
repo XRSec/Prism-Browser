@@ -107,6 +107,12 @@ export interface McpProfilePermission {
   updatedAt: string
 }
 
+export interface McpPolicy {
+  enabled: boolean
+  defaultAccess: 'allow' | 'deny'
+  allowProfileCreation: boolean
+}
+
 export interface McpStatus {
   state: 'stopped' | 'ready' | 'running' | 'error'
   message: string
@@ -413,10 +419,60 @@ export interface BrowserCrashRecord {
   phase: 'starting' | 'running'
 }
 
+export interface AdvertisementItem {
+  id: string
+  title: string
+  body: string
+  label: string
+  url: string
+  enabled: boolean
+  order: number
+  durationSeconds: number
+  tone: 'sage' | 'sand' | 'slate'
+  platform: 'all' | 'darwin' | 'win32'
+  startsAt?: string
+  endsAt?: string
+  localizations?: Record<string, { title: string; body?: string; label: string }>
+}
+
+export interface AdvertisementStatus {
+  state: 'unavailable' | 'ready' | 'cached' | 'empty'
+  items: AdvertisementItem[]
+}
+
+export interface WindowSyncSettings {
+  syncClicks: boolean
+  syncTyping: boolean
+  syncKeys: boolean
+  syncScroll: boolean
+  delayMinMs: number
+  delayMaxMs: number
+}
+
+export interface WindowSyncStartOptions {
+  mainProfileId?: string
+  followerProfileIds?: string[]
+  settings?: Partial<WindowSyncSettings>
+}
+
+export interface WindowSyncStatus {
+  state: 'stopped' | 'starting' | 'running' | 'error'
+  message: string
+  mainProfileId?: string
+  followerProfileIds: string[]
+  settings: WindowSyncSettings
+  actionCount: number
+  errorCount: number
+  lastActionAt?: string
+  startedAt?: string
+  addressBarSync?: string
+}
+
 export interface BrowserApi {
   uiLanguage: {
     get(): Promise<UiLocale>
     set(locale: UiLocale): Promise<UiLocale>
+    systemLocale(): Promise<{ languages: string[]; timezone: string }>
   }
   profiles: {
     list: () => Promise<BrowserProfileView[]>
@@ -469,6 +525,9 @@ export interface BrowserApi {
     rollback: () => Promise<EngineStatus>
     remove: (version: string) => Promise<void>
     verify: (version: string) => Promise<KernelHealth>
+    cancelInstall: (version: string) => Promise<void>
+    installProgress: () => Promise<KernelInstallProgress | null>
+    ensureCommunity: () => Promise<EngineStatus>
   }
   updates: {
     status: () => Promise<AppUpdateStatus>
@@ -517,6 +576,8 @@ export interface BrowserApi {
     status: () => Promise<McpStatus>
     permissions: () => Promise<McpProfilePermission[]>
     setPermission: (profileId: string, enabled: boolean) => Promise<McpProfilePermission[]>
+    resetPermissions: () => Promise<McpProfilePermission[]>
+    setPolicy: (patch: Partial<McpPolicy>) => Promise<McpStatus>
     start: () => Promise<McpConnection>
     stop: () => Promise<McpStatus>
     emergencyStop: () => Promise<McpStatus>
@@ -525,8 +586,26 @@ export interface BrowserApi {
   extensions: {
     list: () => Promise<BrowserExtension[]>
     importDirectory: () => Promise<BrowserExtension | null>
+    importWebStore: (url: string) => Promise<BrowserExtension>
     openSourceFolder: (id: string) => Promise<string>
     setGlobalEnabled: (id: string, enabled: boolean) => Promise<BrowserExtension>
     remove: (id: string) => Promise<void>
+  }
+  advertisements: {
+    status: () => Promise<AdvertisementStatus>
+    check: () => Promise<AdvertisementStatus>
+    open: (id: string) => Promise<void>
+  }
+  windowSync: {
+    status: () => Promise<WindowSyncStatus>
+    start: (options: WindowSyncStartOptions) => Promise<WindowSyncStatus>
+    stop: () => Promise<WindowSyncStatus>
+    tile: (profileIds: string[], layout: 'grid' | 'overlap', area: { x: number; y: number; width: number; height: number }) => Promise<void>
+    uniformSize: (mainProfileId: string, followerProfileIds: string[]) => Promise<void>
+    bringToFront: (profileIds: string[]) => Promise<void>
+    sameTabs: (mainProfileId: string, followerProfileIds: string[]) => Promise<void>
+    closeTabs: (profileIds: string[], mode: 'current' | 'others' | 'blank') => Promise<void>
+    visit: (profileIds: string[], url: string, newTab: boolean) => Promise<void>
+    onChanged: (listener: (status: WindowSyncStatus) => void) => () => void
   }
 }

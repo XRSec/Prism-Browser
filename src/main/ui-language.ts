@@ -30,6 +30,15 @@ function installMenu(): void {
   ]))
 }
 
+/** Returns the operating system's preferred languages and timezone for fingerprint seeding. */
+export function systemLocaleInfo(): { languages: string[]; timezone: string } {
+  let languages: string[] = []
+  try { languages = app.getPreferredSystemLanguages() } catch { /* ignore */ }
+  let timezone = ''
+  try { timezone = Intl.DateTimeFormat().resolvedOptions().timeZone ?? '' } catch { /* ignore */ }
+  return { languages, timezone }
+}
+
 /** UI preferences are separate from vault/profile fingerprint settings. */
 export async function initializeUiLanguage(): Promise<void> {
   const directory = app.getPath('userData')
@@ -47,6 +56,7 @@ export async function initializeUiLanguage(): Promise<void> {
   } catch { /* Missing or damaged preference falls back to the OS language. */ }
   setLocale(selected)
   installMenu()
+  ipcMain.handle('ui-language:system-locale', () => systemLocaleInfo())
   let pendingSave: Promise<unknown> = Promise.resolve()
   ipcMain.handle('ui-language:get', () => getLocale())
   ipcMain.handle('ui-language:set', async (_event, value: unknown) => {

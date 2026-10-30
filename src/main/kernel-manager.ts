@@ -94,6 +94,7 @@ export class KernelManager {
   private installingVersion: string | null = null
   private installAbort: AbortController | null = null
   private canUseProKernel: () => boolean = () => true
+  private lastProgress: KernelInstallProgress | null = null
 
   constructor(
     private readonly vaultPath: string,
@@ -318,6 +319,10 @@ export class KernelManager {
     const version = safeVersion(versionInput)
     if (this.installingVersion !== version || !this.installAbort) throw new Error('该内核当前没有正在进行的安装任务')
     this.installAbort.abort()
+  }
+
+  progress(): KernelInstallProgress | null {
+    return this.lastProgress ? { ...this.lastProgress } : null
   }
 
   async activate(versionInput: string): Promise<EngineStatus> {
@@ -764,13 +769,15 @@ export class KernelManager {
     totalBytes: number,
     message: string
   ): void {
-    this.onProgress({
+    const progress: KernelInstallProgress = {
       version: release.version,
       stage,
       receivedBytes,
       totalBytes,
       percent: totalBytes ? Math.min(100, Math.round(receivedBytes / totalBytes * 100)) : 0,
       message
-    })
+    }
+    this.lastProgress = progress
+    this.onProgress(progress)
   }
 }

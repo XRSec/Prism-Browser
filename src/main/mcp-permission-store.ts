@@ -1,10 +1,23 @@
 import { access, copyFile, mkdir, readFile, rename, writeFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
-import type { McpProfilePermission } from '../shared/types'
+import type { McpPolicy, McpProfilePermission } from '../shared/types'
+
+const DEFAULT_POLICY: McpPolicy = { enabled: false, defaultAccess: 'deny', allowProfileCreation: false }
+
+function validatePolicy(value: unknown): McpPolicy {
+  const p = value as Partial<McpPolicy>
+  if (!p || typeof p !== 'object' || Array.isArray(p)) throw new Error('MCP 访问策略格式无效')
+  return {
+    enabled: p.enabled === true,
+    defaultAccess: p.defaultAccess === 'allow' ? 'allow' : 'deny',
+    allowProfileCreation: p.allowProfileCreation === true
+  }
+}
 
 interface StoredPermissions {
-  schemaVersion: 1
+  schemaVersion: 1 | 2
   permissions: McpProfilePermission[]
+  policy?: McpPolicy
 }
 
 function validatePermission(value: unknown): McpProfilePermission {
@@ -19,6 +32,7 @@ export class McpPermissionStore {
   readonly path: string
   readonly backupPath: string
   private permissions = new Map<string, McpProfilePermission>()
+  private policy: McpPolicy = { ...DEFAULT_POLICY }
   private mutation: Promise<unknown> = Promise.resolve()
 
   constructor(vaultPath: string, private readonly now: () => Date = () => new Date()) {
@@ -48,7 +62,39 @@ export class McpPermissionStore {
     return [...this.permissions.values()].sort((first, second) => first.profileId.localeCompare(second.profileId)).map((item) => ({ ...item }))
   }
 
-  enabled(profileId: string): boolean { return this.permissions.get(profileId)?.enabled === true }
+  getPolicy(): McpPolicy { return { ...this.policy } }
+
+  enabled(profileId: string): boolean {
+    return this.policy.enabled && (this.permissions.get(profileId)?.enabled ?? this.policy.defaultAccess === 'allow')
+  }
+
+  override(profileId: string): boolean | undefined { return this.permissions.get(profileId)?.enabled }
+
+  setPolicy(patch: Partial<McpPolicy>): Promise<McpPolicy> {
+    return this.mutate(async () => {
+      this.policy = validatePolicy({ ...this.policy, ...patch })
+      await this.persist()
+      return this.getPolicy()
+    })
+  }
+
+  resetOverrides(): Promise<McpProfilePermission[]> {
+    return this.mutate(async () => {
+      this.permissions.clear()
+      await this.persist()
+      return this.list()
+    })
+  }
+
+  prune(keep: (profileId: string) => boolean): Promise<number> {
+    return this.mutate(async () => {
+      const orphaned = [...this.permissions.keys()].filter((profileId) => !keep(profileId))
+      if (!orphaned.length) return 0
+      for (const profileId of orphaned) this.permissions.delete(profileId)
+      await this.persist()
+      return orphaned.length
+    })
+  }
 
   set(profileId: string, enabled: boolean): Promise<McpProfilePermission[]> {
     return this.mutate(async () => {
@@ -74,10 +120,11 @@ export class McpPermissionStore {
 
   private async load(path: string): Promise<void> {
     const value = JSON.parse(await readFile(path, 'utf8')) as Partial<StoredPermissions>
-    if (value.schemaVersion !== 1 || !Array.isArray(value.permissions) || value.permissions.length > 1000) throw new Error('MCP 权限文件格式无效')
+    if (![1, 2].includes(value.schemaVersion as number) || !Array.isArray(value.permissions) || value.permissions.length > 1e5) throw new Error('MCP 权限文件格式无效')
     const permissions = value.permissions.map(validatePermission)
     if (new Set(permissions.map((item) => item.profileId)).size !== permissions.length) throw new Error('MCP 权限文件包含重复环境')
     this.permissions = new Map(permissions.map((item) => [item.profileId, item]))
+    this.policy = value.policy === undefined && value.schemaVersion === 1 ? { ...DEFAULT_POLICY } : validatePolicy(value.policy)
   }
 
   private async persist(backupExisting = true): Promise<void> {
@@ -87,7 +134,7 @@ export class McpPermissionStore {
       catch (error) { if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error }
     }
     const temporary = `${this.path}.tmp`
-    const value: StoredPermissions = { schemaVersion: 1, permissions: this.list() }
+    const value: StoredPermissions = { schemaVersion: 2, permissions: this.list(), policy: this.getPolicy() }
     await writeFile(temporary, `${JSON.stringify(value, null, 2)}\n`, { encoding: 'utf8', mode: 0o600 })
     await rename(temporary, this.path)
   }

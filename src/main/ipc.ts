@@ -28,6 +28,8 @@ import type { ProAgentManager } from './pro-agent-manager'
 import type { SchedulerManager } from './scheduler-manager'
 import type { McpControlManager } from './mcp-control-manager'
 import type { AnnouncementManager } from './announcement-manager'
+import type { AdvertisementManager } from './advertisement-manager'
+import type { WindowSyncManager } from './window-sync-manager'
 
 export const PRO_PURCHASE_URL = 'https://pay.ldxp.cn/item/q23itv'
 
@@ -48,9 +50,11 @@ interface IpcDependencies {
   scheduler: SchedulerManager
   mcp: McpControlManager
   announcements: AnnouncementManager
+  advertisements: AdvertisementManager
+  windowSync: WindowSyncManager
 }
 
-export function registerIpc({ profiles, settings, launcher, kernels, extensions, cookies, logger, backups, workspaceMigration, appSession, updater, licensing, automation, scheduler, mcp, announcements }: IpcDependencies): void {
+export function registerIpc({ profiles, settings, launcher, kernels, extensions, cookies, logger, backups, workspaceMigration, appSession, updater, licensing, automation, scheduler, mcp, announcements, advertisements, windowSync }: IpcDependencies): void {
   ipcMain.handle('profiles:list', () => profiles.list().map(publicProfile))
   ipcMain.handle('profiles:storage-health', () => profiles.storageHealth())
   ipcMain.handle('profiles:create', async (_event, draft: ProfileDraft) => publicProfile(await profiles.create(draft)))
@@ -428,4 +432,38 @@ export function registerIpc({ profiles, settings, launcher, kernels, extensions,
     if (await profiles.usesExtension(id)) throw new Error('该扩展仍被浏览器环境使用，请先从环境配置中移除')
     await extensions.remove(id)
   })
+  ipcMain.handle('extensions:import-web-store', async (_event, url: string) => {
+    return extensions.importWebStore(url, (fetchUrl, options) => fetch(fetchUrl, options))
+  })
+  ipcMain.handle('engine:cancel-install', (_event, version: string) => kernels.cancel(version))
+  ipcMain.handle('engine:install-progress', () => kernels.progress())
+  ipcMain.handle('engine:ensure-community', async () => {
+    const current = await locateBrowser(settings)
+    if (current.executable && current.fingerprintKernel) return current
+    if (launcher.hasRunning()) throw new Error('请先关闭全部浏览器环境再准备默认内核')
+    const bundled = await locateBundledBrowser()
+    if (bundled?.executable) {
+      return kernels.configure({ browserExecutable: '', fingerprintKernel: true, enginePreference: 'bundled' }, bundled.executable)
+    }
+    throw new Error('内置 Chromium 文件缺失或损坏，请重新安装完整的 Prism Browser 安装包')
+  })
+  ipcMain.handle('mcp:reset-permissions', () => mcp.resetPermissions())
+  ipcMain.handle('mcp:set-policy', async (_event, patch) => {
+    await mcp.setPolicy(patch)
+    return mcp.status(automation.status().state === 'running')
+  })
+  ipcMain.handle('advertisements:status', () => advertisements.status())
+  ipcMain.handle('advertisements:check', () => advertisements.check())
+  ipcMain.handle('advertisements:open', async (_event, id: string) => {
+    await shell.openExternal(advertisements.actionUrl(id))
+  })
+  ipcMain.handle('window-sync:status', () => windowSync.status())
+  ipcMain.handle('window-sync:start', (_event, options) => windowSync.start(options))
+  ipcMain.handle('window-sync:stop', () => windowSync.stop())
+  ipcMain.handle('window-sync:tile', (_event, profileIds, layout, area) => windowSync.tile(profileIds, layout, area))
+  ipcMain.handle('window-sync:uniform-size', (_event, mainProfileId, followerProfileIds) => windowSync.uniformSize(mainProfileId, followerProfileIds))
+  ipcMain.handle('window-sync:bring-to-front', (_event, profileIds) => windowSync.bringToFront(profileIds))
+  ipcMain.handle('window-sync:same-tabs', (_event, mainProfileId, followerProfileIds) => windowSync.sameTabs(mainProfileId, followerProfileIds))
+  ipcMain.handle('window-sync:close-tabs', (_event, profileIds, mode) => windowSync.closeTabs(profileIds, mode))
+  ipcMain.handle('window-sync:visit', (_event, profileIds, url, newTab) => windowSync.visit(profileIds, url, newTab))
 }

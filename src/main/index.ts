@@ -27,6 +27,8 @@ import { McpPermissionStore } from './mcp-permission-store'
 import { McpAuditLog } from './mcp-audit'
 import { McpControlManager } from './mcp-control-manager'
 import { AnnouncementManager } from './announcement-manager'
+import { AdvertisementManager } from './advertisement-manager'
+import { WindowSyncManager, MacWindowSyncBridge, WindowsWindowSyncBridge } from './window-sync-manager'
 
 let mainWindow: BrowserWindow | null = null
 let launcher: BrowserLauncher | null = null
@@ -35,6 +37,7 @@ let appSession: AppSessionTracker | null = null
 let automation: ProAgentManager | null = null
 let scheduler: SchedulerManager | null = null
 let mcp: McpControlManager | null = null
+let windowSync: WindowSyncManager | null = null
 
 if (process.platform === 'win32') app.setAppUserModelId('com.prismbrowser.desktop')
 
@@ -126,6 +129,7 @@ app.whenReady().then(async () => {
     mainWindow?.webContents.send('updates:changed', status)
   }, logger)
   const announcements = new AnnouncementManager(process.resourcesPath, app.getVersion(), logger)
+  const advertisements = new AdvertisementManager(vaultPath, process.resourcesPath)
   const licensing = new LicenseManager(
     vaultPath,
     process.resourcesPath,
@@ -147,6 +151,16 @@ app.whenReady().then(async () => {
     (status) => mainWindow?.webContents.send('mcp:changed', status)
   )
   await mcp.initialize()
+  const addressBarBridge = process.platform === 'darwin'
+    ? new MacWindowSyncBridge(process.resourcesPath, logger)
+    : process.platform === 'win32'
+      ? new WindowsWindowSyncBridge(process.resourcesPath, logger)
+      : undefined
+  windowSync = new WindowSyncManager(
+    launcher, licensing,
+    (status) => mainWindow?.webContents.send('window-sync:changed', status),
+    logger, process.platform, Math.random, addressBarBridge
+  )
   automation = new ProAgentManager(
     profiles,
     launcher,
@@ -167,7 +181,7 @@ app.whenReady().then(async () => {
     logger
   )
   await scheduler.initialize()
-  registerIpc({ profiles, settings, launcher, kernels, extensions, cookies, logger, backups, workspaceMigration, appSession, updater, licensing, automation, scheduler, mcp, announcements })
+  registerIpc({ profiles, settings, launcher, kernels, extensions, cookies, logger, backups, workspaceMigration, appSession, updater, licensing, automation, scheduler, mcp, announcements, advertisements, windowSync })
   mainWindow = createWindow()
   if (app.isPackaged && process.env.PRISM_E2E !== '1') {
     setTimeout(() => void updater.check().catch(() => undefined), 10_000)
@@ -197,7 +211,7 @@ app.on('before-quit', (event) => {
   event.preventDefault()
   const current = launcher
   launcher = null
-  void Promise.allSettled([scheduler?.shutdown() ?? Promise.resolve(), mcp?.shutdown() ?? Promise.resolve()]).then(() => Promise.allSettled([
+  void Promise.allSettled([scheduler?.shutdown() ?? Promise.resolve(), mcp?.shutdown() ?? Promise.resolve(), windowSync?.stop() ?? Promise.resolve()]).then(() => Promise.allSettled([
     current.closeAll(), automation?.stop(false) ?? Promise.resolve()
   ])).finally(async () => {
     logger?.info('Prism Browser 已退出')
