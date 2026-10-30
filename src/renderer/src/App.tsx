@@ -887,9 +887,13 @@ export default function App() {
   return (
     <Layout className="app-shell">
       {contextHolder}
-      <Sider width={224} className="sidebar">
+      <Sider width={235} className="sidebar">
         <div className="brand">
-          <div className="brand-mark">P</div>
+          <div className="brand-mark">
+            <svg viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
+              <path d="M7 25V7h9c7 0 11 4 9 10-1 4-5 6-10 6h-3v-6h4c3 0 5-1 5-3s-2-3-5-3h-3v14z"/>
+            </svg>
+          </div>
           <div><strong>Prism</strong><span>Browser</span></div>
         </div>
         <div className="sidebar-section-label">{t("工作空间")}</div>
@@ -934,8 +938,8 @@ export default function App() {
         <Content className="content">
           <header className="page-header">
             <div>
-              <span className="page-kicker">{t("工作空间")}</span>
-              <Typography.Title level={2}>{t("浏览器环境")}</Typography.Title>
+              <span className="page-kicker">{t("工作空间 / 本机")}</span>
+              <Typography.Title level={2}>{t("浏览器环境")}<span className="heading-count">{profiles.length}</span></Typography.Title>
               <Typography.Text type="secondary">{t("每个环境的数据、指纹和网络设置彼此独立。")}</Typography.Text>
             </div>
             <Space wrap className="header-actions">
