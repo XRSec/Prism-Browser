@@ -46,8 +46,6 @@ export class McpControlManager {
   }
 
   async setPolicy(patch: Partial<McpPolicy>): Promise<McpStatus> {
-    if ((patch?.enabled === true || (patch as any)?.defaultAccess === 'allow' || (patch as any)?.allowProfileCreation === true) && !this.licensing.has('mcp'))
-      throw new Error('本地 AI 控制需要 Prism Pro 授权')
     await this.permissions.setPolicy(patch)
     this.audit.record({ action: 'policy-update', outcome: 'success' })
     this.changed()
@@ -55,7 +53,6 @@ export class McpControlManager {
   }
 
   async resetPermissions(): Promise<McpProfilePermission[]> {
-    if (!this.licensing.has('mcp')) throw new Error('本地 AI 控制需要 Prism Pro 授权')
     const result = await this.permissions.resetOverrides()
     this.audit.record({ action: 'permission-inherit', outcome: 'success' })
     this.changed()
