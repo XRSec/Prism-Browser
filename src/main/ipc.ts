@@ -323,6 +323,11 @@ export function registerIpc({ profiles, settings, launcher, kernels, extensions,
     const [managed, bundled] = await Promise.all([kernels.installed(), listBundledBrowsers()])
     return mergeKernelCatalog(managed, bundled)
   })
+  ipcMain.handle('engine:releases', async () => {
+    const [managed, bundled] = await Promise.all([kernels.releases(), listBundledBrowsers()])
+    return mergeKernelCatalog(managed, bundled)
+  })
+  ipcMain.handle('engine:install', (_event, version: string) => kernels.install(version))
   ipcMain.handle('engine:activate', async (_event, version: string) => {
     const bundled = await locateBundledBrowser(process.resourcesPath, version)
     if (!bundled?.executable) return kernels.activate(version)

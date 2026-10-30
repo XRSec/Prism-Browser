@@ -520,6 +520,8 @@ export interface BrowserApi {
     importLocal: () => Promise<EngineStatus>
     useSystem: () => Promise<EngineStatus>
     installed: () => Promise<KernelRelease[]>
+    releases: () => Promise<KernelRelease[]>
+    install: (version: string) => Promise<EngineStatus>
     activate: (version: string) => Promise<EngineStatus>
     rollbackAvailable: () => Promise<boolean>
     rollback: () => Promise<EngineStatus>

@@ -1,6 +1,6 @@
 import { t, translateMessage as mt } from '../../shared/i18n'
-import { DeleteOutlined, EditOutlined, FolderAddOutlined, ReloadOutlined } from '@ant-design/icons'
-import { Alert, Button, List, Modal, Popconfirm, Space, Spin, Switch, Tag, Typography, message } from 'antd'
+import { CloudDownloadOutlined, DeleteOutlined, EditOutlined, FolderAddOutlined, ReloadOutlined } from '@ant-design/icons'
+import { Alert, Button, Form, Input, List, Modal, Popconfirm, Space, Spin, Switch, Tag, Typography, message } from 'antd'
 import { useEffect, useState } from 'react'
 import type { BrowserExtension } from '../../shared/types'
 
@@ -18,6 +18,9 @@ function errorText(error: unknown): string {
 export function ExtensionManagerModal({ open, extensions, onClose, onChanged }: ExtensionManagerModalProps) {
   const [loading, setLoading] = useState(false)
   const [importing, setImporting] = useState(false)
+  const [importingWebStore, setImportingWebStore] = useState(false)
+  const [webStoreModalOpen, setWebStoreModalOpen] = useState(false)
+  const [webStoreUrl, setWebStoreUrl] = useState('')
   const [opening, setOpening] = useState<string | null>(null)
   const [removing, setRemoving] = useState<string | null>(null)
   const [toggling, setToggling] = useState<string | null>(null)
@@ -49,6 +52,21 @@ export function ExtensionManagerModal({ open, extensions, onClose, onChanged }: 
       messageApi.error(errorText(error))
     } finally {
       setImporting(false)
+    }
+  }
+
+  async function importWebStore(): Promise<void> {
+    if (!webStoreUrl.trim()) return
+    setImportingWebStore(true)
+    try {
+      const imported = await window.browserApi.extensions.importWebStore(webStoreUrl.trim())
+      onChanged([...extensions.filter((item) => item.id !== imported.id), imported])
+      setWebStoreModalOpen(false)
+      setWebStoreUrl('')
+    } catch (error) {
+      messageApi.error(errorText(error))
+    } finally {
+      setImportingWebStore(false)
     }
   }
 
@@ -92,7 +110,7 @@ export function ExtensionManagerModal({ open, extensions, onClose, onChanged }: 
     }
   }
 
-  return (
+  return (<>
     <Modal open={open} title={t("浏览器扩展")} width={720} footer={null} onCancel={onClose} destroyOnHidden>
       {contextHolder}
       <Alert
@@ -106,6 +124,7 @@ export function ExtensionManagerModal({ open, extensions, onClose, onChanged }: 
         <Space>
           <Button icon={<ReloadOutlined />} loading={loading} onClick={() => void refresh()}>{t("刷新")}</Button>
           <Button type="primary" icon={<FolderAddOutlined />} loading={importing} onClick={() => void importDirectory()}>{t("导入本地扩展")}</Button>
+          <Button type="primary" icon={<CloudDownloadOutlined />} onClick={() => setWebStoreModalOpen(true)}>{t("从 Chrome 商店安装")}</Button>
         </Space>
       </div>
       <Spin spinning={loading && extensions.length === 0}>
@@ -156,5 +175,26 @@ export function ExtensionManagerModal({ open, extensions, onClose, onChanged }: 
       </Spin>
       <Typography.Paragraph type="secondary" style={{ marginTop: 12, marginBottom: 0 }}>{t("“全局启用”会让所有现有及以后新建的环境加载该扩展；扩展开关或源码修改需关闭并重新打开环境后生效。")}</Typography.Paragraph>
     </Modal>
-  )
+    <Modal
+      open={webStoreModalOpen}
+      title={t("从 Chrome 商店安装扩展")}
+      okText={t("安装")}
+      cancelText={t("取消")}
+      confirmLoading={importingWebStore}
+      onOk={() => void importWebStore()}
+      onCancel={() => { setWebStoreModalOpen(false); setWebStoreUrl('') }}
+      destroyOnHidden
+    >
+      <Form layout="vertical">
+        <Form.Item label={t("Chrome 商店扩展链接")} extra={t("请粘贴 Chrome Web Store 扩展页面地址")}>
+          <Input
+            value={webStoreUrl}
+            onChange={(e) => setWebStoreUrl(e.target.value)}
+            placeholder="https://chrome.google.com/webstore/detail/..."
+            onPressEnter={() => void importWebStore()}
+          />
+        </Form.Item>
+      </Form>
+    </Modal>
+  </>)
 }

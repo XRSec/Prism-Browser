@@ -1,10 +1,11 @@
 import { contextBridge, ipcRenderer } from 'electron'
-import type { BrowserApi, BrowserProfileView, ProfileBatchClassification, ProfileDraft, ProfileLaunchOptions } from '../shared/types'
+import type { BrowserApi, BrowserProfileView, ProfileBatchClassification, ProfileDraft, ProfileLaunchOptions, WindowSyncStartOptions, WindowSyncStatus } from '../shared/types'
 
 const api: BrowserApi = {
   uiLanguage: {
     get: () => ipcRenderer.invoke('ui-language:get'),
-    set: (locale) => ipcRenderer.invoke('ui-language:set', locale)
+    set: (locale) => ipcRenderer.invoke('ui-language:set', locale),
+    systemLocale: () => ipcRenderer.invoke('ui-language:system-locale')
   },
   profiles: {
     list: () => ipcRenderer.invoke('profiles:list'),
@@ -22,8 +23,8 @@ const api: BrowserApi = {
     clearCache: (id: string) => ipcRenderer.invoke('profiles:clear-cache', id),
     exportBackup: (id: string) => ipcRenderer.invoke('profiles:export-backup', id),
     importBackup: () => ipcRenderer.invoke('profiles:import-backup'),
-    exportWorkspace: (password: string) => ipcRenderer.invoke('profiles:export-workspace', password),
-    importWorkspace: (password: string, conflictPolicy: 'rename' | 'skip') => ipcRenderer.invoke('profiles:import-workspace', password, conflictPolicy),
+    exportWorkspace: (password) => ipcRenderer.invoke('profiles:export-workspace', password),
+    importWorkspace: (password, conflictPolicy: 'rename' | 'skip') => ipcRenderer.invoke('profiles:import-workspace', password, conflictPolicy),
     trash: () => ipcRenderer.invoke('profiles:trash'),
     restore: (trashId: string) => ipcRenderer.invoke('profiles:restore', trashId),
     purgeTrash: (trashId: string) => ipcRenderer.invoke('profiles:purge-trash', trashId),
@@ -56,11 +57,16 @@ const api: BrowserApi = {
     importLocal: () => ipcRenderer.invoke('engine:import-local'),
     useSystem: () => ipcRenderer.invoke('engine:use-system'),
     installed: () => ipcRenderer.invoke('engine:installed'),
+    releases: () => ipcRenderer.invoke('engine:releases'),
+    install: (version: string) => ipcRenderer.invoke('engine:install', version),
     activate: (version: string) => ipcRenderer.invoke('engine:activate', version),
     rollbackAvailable: () => ipcRenderer.invoke('engine:rollback-available'),
     rollback: () => ipcRenderer.invoke('engine:rollback'),
     remove: (version: string) => ipcRenderer.invoke('engine:remove', version),
-    verify: (version: string) => ipcRenderer.invoke('engine:verify', version)
+    verify: (version: string) => ipcRenderer.invoke('engine:verify', version),
+    cancelInstall: (version: string) => ipcRenderer.invoke('engine:cancel-install', version),
+    installProgress: () => ipcRenderer.invoke('engine:install-progress'),
+    ensureCommunity: () => ipcRenderer.invoke('engine:ensure-community')
   },
   updates: {
     status: () => ipcRenderer.invoke('updates:status'),
@@ -125,6 +131,8 @@ const api: BrowserApi = {
     status: () => ipcRenderer.invoke('mcp:status'),
     permissions: () => ipcRenderer.invoke('mcp:permissions'),
     setPermission: (profileId, enabled) => ipcRenderer.invoke('mcp:set-permission', profileId, enabled),
+    resetPermissions: () => ipcRenderer.invoke('mcp:reset-permissions'),
+    setPolicy: (patch) => ipcRenderer.invoke('mcp:set-policy', patch),
     start: () => ipcRenderer.invoke('mcp:start'),
     stop: () => ipcRenderer.invoke('mcp:stop'),
     emergencyStop: () => ipcRenderer.invoke('mcp:emergency-stop'),
@@ -137,9 +145,31 @@ const api: BrowserApi = {
   extensions: {
     list: () => ipcRenderer.invoke('extensions:list'),
     importDirectory: () => ipcRenderer.invoke('extensions:import-directory'),
+    importWebStore: (url: string) => ipcRenderer.invoke('extensions:import-web-store', url),
     openSourceFolder: (id: string) => ipcRenderer.invoke('extensions:open-source-folder', id),
     setGlobalEnabled: (id: string, enabled: boolean) => ipcRenderer.invoke('extensions:set-global-enabled', id, enabled),
     remove: (id: string) => ipcRenderer.invoke('extensions:remove', id)
+  },
+  advertisements: {
+    status: () => ipcRenderer.invoke('advertisements:status'),
+    check: () => ipcRenderer.invoke('advertisements:check'),
+    open: (id: string) => ipcRenderer.invoke('advertisements:open', id)
+  },
+  windowSync: {
+    status: () => ipcRenderer.invoke('window-sync:status'),
+    start: (options: WindowSyncStartOptions) => ipcRenderer.invoke('window-sync:start', options),
+    stop: () => ipcRenderer.invoke('window-sync:stop'),
+    tile: (profileIds, layout, area) => ipcRenderer.invoke('window-sync:tile', profileIds, layout, area),
+    uniformSize: (mainProfileId, followerProfileIds) => ipcRenderer.invoke('window-sync:uniform-size', mainProfileId, followerProfileIds),
+    bringToFront: (profileIds) => ipcRenderer.invoke('window-sync:bring-to-front', profileIds),
+    sameTabs: (mainProfileId, followerProfileIds) => ipcRenderer.invoke('window-sync:same-tabs', mainProfileId, followerProfileIds),
+    closeTabs: (profileIds, mode) => ipcRenderer.invoke('window-sync:close-tabs', profileIds, mode),
+    visit: (profileIds, url, newTab) => ipcRenderer.invoke('window-sync:visit', profileIds, url, newTab),
+    onChanged: (listener: (status: WindowSyncStatus) => void) => {
+      const handler = (_event: Electron.IpcRendererEvent, status: WindowSyncStatus): void => listener(status)
+      ipcRenderer.on('window-sync:changed', handler)
+      return () => ipcRenderer.removeListener('window-sync:changed', handler)
+    }
   }
 }
 
