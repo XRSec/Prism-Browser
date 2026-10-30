@@ -39,7 +39,7 @@ let scheduler: SchedulerManager | null = null
 let mcp: McpControlManager | null = null
 let windowSync: WindowSyncManager | null = null
 
-if (process.platform === 'win32') app.setAppUserModelId('com.prismbrowser.desktop')
+if (process.platform === 'win32') app.setAppUserModelId('com.xrsec.prismbrowser')
 
 if (process.env.PRISM_E2E === '1' && process.env.PRISM_E2E_USER_DATA && isAbsolute(process.env.PRISM_E2E_USER_DATA)) {
   app.setPath('userData', process.env.PRISM_E2E_USER_DATA)

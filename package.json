@@ -67,7 +67,7 @@
     "nanoid": "3.3.18"
   },
   "build": {
-    "appId": "com.prismbrowser.desktop",
+    "appId": "com.xrsec.prismbrowser",
     "productName": "Prism Browser",
     "copyright": "Copyright © 2026 Prism Browser. All rights reserved.",
     "artifactName": "${productName}-${version}-${os}-${arch}.${ext}",
