@@ -1,0 +1,7 @@
+{
+  "schemaVersion": 1,
+  "product": "prism-pro",
+  "activationBaseUrl": "https://jh.dfarm.vip/prism-license/",
+  "licensePublicKey": "-----BEGIN PUBLIC KEY-----\nMCowBQYDK2VwAyEA4K7wuE8zQA7OjYD3heFL+V97ariJnc7p1+hu0tzrGf8=\n-----END PUBLIC KEY-----\n",
+  "agentReleasePublicKey": "-----BEGIN PUBLIC KEY-----\nMCowBQYDK2VwAyEADakO1VODAesQReY3IPxgTABVXKfAMK3NKXYfjNBFpAM=\n-----END PUBLIC KEY-----\n"
+}

@@ -3,7 +3,7 @@ import { dirname, join } from 'node:path'
 import { safeErrorText } from './redaction'
 
 export interface McpAuditEvent {
-  action: 'permission-enable' | 'permission-disable' | 'profiles-list' | 'profile-status' | 'profile-launch' | 'profile-close'
+  action: 'permission-enable' | 'permission-disable' | 'permission-inherit' | 'policy-update' | 'profiles-list' | 'profile-status' | 'profile-launch' | 'profile-close'
     | 'page-open' | 'page-read' | 'page-click' | 'page-type'
     | 'session-start' | 'session-stop' | 'emergency-stop'
   outcome: 'allowed' | 'success' | 'failure'

@@ -19,6 +19,7 @@ npx electron-vite build
 echo "==> 打包 macOS app（本地签名，跳过 timestamp）..."
 CSC_NAME="$CERT_NAME" \
     npx electron-builder --mac dir \
+    --config.mac.type=development \
     --config.mac.hardenedRuntime=false \
     --config.mac.notarize=false
 

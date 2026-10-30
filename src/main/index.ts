@@ -157,7 +157,7 @@ app.whenReady().then(async () => {
       ? new WindowsWindowSyncBridge(process.resourcesPath, logger)
       : undefined
   windowSync = new WindowSyncManager(
-    launcher, licensing,
+    launcher as any, licensing,
     (status) => mainWindow?.webContents.send('window-sync:changed', status),
     logger, process.platform, Math.random, addressBarBridge
   )

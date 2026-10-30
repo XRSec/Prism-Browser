@@ -174,7 +174,7 @@ async function readBoundedBody(response: Response): Promise<Buffer> {
   if (Number.isFinite(declared) && declared > MAX_CRX_BYTES) throw new Error('商店扩展包不能超过 200 MB')
   if (!response.body) throw new Error('Chrome 应用商店未返回扩展内容')
   const chunks: Buffer[] = []; let bytes = 0
-  for await (const chunk of response.body as AsyncIterable<Uint8Array>) {
+  for await (const chunk of response.body as unknown as AsyncIterable<Uint8Array>) {
     bytes += chunk.byteLength
     if (bytes > MAX_CRX_BYTES) throw new Error('商店扩展包不能超过 200 MB')
     chunks.push(Buffer.from(chunk))

@@ -1,6 +1,6 @@
-import React, { useEffect, useSyncExternalStore } from 'react'
+import React, { useEffect, useState, useSyncExternalStore } from 'react'
 import ReactDOM from 'react-dom/client'
-import { ConfigProvider } from 'antd'
+import { ConfigProvider, theme } from 'antd'
 import zhCN from 'antd/locale/zh_CN'
 import zhTW from 'antd/locale/zh_TW'
 import en from 'antd/locale/en_US'
@@ -18,28 +18,65 @@ import { getLocale, resolveLocale, setLocale, subscribeLocale } from '../../shar
 import App from './App'
 import './styles.css'
 
+const COLOR_MODE_STORAGE_KEY = 'prism-browser-color-mode'
+
+function initialColorMode(): 'light' | 'dark' {
+  const mode = window.localStorage.getItem(COLOR_MODE_STORAGE_KEY) === 'dark' ? 'dark' : 'light'
+  document.documentElement.dataset.theme = mode
+  document.documentElement.style.colorScheme = mode
+  return mode
+}
+
 function PrismApplication() {
+  const [colorMode, setColorMode] = useState<'light' | 'dark'>(initialColorMode)
   const locale = useSyncExternalStore(subscribeLocale, getLocale)
-  useEffect(() => { document.documentElement.lang = locale }, [locale])
+
+  useEffect(() => {
+    document.documentElement.lang = locale
+  }, [locale])
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = colorMode
+    document.documentElement.style.colorScheme = colorMode
+    window.localStorage.setItem(COLOR_MODE_STORAGE_KEY, colorMode)
+  }, [colorMode])
+
+  const dark = colorMode === 'dark'
+
   return (
     <ConfigProvider
       locale={{ 'zh-CN': zhCN, 'zh-TW': zhTW, en, ru, vi, th, 'pt-BR': ptBR, fr, uk, es, tr, ja, hi }[locale]}
       theme={{
+        algorithm: dark ? theme.darkAlgorithm : theme.defaultAlgorithm,
         token: {
-          colorPrimary: '#5965e8',
-          colorText: '#1f2430',
-          borderRadius: 10,
+          colorPrimary: dark ? '#7eaa97' : '#315c50',
+          colorText: dark ? '#e7ebe5' : '#262a28',
+          colorTextSecondary: dark ? '#a4ada4' : '#777c76',
+          colorBgBase: dark ? '#171c1a' : '#ffffff',
+          colorBgLayout: dark ? '#121715' : '#f8f9f6',
+          colorBgContainer: dark ? '#202724' : '#ffffff',
+          colorBorder: dark ? '#3b4640' : '#e1e5dd',
+          colorBorderSecondary: dark ? '#303934' : '#eceee8',
+          colorSuccess: dark ? '#76ab83' : '#44745a',
+          colorInfo: dark ? '#7eaa97' : '#315c50',
+          borderRadius: 8,
+          fontSize: 14,
+          fontSizeSM: 12,
           fontFamily: "Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
         },
         components: {
-          Button: { controlHeight: 38 },
-          Input: { controlHeight: 38 },
-          Select: { controlHeight: 38 },
-          Table: { headerBg: '#f8f9fc', headerColor: '#687083' }
+          Button: { controlHeight: 36 },
+          Input: { controlHeight: 36 },
+          Select: { controlHeight: 36 },
+          Table: {
+            headerBg: dark ? '#1c231f' : '#fafbf8',
+            headerColor: dark ? '#aeb7ae' : '#848980',
+            rowHoverBg: dark ? '#27312c' : '#f6f9f1'
+          }
         }
       }}
     >
-      <App />
+      <App colorMode={colorMode} onColorModeChange={setColorMode} />
     </ConfigProvider>
   )
 }

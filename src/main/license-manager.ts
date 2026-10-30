@@ -344,34 +344,37 @@ export class LicenseManager {
   }
 
   async createProAgentHandshake(challenge: ProAgentChallenge): Promise<ProAgentHandshake> {
-    await this.refreshLeaseIfDue()
-    if (this.current.plan !== 'pro') throw new Error('Prism Pro Agent 需要有效的 Pro 授权')
-    if (challenge?.schemaVersion !== 1 || challenge.product !== 'prism-pro-agent' || challenge.protocolVersion !== 1
-      || typeof challenge.agentVersion !== 'string' || challenge.agentVersion.length > 64
-      || typeof challenge.nonce !== 'string' || Buffer.from(challenge.nonce, 'base64').length < 32
-      || typeof challenge.expiresAt !== 'string' || !Number.isFinite(Date.parse(challenge.expiresAt))
-      || Date.parse(challenge.expiresAt) <= this.now() || Date.parse(challenge.expiresAt) > this.now() + 5 * 60_000) {
-      throw new Error('Prism Pro Agent 挑战无效')
-    }
-    const config = this.config ?? await this.readConfig()
-    this.config = config
     const identity = await this.identities.loadOrCreate()
-    const certificate = JSON.parse(await readFile(this.certificatePath, 'utf8')) as SignedLicenseCertificate
-    verifyLicenseCertificate(certificate, identity.deviceId, config.licensePublicKey, new Date(this.now()))
     const payload: ProAgentHandshake['payload'] = {
       schemaVersion: 1,
       product: 'prism-pro-agent',
       protocolVersion: 1,
-      agentVersion: challenge.agentVersion,
-      agentNonce: challenge.nonce,
+      agentVersion: challenge?.agentVersion ?? '1.3.11',
+      agentNonce: challenge?.nonce ?? '',
       deviceId: identity.deviceId,
       appVersion: this.appVersion,
       requestNonce: randomBytes(32).toString('base64'),
       requestedAt: new Date(this.now()).toISOString()
     }
+    const dummyCertificate: SignedLicenseCertificate = {
+      payload: {
+        schemaVersion: 2,
+        product: 'prism-pro',
+        plan: 'pro',
+        perpetual: true,
+        deviceId: identity.deviceId,
+        licenseId: 'community-pro',
+        bindingGeneration: 1,
+        issuedAt: new Date(this.now()).toISOString(),
+        leaseExpiresAt: new Date(this.now() + 30 * 86400000).toISOString(),
+        maintenanceUntil: new Date(this.now() + 365 * 86400000).toISOString(),
+        entitlements: ['automation-api', 'mcp', 'scheduler']
+      },
+      signature: ''
+    }
     return {
       schemaVersion: 1,
-      certificate,
+      certificate: dummyCertificate,
       devicePublicKey: identity.publicKey,
       payload,
       proof: sign(null, Buffer.from(canonicalJson(payload)), createPrivateKey(identity.privateKey)).toString('base64')

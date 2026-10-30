@@ -14,6 +14,7 @@ import {
   EditOutlined,
   FolderOutlined,
   GlobalOutlined,
+  MoonOutlined,
   MoreOutlined,
   PlusOutlined,
   PoweroffOutlined,
@@ -25,6 +26,8 @@ import {
   SettingOutlined,
   StarFilled,
   StarOutlined,
+  SunOutlined,
+  SyncOutlined,
   TagsOutlined,
   UploadOutlined,
   WarningFilled
@@ -50,7 +53,7 @@ import {
   type TableColumnsType
 } from 'antd'
 import { useEffect, useMemo, useState, useSyncExternalStore } from 'react'
-import type { AnnouncementStatus, AppRecoveryStatus, AppUpdateStatus, AutomationStatus, BrowserCrashRecord, BrowserExtension, BrowserProfileView, EngineStatus, KernelRelease, LaunchDiagnosticReport, LicenseStatus, McpProfilePermission, McpStatus, ProfileDraft, ProfileStoreHealth, ScheduledTask, StorageOverview } from '../../shared/types'
+import type { AnnouncementStatus, AppRecoveryStatus, AppUpdateStatus, AutomationStatus, BrowserCrashRecord, BrowserExtension, BrowserProfileView, EngineStatus, KernelRelease, LaunchDiagnosticReport, LicenseStatus, McpProfilePermission, McpStatus, ProfileDraft, ProfileStoreHealth, ScheduledTask, StorageOverview, WindowSyncStatus } from '../../shared/types'
 import { ProfileEditor } from './ProfileEditor'
 import { KernelManagerModal } from './KernelManagerModal'
 import { ProfileDataModal } from './ProfileDataModal'
@@ -65,6 +68,8 @@ import { WorkspaceMigrationModal } from './WorkspaceMigrationModal'
 import { AutomationModal } from './AutomationModal'
 import { SchedulerModal } from './SchedulerModal'
 import { McpModal } from './McpModal'
+import { WindowSyncModal } from './WindowSyncModal'
+import { AdvertisementRail } from './AdvertisementRail'
 import { effectiveNetworkIdentity, geoConflictConfirmationMessage } from '../../shared/network-identity'
 import { kernelRequiresPro } from '../../shared/kernel-policy'
 import { orderBatchLaunchProfiles, waitForBatchLaunchGap } from './batch-launch-order'
@@ -112,7 +117,12 @@ function formatBytes(bytes: number): string {
   return `${(bytes / 1024 / 1024 / 1024).toFixed(2)} GB`
 }
 
-export default function App() {
+interface AppProps {
+  colorMode?: 'light' | 'dark'
+  onColorModeChange?: (mode: 'light' | 'dark') => void
+}
+
+export default function App({ colorMode = 'light', onColorModeChange = () => {} }: AppProps) {
   const locale = useSyncExternalStore(subscribeLocale, getLocale)
   const [profiles, setProfiles] = useState<BrowserProfileView[]>([])
   const [engine, setEngine] = useState<EngineStatus | null>(null)
@@ -165,6 +175,8 @@ export default function App() {
   const [mcpOpen, setMcpOpen] = useState(false)
   const [mcpStatus, setMcpStatus] = useState<McpStatus | null>(null)
   const [mcpPermissions, setMcpPermissions] = useState<McpProfilePermission[]>([])
+  const [windowSyncOpen, setWindowSyncOpen] = useState(false)
+  const [windowSyncStatus, setWindowSyncStatus] = useState<WindowSyncStatus | null>(null)
   const [messageApi, contextHolder] = message.useMessage()
 
   async function applyLicenseStatus(status: LicenseStatus, knownEngine?: EngineStatus): Promise<void> {
@@ -197,9 +209,10 @@ export default function App() {
       window.browserApi.automation.status(),
       window.browserApi.scheduler.list(),
       window.browserApi.mcp.status(),
-      window.browserApi.mcp.permissions()
+      window.browserApi.mcp.permissions(),
+      window.browserApi.windowSync.status()
     ])
-      .then(([items, engineStatus, extensionItems, storageHealth, installedKernels, bundled, recoveryStatus, applicationUpdate, licenseStatus, localAutomation, tasks, localMcp, permissions]) => {
+      .then(([items, engineStatus, extensionItems, storageHealth, installedKernels, bundled, recoveryStatus, applicationUpdate, licenseStatus, localAutomation, tasks, localMcp, permissions, syncStatus]) => {
         setProfiles(items)
         setEngine(engineStatus)
         setExtensions(extensionItems)
@@ -213,6 +226,7 @@ export default function App() {
         setScheduledTasks(tasks)
         setMcpStatus(localMcp)
         setMcpPermissions(permissions)
+        setWindowSyncStatus(syncStatus)
       })
       .catch((error) => messageApi.error(humanError(error)))
       .finally(() => setLoading(false))
@@ -231,6 +245,7 @@ export default function App() {
     const removeAutomationListener = window.browserApi.automation.onChanged(setAutomationStatus)
     const removeSchedulerListener = window.browserApi.scheduler.onChanged(setScheduledTasks)
     const removeMcpListener = window.browserApi.mcp.onChanged(setMcpStatus)
+    const removeWindowSyncListener = window.browserApi.windowSync.onChanged(setWindowSyncStatus)
     return () => {
       removeProfileListener()
       removeUpdateListener()
@@ -238,6 +253,7 @@ export default function App() {
       removeAutomationListener()
       removeSchedulerListener()
       removeMcpListener()
+      removeWindowSyncListener()
     }
   }, [messageApi])
 
@@ -773,7 +789,9 @@ export default function App() {
       sorter: profileTableSorters.environment,
       render: (_value, profile) => (
         <div className="profile-name-cell">
-          <span className="profile-dot" style={{ background: profile.color }} />
+          <span className="profile-avatar" style={{ color: profile.color, background: `${profile.color}14` }}>
+            <GlobalOutlined />
+          </span>
           <Button
             type="text"
             size="small"
@@ -783,7 +801,10 @@ export default function App() {
             onClick={() => void toggleFavorite(profile)}
           />
           <div>
-            <Typography.Text strong>#{profile.serialNumber} · {profile.name}</Typography.Text>
+            <Typography.Text strong>
+              <span className="profile-serial">{String(profile.serialNumber).padStart(2, '0')}</span>
+              {profile.name}
+            </Typography.Text>
             {profile.note && <Typography.Text type="secondary" className="profile-subtitle">{profile.note}</Typography.Text>}
           </div>
         </div>
@@ -903,50 +924,60 @@ export default function App() {
         </button>
         <div className="sidebar-section-label secondary">{t("工具与自动化")}</div>
         <button className="nav-item sidebar-action" onClick={() => setExtensionManagerOpen(true)}>
-          <AppstoreAddOutlined /><span>{t("浏览器扩展")}</span><b>{extensions.length || ''}</b>
+          <AppstoreAddOutlined /><span>{t("浏览器扩展")}</span><b>{extensions.length || '1'}</b>
         </button>
         <button className="nav-item sidebar-action" onClick={() => setUpdateModalOpen(true)}>
-          <DownloadOutlined /><span>{t("应用更新")}</span><b>{announcementStatus?.state === 'available' ? '1' : ''}</b>
+          <DownloadOutlined /><span>{t("应用更新")}</span><b>{announcementStatus?.state === 'available' ? '1' : '—'}</b>
         </button>
         <button className="nav-item sidebar-action" onClick={() => setAutomationOpen(true)}>
-          <ApiOutlined /><span>{t("自动化 API")}</span><b>{automationStatus?.state === 'running' ? 'ON' : ''}</b>
+          <ApiOutlined /><span>{t("自动化 API")}</span><b>{automationStatus?.state === 'running' ? 'ON' : '—'}</b>
         </button>
         <button className="nav-item sidebar-action" onClick={() => setSchedulerOpen(true)}>
-          <ClockCircleOutlined /><span>{t("计划任务")}</span><b>{scheduledTasks.filter((task) => task.enabled).length || ''}</b>
+          <ClockCircleOutlined /><span>{t("计划任务")}</span><b>{scheduledTasks.filter((task) => task.enabled).length || '—'}</b>
         </button>
         <button className="nav-item sidebar-action" onClick={() => setMcpOpen(true)}>
-          <RobotOutlined /><span>{t("本地 AI · MCP")}</span><b>{mcpStatus?.state === 'running' ? 'ON' : ''}</b>
+          <RobotOutlined /><span>{t("本地 AI · MCP")}</span><b>{mcpStatus?.state === 'running' ? 'ON' : '—'}</b>
+        </button>
+        <button className="nav-item sidebar-action" onClick={() => setWindowSyncOpen(true)}>
+          <SyncOutlined /><span>{t("多窗口同步")}</span><b>{windowSyncStatus?.state === 'running' ? 'ON' : '—'}</b>
         </button>
         <div className="sidebar-spacer" />
         <button className="community-card" onClick={openPlanModal}>
           <span className="community-icon"><CrownOutlined /></span>
           <span>
-            <strong>{license?.plan === 'pro' ? 'Prism Pro' : 'Community'}</strong>
-            <small>{license?.plan === 'pro' ? t("已绑定当前设备") : `${t("免费")} · ${t("开源版本")} · ${t("本地优先")}`}</small>
+            <strong>Community</strong>
+            <small>{`${t("免费")} · ${t("本地优先")}`}</small>
           </span>
-          <span className="community-action">{license?.plan === 'pro' ? t("查看授权") : t("了解 Pro")}</span>
+          <span className="community-action">{t("了解 Pro")}</span>
         </button>
         <button className="engine-card" onClick={() => setKernelManagerOpen(true)}>
           <span className={`engine-indicator ${engine?.fingerprintKernel ? 'ready' : ''}`} />
           <span><strong>{engine?.fingerprintKernel ? t("指纹内核已连接") : t("配置浏览器内核")}</strong><small>{mt(engine?.label ?? t("正在检查…"))}</small></span>
           <SettingOutlined />
         </button>
-        <div className="version">Prism Browser · v{updateStatus?.currentVersion ?? '0.2.0-beta.1'}</div>
+        <div className="version">Prism Browser · v0.3.22</div>
       </Sider>
 
       <Layout>
         <Content className="content">
+          <AdvertisementRail />
           <header className="page-header">
             <div>
-              <span className="page-kicker">{t("工作空间 / 本机")}</span>
+              <span className="page-kicker">{t("WORKSPACE / 本机")}</span>
               <Typography.Title level={2}>{t("浏览器环境")}<span className="heading-count">{profiles.length}</span></Typography.Title>
-              <Typography.Text type="secondary">{t("每个环境的数据、指纹和网络设置彼此独立。")}</Typography.Text>
+              <Typography.Text type="secondary">{t("每个身份独立运行，每项工作井然有序。")}</Typography.Text>
             </div>
             <Space wrap className="header-actions">
               <LanguageSelector />
-              <Button className={`plan-pill ${license?.plan === 'pro' ? 'active' : ''}`} icon={<CrownOutlined />} onClick={openPlanModal}>
-                {license?.plan === 'pro' ? `Prism Pro · ${t("已激活")}` : `Community · ${t("免费")}`}
-              </Button>
+              <Tooltip title={colorMode === 'light' ? t("切换到暗色模式") : t("切换到亮色模式")}>
+                <Button
+                  className="theme-toggle"
+                  type="text"
+                  aria-label={colorMode === 'light' ? t("切换到暗色模式") : t("切换到亮色模式")}
+                  icon={colorMode === 'light' ? <MoonOutlined /> : <SunOutlined />}
+                  onClick={() => onColorModeChange(colorMode === 'light' ? 'dark' : 'light')}
+                />
+              </Tooltip>
               {runningCount > 0 && (
                 <Button icon={<PoweroffOutlined />} onClick={() => void window.browserApi.profiles.closeAll()}>{t("全部关闭")}</Button>
               )}
@@ -972,7 +1003,9 @@ export default function App() {
               >
                 <Button icon={<UploadOutlined />} loading={importing}>{t("导入环境")}</Button>
               </Dropdown>
-              <Button icon={<DownloadOutlined />} onClick={() => setMigrationMode('export')}>{t("迁移全部环境")}</Button>
+              <Tooltip title={t("导出全部环境迁移包")}>
+                <Button type="text" aria-label={t("迁移全部环境")} icon={<DownloadOutlined />} onClick={() => setMigrationMode('export')} />
+              </Tooltip>
               <Button type="primary" icon={<PlusOutlined />} onClick={() => openEditor()}>{t("新建环境")}</Button>
             </Space>
           </header>
@@ -1037,18 +1070,27 @@ export default function App() {
             />
           )}
 
-          <section className="summary-row">
-            <div className="summary-card"><span>{t("全部环境")}</span><strong>{profiles.length}</strong></div>
-            <div className="summary-card"><span>{t("运行中")}</span><strong className="running-number">{runningCount}</strong></div>
-            <div className="summary-card engine-summary">
-              <span>{t("浏览器内核")}</span>
-              <strong>{mt(engine?.label ?? t("正在检查"))}</strong>
-              {engine?.fingerprintKernel && <CheckCircleFilled />}
-            </div>
-            <Tooltip title={storage ? t("环境 {0} · 缓存 {1} · 回收站 {2} · 内核 {3} · 扩展 {4}", formatBytes(storage.profilesBytes), formatBytes(storage.cacheBytes), formatBytes(storage.recycleBytes), formatBytes(storage.kernelsBytes), formatBytes(storage.extensionsBytes)) : t("统计本地存储")}>
-              <button className="summary-card storage-summary" onClick={() => void refreshStorageOverview()}>
-                <span>{t("本地数据")}</span>
-                <strong>{storage ? formatBytes(storage.totalBytes) : t("统计中")}</strong>
+          <section className="workspace-overview" aria-label={t("工作空间概览")}>
+            <span>
+              <i className="status-dot running" />
+              {t("运行中")}
+              <strong>{runningCount}</strong>
+            </span>
+            <span>
+              <i className="status-dot" />
+              {t("已关闭")}
+              <strong>{profiles.filter((profile) => profile.status === 'closed').length}</strong>
+            </span>
+            <span className="overview-divider" />
+            <button onClick={() => setKernelManagerOpen(true)}>
+              <SafetyCertificateOutlined />
+              <span>{engine?.fingerprintKernel ? `Chromium ${engine.version ?? ''}` : t("配置浏览器内核")}</span>
+              <SettingOutlined />
+            </button>
+            <Tooltip title={storage ? t("环境 {0} · 缓存 {1} · 回收站 {2}", formatBytes(storage.profilesBytes), formatBytes(storage.cacheBytes), formatBytes(storage.recycleBytes)) : t("统计本地存储")}>
+              <button className="overview-storage" onClick={() => void refreshStorageOverview()}>
+                <DatabaseOutlined />
+                {storage ? formatBytes(storage.totalBytes) : t("统计中")}
                 <ReloadOutlined spin={storageLoading} />
               </button>
             </Tooltip>
@@ -1057,7 +1099,10 @@ export default function App() {
           <section className="profiles-panel">
             <div className="table-toolbar">
               <div className="table-title-actions">
-                <Typography.Title level={4}>{t("全部环境")}</Typography.Title>
+                <Typography.Title level={4}>
+                  {t("全部环境")}
+                  <span className="heading-count">{visibleProfiles.length}</span>
+                </Typography.Title>
                 {selectedIds.length > 0 && (
                   <Space>
                     <Typography.Text type="secondary">{t("已选择 {0} 项", selectedIds.length)}</Typography.Text>
@@ -1189,6 +1234,14 @@ export default function App() {
         onStatusChanged={setMcpStatus}
         onPermissionsChanged={setMcpPermissions}
         onClose={() => setMcpOpen(false)}
+      />
+      <WindowSyncModal
+        open={windowSyncOpen}
+        profiles={profiles}
+        status={windowSyncStatus}
+        proEnabled={true}
+        onChanged={setWindowSyncStatus}
+        onClose={() => setWindowSyncOpen(false)}
       />
 
       <ProfileEditor

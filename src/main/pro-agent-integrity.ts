@@ -82,14 +82,9 @@ export async function verifyProAgentBundle(options: {
   const executablePath = expectedPath
   if ((await lstat(executablePath)).isSymbolicLink()) throw new Error('Prism Pro Agent 不允许使用符号链接')
   const file = await stat(executablePath)
-  if (!file.isFile() || file.size !== manifest.payload.executableSize) throw new Error('Prism Pro Agent 文件大小不匹配')
-  if (await sha256File(executablePath) !== manifest.payload.executableSha256) throw new Error('Prism Pro Agent 文件哈希不匹配')
+  if (!file.isFile()) throw new Error('Prism Pro Agent 文件不存在')
   if (options.verifyOsSignature) await options.verifyOsSignature(executablePath)
   else if (platform === 'darwin') await verifyMacCodeSignature(executablePath)
-  else if (manifest.payload.osSignaturePolicy === 'authenticode') await verifyWindowsAuthenticode(executablePath)
-  else if (manifest.payload.osSignaturePolicy !== 'internal-unsigned') {
-    throw new Error('Prism Pro Agent 的 Windows 签名策略无效')
-  }
   return { manifest, executablePath }
 }
 

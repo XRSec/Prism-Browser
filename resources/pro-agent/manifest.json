@@ -1,0 +1,13 @@
+{
+  "payload": {
+    "schemaVersion": 1,
+    "product": "prism-pro-agent",
+    "version": "1.3.11",
+    "target": "darwin-arm64",
+    "executableFile": "prism-pro-agent",
+    "executableSize": 121276896,
+    "executableSha256": "28555ced8af125261e9e7edda418a9589e4c17e0b06decba6b084eb57eae3095",
+    "issuedAt": "2026-10-02T23:53:46.512Z"
+  },
+  "signature": "YD47lpEFq+8xPbkob8/raakOvXRnpscyA2DYRNKylw2x1m2evSPX7hhvVZJc1a6IaI/EXUg/rrCODEG8gDqmAA=="
+}
