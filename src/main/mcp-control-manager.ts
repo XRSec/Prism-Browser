@@ -36,11 +36,10 @@ export class McpControlManager {
 
   permissionList(): McpProfilePermission[] { return this.permissions.list() }
 
-  async setPermission(profileId: string, enabled: boolean): Promise<McpProfilePermission[]> {
-    if (enabled && !this.licensing.has('mcp')) throw new Error('本地 AI 控制需要 Prism Pro 授权')
+  async setPermission(profileId: string, enabled: boolean | null): Promise<McpProfilePermission[]> {
     this.profiles.get(profileId)
     const result = await this.permissions.set(profileId, enabled)
-    this.audit.record({ action: enabled ? 'permission-enable' : 'permission-disable', outcome: 'success', profileId })
+    this.audit.record({ action: enabled === null ? 'permission-inherit' : enabled ? 'permission-enable' : 'permission-disable', outcome: 'success', profileId })
     this.changed()
     return result
   }
@@ -62,10 +61,12 @@ export class McpControlManager {
   async removeProfile(profileId: string): Promise<void> { await this.permissions.remove(profileId) }
 
   status(agentRunning = this.sessions.size > 0): McpStatus {
+    const policy = this.permissions.getPolicy()
     const enabledProfileIds = this.profiles.list().filter((profile) => this.permissions.enabled(profile.id)).map((profile) => profile.id)
     return {
-      state: this.sessions.size ? 'running' : agentRunning ? 'ready' : 'stopped',
-      message: this.sessions.size ? `${this.sessions.size} 个本地 AI 客户端已连接 MCP` : agentRunning ? 'MCP 连接配置已就绪，等待本地 AI 连接' : '本地 MCP 会话未启动',
+      policy,
+      state: !policy.enabled ? 'stopped' : this.sessions.size ? 'running' : agentRunning ? 'ready' : 'stopped',
+      message: !policy.enabled ? 'MCP 全局开关已关闭' : this.sessions.size ? `${this.sessions.size} 个本地 AI 客户端已连接 MCP` : agentRunning ? 'MCP 连接配置已就绪，等待本地 AI 连接' : '本地 MCP 会话未启动',
       enabledProfileIds,
       controlledProfileIds: [...this.controlled]
     }

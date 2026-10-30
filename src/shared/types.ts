@@ -116,6 +116,7 @@ export interface McpPolicy {
 export interface McpStatus {
   state: 'stopped' | 'ready' | 'running' | 'error'
   message: string
+  policy: McpPolicy
   enabledProfileIds: string[]
   controlledProfileIds: string[]
 }
@@ -577,7 +578,7 @@ export interface BrowserApi {
   mcp: {
     status: () => Promise<McpStatus>
     permissions: () => Promise<McpProfilePermission[]>
-    setPermission: (profileId: string, enabled: boolean) => Promise<McpProfilePermission[]>
+    setPermission: (profileId: string, enabled: boolean | null) => Promise<McpProfilePermission[]>
     resetPermissions: () => Promise<McpProfilePermission[]>
     setPolicy: (patch: Partial<McpPolicy>) => Promise<McpStatus>
     start: () => Promise<McpConnection>

@@ -55,11 +55,7 @@ export function McpModal({ open, status, permissions, profiles, proEnabled, onSt
     setBusy(profileId)
     setError('')
     try {
-      if (allow === null) {
-        onPermissionsChanged(await window.browserApi.mcp.setPermission(profileId, false))
-      } else {
-        onPermissionsChanged(await window.browserApi.mcp.setPermission(profileId, allow))
-      }
+      onPermissionsChanged(await window.browserApi.mcp.setPermission(profileId, allow))
     } catch (cause) {
       setError(humanError(cause))
     } finally {

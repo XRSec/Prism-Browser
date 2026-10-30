@@ -96,10 +96,11 @@ export class McpPermissionStore {
     })
   }
 
-  set(profileId: string, enabled: boolean): Promise<McpProfilePermission[]> {
+  set(profileId: string, enabled: boolean | null): Promise<McpProfilePermission[]> {
     return this.mutate(async () => {
-      if (!/^[A-Za-z0-9-]{1,100}$/.test(profileId) || typeof enabled !== 'boolean') throw new Error('MCP 环境权限参数无效')
-      this.permissions.set(profileId, { profileId, enabled, updatedAt: this.now().toISOString() })
+      if (!/^[A-Za-z0-9-]{1,100}$/.test(profileId) || (enabled !== null && typeof enabled !== 'boolean')) throw new Error('MCP 环境权限参数无效')
+      if (enabled === null) this.permissions.delete(profileId)
+      else this.permissions.set(profileId, { profileId, enabled, updatedAt: this.now().toISOString() })
       await this.persist()
       return this.list()
     })
