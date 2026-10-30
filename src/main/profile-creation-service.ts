@@ -25,6 +25,7 @@ const profileCreateInputSchema = z.object({
     host: z.string().max(255).optional(),
     port: z.number().int().min(1).max(65535).optional(),
     username: z.string().max(1000).optional(),
+    bypassList: z.string().max(2048).optional(),
     password: z.string().max(1000).optional()
   }).strict().optional(),
   fingerprint: z.object({

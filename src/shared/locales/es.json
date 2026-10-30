@@ -1250,5 +1250,7 @@
   "页面输入参数无效": "Los parámetros de entrada de página no son válidos",
   "高风险：WebRTC 使用所有接口": "Alto riesgo: WebRTC utiliza todas las interfaces",
   "默认全部关闭，逐个授权": "Todo desactivado de forma predeterminada; autorice cada perfil por separado",
-  "默认关闭，按需启动": "Desactivada de forma predeterminada; iníciela cuando la necesite"
+  "默认关闭，按需启动": "Desactivada de forma predeterminada; iníciela cuando la necesite",
+  "代理白名单": "Proxy Bypass List",
+  "绕过代理的目标主机或域名，多个以分号分隔，例如 *.example.com;192.168.*": "Target hosts or domains bypassing proxy, separated by semicolons, e.g. *.example.com;192.168.*"
 }

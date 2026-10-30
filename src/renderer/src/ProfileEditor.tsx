@@ -316,6 +316,13 @@ export function ProfileEditor({ open, profile, suggestedIndex, saving, extension
               </Form.Item>
             </Col>
           </Row>
+          <Form.Item
+            name={['proxy', 'bypassList']}
+            label={t("代理白名单")}
+            extra={t("绕过代理的目标主机或域名，多个以分号分隔，例如 *.example.com;192.168.*")}
+          >
+            <Input placeholder="*.example.com;192.168.*" allowClear />
+          </Form.Item>
         </>
       )}
       <Space className="proxy-test-row">

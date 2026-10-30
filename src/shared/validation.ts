@@ -179,6 +179,11 @@ export function validateProxyConfig(input: ProxyConfig): ProxyConfig {
     password: input.password
   }
   if (input.passwordStored === true) proxy.passwordStored = true
+  if (typeof input.bypassList === 'string') {
+    const trimmed = input.bypassList.trim()
+    if (trimmed.length > 2048) throw new Error('代理白名单长度不能超过 2048 个字符')
+    if (trimmed) proxy.bypassList = trimmed
+  }
   if (proxy.protocol === 'direct') {
     return { protocol: 'direct', host: '', username: '', password: '' }
   }

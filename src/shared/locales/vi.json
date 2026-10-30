@@ -1250,5 +1250,7 @@
   "页面输入参数无效": "Tham số đầu vào trang không hợp lệ",
   "高风险：WebRTC 使用所有接口": "Rủi ro cao: WebRTC dùng tất cả giao diện mạng",
   "默认全部关闭，逐个授权": "Mặc định tắt tất cả, cấp quyền từng hồ sơ",
-  "默认关闭，按需启动": "Mặc định tắt, chỉ bật khi cần"
+  "默认关闭，按需启动": "Mặc định tắt, chỉ bật khi cần",
+  "代理白名单": "Proxy Bypass List",
+  "绕过代理的目标主机或域名，多个以分号分隔，例如 *.example.com;192.168.*": "Target hosts or domains bypassing proxy, separated by semicolons, e.g. *.example.com;192.168.*"
 }

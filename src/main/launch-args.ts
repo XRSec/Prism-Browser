@@ -96,7 +96,10 @@ export function buildLaunchArgs(profile: BrowserProfile, options: LaunchArgument
     args.push('--dns-prefetch-disable')
     args.push('--no-pings')
     args.push(`--proxy-server=${options.proxyUrl}`)
-    args.push('--proxy-bypass-list=localhost;127.0.0.1')
+    const defaultBypass = 'localhost;127.0.0.1'
+    const customBypass = profile.proxy.bypassList?.trim()
+    const bypassList = customBypass ? `${defaultBypass};${customBypass}` : defaultBypass
+    args.push(`--proxy-bypass-list=${bypassList}`)
   }
   if (options.remoteDebuggingPort) args.push(`--remote-debugging-port=${options.remoteDebuggingPort}`)
   if (options.extensionPaths?.length) args.push(`--load-extension=${options.extensionPaths.join(',')}`)

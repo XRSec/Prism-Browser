@@ -1250,5 +1250,7 @@
   "页面输入参数无效": "Sayfa giriş parametreleri geçersiz",
   "高风险：WebRTC 使用所有接口": "Yüksek risk: WebRTC tüm arabirimleri kullanır",
   "默认全部关闭，逐个授权": "Varsayılan olarak hepsi kapalı; profillere tek tek izin verin",
-  "默认关闭，按需启动": "Varsayılan olarak kapalı; gerektiğinde başlatın"
+  "默认关闭，按需启动": "Varsayılan olarak kapalı; gerektiğinde başlatın",
+  "代理白名单": "Proxy Bypass List",
+  "绕过代理的目标主机或域名，多个以分号分隔，例如 *.example.com;192.168.*": "Target hosts or domains bypassing proxy, separated by semicolons, e.g. *.example.com;192.168.*"
 }

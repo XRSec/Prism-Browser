@@ -142,6 +142,7 @@ export interface ProxyConfig {
   username: string
   password: string
   passwordStored?: boolean
+  bypassList?: string
 }
 
 export interface FingerprintConfig {
