@@ -1405,6 +1405,7 @@ export default function App({ colorMode = 'light', onColorModeChange = () => {} 
         open={recycleBinOpen}
         onClose={() => setRecycleBinOpen(false)}
         onRestored={upsert}
+        onKernelRestored={setEngine}
       />
       <ExtensionManagerModal
         open={extensionManagerOpen}

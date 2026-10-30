@@ -228,6 +228,12 @@ export function registerIpc({ profiles, settings, launcher, kernels, extensions,
   ipcMain.handle('profiles:set-recycle-retention', async (_event, days: number) => {
     if (days !== 0 && days !== 7 && days !== 30 && days !== 90) throw new Error('回收站保留天数无效')
     await settings.update({ recycleRetentionDays: days })
+    if (days > 0) {
+      await Promise.all([
+        profiles.purgeTrashOlderThan(days),
+        kernels.purgeTrashOlderThan(days)
+      ])
+    }
     logger.info('环境回收站自动清理策略已更新', { days })
     return days
   })
@@ -366,6 +372,14 @@ export function registerIpc({ profiles, settings, launcher, kernels, extensions,
     return kernels.rollback()
   })
   ipcMain.handle('engine:remove', (_event, version: string) => kernels.remove(version))
+  ipcMain.handle('engine:trash', () => kernels.listTrash())
+  ipcMain.handle('engine:restore-trash', async (_event, trashId: string) => {
+    return kernels.restoreTrash(trashId)
+  })
+  ipcMain.handle('engine:purge-trash', async (_event, trashId: string) => {
+    await kernels.purgeTrash(trashId)
+  })
+  ipcMain.handle('engine:empty-trash', () => kernels.emptyTrash())
   ipcMain.handle('engine:verify', async (_event, version: string) => {
     const bundled = await locateBundledBrowser(process.resourcesPath, version)
     if (bundled?.executable) {

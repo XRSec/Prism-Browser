@@ -1,13 +1,14 @@
 import { execFile } from 'node:child_process'
 import { createHash } from 'node:crypto'
-import { createReadStream, createWriteStream } from 'node:fs'
+import { createReadStream, createWriteStream, type Dirent } from 'node:fs'
 import { access, cp, mkdir, mkdtemp, readdir, readFile, rename, rm, stat, statfs, writeFile } from 'node:fs/promises'
 import { basename, dirname, isAbsolute, join, relative, resolve, sep } from 'node:path'
 import { pipeline } from 'node:stream/promises'
 import { Readable, Transform } from 'node:stream'
 import { promisify } from 'node:util'
-import type { EngineStatus, KernelHealth, KernelInstallProgress, KernelRelease } from '../shared/types'
+import type { DeletedKernelSummary, EngineStatus, KernelHealth, KernelInstallProgress, KernelRelease } from '../shared/types'
 import { locateBrowser, locateBrowserSelection, normalizeBrowserSelection } from './browser-locator'
+import { safePathSize } from './profile-data'
 import type { KernelReleaseCatalog } from './kernel-catalog'
 import {
   collectKernelIntegrity,
@@ -67,6 +68,16 @@ function supportedAsset(assets: GithubAsset[]): GithubAsset | undefined {
 function safeVersion(version: string): string {
   if (!/^\d+(?:\.\d+){3}$/.test(version)) throw new Error('内核版本号无效')
   return version
+}
+
+function parseKernelTrashId(trashId: string): { version: string; timestamp: number } | null {
+  if (!/^[a-zA-Z0-9.-]+$/.test(trashId) || trashId.includes('..')) return null
+  const match = trashId.match(/^(\d+(?:\.\d+){3})(?:-before-repair)?-(\d+)$/)
+  if (!match) return null
+  const version = match[1]
+  const timestamp = Number(match[2])
+  if (!Number.isFinite(timestamp)) return null
+  return { version, timestamp }
 }
 
 async function pathExists(path: string): Promise<boolean> {
@@ -499,6 +510,78 @@ export class KernelManager {
     await mkdir(recycle, { recursive: true })
     await rename(this.kernelPath(version), join(recycle, `${version}-${Date.now()}`))
     this.logger?.info('浏览器内核已移入回收目录', { version })
+  }
+
+  async listTrash(): Promise<DeletedKernelSummary[]> {
+    const root = join(this.vaultPath, 'recycle-bin', 'kernels')
+    let entries: Dirent[] = []
+    try {
+      entries = await readdir(root, { withFileTypes: true })
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === 'ENOENT') return []
+      throw error
+    }
+    const result: DeletedKernelSummary[] = []
+    for (const entry of entries) {
+      if (!entry.isDirectory()) continue
+      const parsed = parseKernelTrashId(entry.name)
+      if (!parsed) continue
+      const itemPath = join(root, entry.name)
+      const sizeBytes = await safePathSize(itemPath)
+      result.push({
+        trashId: entry.name,
+        version: parsed.version,
+        deletedAt: new Date(parsed.timestamp).toISOString(),
+        sizeBytes
+      })
+    }
+    return result.sort((a, b) => new Date(b.deletedAt).getTime() - new Date(a.deletedAt).getTime())
+  }
+
+  async restoreTrash(trashId: string): Promise<EngineStatus> {
+    const parsed = parseKernelTrashId(trashId)
+    if (!parsed) throw new Error('回收站内核条目标识无效')
+    const source = join(this.vaultPath, 'recycle-bin', 'kernels', trashId)
+    const target = this.kernelPath(parsed.version)
+    if (await pathExists(target)) {
+      throw new Error(`内核 ${parsed.version} 已存在，无法恢复`)
+    }
+    await mkdir(dirname(target), { recursive: true })
+    await rename(source, target)
+    this.logger?.info('浏览器内核已从回收目录恢复', { version: parsed.version, trashId })
+    return locateBrowser(this.settings)
+  }
+
+  async purgeTrash(trashId: string): Promise<void> {
+    const parsed = parseKernelTrashId(trashId)
+    if (!parsed) throw new Error('回收站内核条目标识无效')
+    const target = join(this.vaultPath, 'recycle-bin', 'kernels', trashId)
+    await rm(target, { recursive: true, force: true })
+    this.logger?.info('回收站内核已永久删除', { trashId, version: parsed.version })
+  }
+
+  async emptyTrash(): Promise<number> {
+    const items = await this.listTrash()
+    for (const item of items) {
+      await this.purgeTrash(item.trashId)
+    }
+    this.logger?.info('内核回收站已清空', { count: items.length })
+    return items.length
+  }
+
+  async purgeTrashOlderThan(days: number): Promise<number> {
+    if (days <= 0) return 0
+    const items = await this.listTrash()
+    const cutoff = Date.now() - days * 24 * 60 * 60 * 1000
+    let purged = 0
+    for (const item of items) {
+      if (new Date(item.deletedAt).getTime() < cutoff) {
+        await this.purgeTrash(item.trashId)
+        purged += 1
+      }
+    }
+    if (purged) this.logger?.info('已按保留策略自动清理内核回收站', { count: purged, days })
+    return purged
   }
 
   private async download(release: KernelRelease, destination: string, allowRangeReset = true): Promise<void> {

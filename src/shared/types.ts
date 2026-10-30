@@ -386,6 +386,13 @@ export interface DeletedProfileSummary {
   sizeBytes: number
 }
 
+export interface DeletedKernelSummary {
+  trashId: string
+  version: string
+  deletedAt: string
+  sizeBytes: number
+}
+
 export interface CookieTransferResult {
   count: number
   filePath: string
@@ -537,6 +544,10 @@ export interface BrowserApi {
     rollbackAvailable: () => Promise<boolean>
     rollback: () => Promise<EngineStatus>
     remove: (version: string) => Promise<void>
+    trash: () => Promise<DeletedKernelSummary[]>
+    restoreTrash: (trashId: string) => Promise<EngineStatus>
+    purgeTrash: (trashId: string) => Promise<void>
+    emptyTrash: () => Promise<number>
     verify: (version: string) => Promise<KernelHealth>
     cancelInstall: (version: string) => Promise<void>
     installProgress: () => Promise<KernelInstallProgress | null>

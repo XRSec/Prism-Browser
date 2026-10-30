@@ -132,6 +132,8 @@ app.whenReady().then(async () => {
     (version) => profiles.kernelUsers(version),
     catalog
   )
+  const purgedKernelTrashCount = await kernels.purgeTrashOlderThan(settings.get().recycleRetentionDays)
+  if (purgedKernelTrashCount) logger.info('已按保留策略自动清理内核回收站', { count: purgedKernelTrashCount })
   const cookies = new CookieManager(profiles, settings, logger)
   const backups = new ProfileBackupManager(profiles, app.getVersion(), logger)
   const workspaceMigration = new WorkspaceMigrationManager(profiles, extensions, app.getVersion(), logger)
