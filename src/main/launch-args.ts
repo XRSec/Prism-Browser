@@ -64,7 +64,8 @@ export function buildLaunchArgs(profile: BrowserProfile, options: LaunchArgument
     '--no-default-browser-check',
     '--disable-background-mode',
     '--disable-background-networking',
-    '--disable-component-update'
+    '--disable-component-update',
+    '--disable-features=TabGroups'
   ]
 
   if (process.platform === 'darwin') {

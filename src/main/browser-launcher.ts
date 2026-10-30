@@ -6,6 +6,7 @@ import { join } from 'node:path'
 import type { BrowserCrashRecord, BrowserProfile, LaunchDiagnosticCheck, LaunchDiagnosticReport, ProfileLaunchOptions, ProxyConfig, ProxyTestResult } from '../shared/types'
 import { locateBrowserForProfile } from './browser-locator'
 import { buildLaunchArgs } from './launch-args'
+import { ensureDefaultProfilePreferences } from './profile-preferences'
 import type { ProfileStore } from './profile-store'
 import type { SettingsStore } from './settings-store'
 import { closeProxyBridge, openProxyBridge } from './proxy-bridge'
@@ -225,6 +226,7 @@ export class BrowserLauncher {
       });
       const runtimePath = this.profiles.profileRuntimePath(id);
       await mkdir(runtimePath, { recursive: true });
+      await ensureDefaultProfilePreferences(this.profiles.profileDataPath(id));
       const args = buildLaunchArgs(profile, {
         userDataDir: this.profiles.profileDataPath(id),
         proxyUrl: localProxyUrl,
