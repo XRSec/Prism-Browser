@@ -1213,7 +1213,7 @@ export default function App({ colorMode = 'light', onColorModeChange = () => {} 
       <AutomationModal
         open={automationOpen}
         status={automationStatus}
-        proEnabled={Boolean(license?.entitlements.includes('automation-api'))}
+        proEnabled={true}
         onChanged={setAutomationStatus}
         onClose={() => setAutomationOpen(false)}
       />
@@ -1221,7 +1221,7 @@ export default function App({ colorMode = 'light', onColorModeChange = () => {} 
         open={schedulerOpen}
         tasks={scheduledTasks}
         profiles={profiles}
-        proEnabled={Boolean(license?.entitlements.includes('scheduler'))}
+        proEnabled={true}
         onChanged={setScheduledTasks}
         onClose={() => setSchedulerOpen(false)}
       />
@@ -1230,7 +1230,7 @@ export default function App({ colorMode = 'light', onColorModeChange = () => {} 
         status={mcpStatus}
         permissions={mcpPermissions}
         profiles={profiles}
-        proEnabled={Boolean(license?.entitlements.includes('mcp'))}
+        proEnabled={true}
         onStatusChanged={setMcpStatus}
         onPermissionsChanged={setMcpPermissions}
         onClose={() => setMcpOpen(false)}

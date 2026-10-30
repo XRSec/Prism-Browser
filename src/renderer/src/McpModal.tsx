@@ -145,10 +145,10 @@ export function McpModal({ open, status, permissions, profiles, proEnabled, onSt
     >
       <Space direction="vertical" size={14} style={{ width: '100%' }}>
         <Alert
-          type={proEnabled ? active ? 'success' : 'info' : 'warning'}
+          type={active ? 'success' : 'info'}
           showIcon
           icon={<SafetyCertificateOutlined />}
-          title={proEnabled ? mt(status?.message) || t("MCP 尚未启动") : t("本地 AI 控制需要 Prism Pro")}
+          title={mt(status?.message) || t("本地 MCP 会话未启动")}
           description={t("AI 只能操作下方授权的环境，可以访问网页、读取内容、点击并填写表单，包括你提供的密码。")}
         />
 
@@ -162,7 +162,7 @@ export function McpModal({ open, status, permissions, profiles, proEnabled, onSt
               type="primary"
               icon={<RobotOutlined />}
               loading={busy === 'start'}
-              disabled={!proEnabled || !policy.enabled || Boolean(busy && busy !== 'start') || (!enabled.size && !policy.allowProfileCreation && policy.defaultAccess !== 'allow')}
+              disabled={!policy.enabled || Boolean(busy && busy !== 'start') || (!enabled.size && !policy.allowProfileCreation && policy.defaultAccess !== 'allow')}
               onClick={() => void start()}
             >
               {active ? t("复制 MCP 配置") : t("启用 MCP")}
@@ -201,7 +201,7 @@ export function McpModal({ open, status, permissions, profiles, proEnabled, onSt
               aria-label={t("MCP 全局开关")}
               checked={policy.enabled}
               loading={busy === 'policy'}
-              disabled={Boolean(busy) || (!proEnabled && !policy.enabled)}
+              disabled={Boolean(busy)}
               onChange={(val) => void setPolicy({ enabled: val })}
             />
           </div>
@@ -219,7 +219,7 @@ export function McpModal({ open, status, permissions, profiles, proEnabled, onSt
               disabled={Boolean(busy)}
               options={[
                 { value: 'deny', label: t("逐个授权") },
-                { value: 'allow', label: t("全部环境（含新建）"), disabled: !proEnabled }
+                { value: 'allow', label: t("全部环境（含新建）") }
               ]}
               onChange={(val) => void setPolicy({ defaultAccess: val })}
             />
@@ -234,7 +234,7 @@ export function McpModal({ open, status, permissions, profiles, proEnabled, onSt
             <Switch
               aria-label={t("允许 AI 创建环境")}
               checked={policy.allowProfileCreation}
-              disabled={Boolean(busy) || (!proEnabled && !policy.allowProfileCreation)}
+              disabled={Boolean(busy)}
               onChange={(val) => void setPolicy({ allowProfileCreation: val })}
             />
           </div>
@@ -253,7 +253,7 @@ export function McpModal({ open, status, permissions, profiles, proEnabled, onSt
               cancelText={t("取消")}
               onConfirm={resetPermissions}
             >
-              <Button size="small" disabled={Boolean(busy) || !permissions.length || (!proEnabled && policy.defaultAccess === 'allow')}>
+              <Button size="small" disabled={Boolean(busy) || !permissions.length}>
                 {t("全部跟随全局")}
               </Button>
             </Popconfirm>
@@ -284,8 +284,8 @@ export function McpModal({ open, status, permissions, profiles, proEnabled, onSt
                     disabled={Boolean(busy)}
                     className="mcp-override-select"
                     options={[
-                      { value: 'inherit', label: t("跟随全局"), disabled: !proEnabled && policy.defaultAccess === 'allow' },
-                      { value: 'allow', label: t("单独允许"), disabled: !proEnabled },
+                      { value: 'inherit', label: t("跟随全局") },
+                      { value: 'allow', label: t("单独允许") },
                       { value: 'deny', label: t("单独禁止") }
                     ]}
                     onChange={(val) => void setPermission(profile.id, val === 'inherit' ? null : val === 'allow')}
