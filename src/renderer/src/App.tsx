@@ -909,9 +909,12 @@ export default function App({ colorMode = 'light', onColorModeChange = () => {} 
       sorter: profileTableSorters.environment,
       render: (_value, profile) => (
         <div className="profile-name-cell">
-          <span className="profile-avatar" style={{ color: profile.color, background: `${profile.color}14` }}>
-            <GlobalOutlined />
-          </span>
+          <div className="profile-avatar-box">
+            <span className="profile-avatar" style={{ color: profile.color, background: `${profile.color}14` }}>
+              <GlobalOutlined />
+            </span>
+            <span className="profile-serial">{String(profile.serialNumber).padStart(2, '0')}</span>
+          </div>
           <Button
             type="text"
             size="small"
@@ -921,10 +924,7 @@ export default function App({ colorMode = 'light', onColorModeChange = () => {} 
             onClick={() => void toggleFavorite(profile)}
           />
           <div>
-            <Typography.Text strong>
-              <span className="profile-serial">{String(profile.serialNumber).padStart(2, '0')}</span>
-              {profile.name}
-            </Typography.Text>
+            <Typography.Text strong>{profile.name}</Typography.Text>
             {profile.note && <Typography.Text type="secondary" className="profile-subtitle">{profile.note}</Typography.Text>}
           </div>
         </div>

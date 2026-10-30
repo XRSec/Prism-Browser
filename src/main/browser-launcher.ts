@@ -236,9 +236,13 @@ export class BrowserLauncher {
         proxyIdentity: profile.proxyCheck,
         allowGeoConflict: options.allowGeoConflict === true
       });
+      if (process.platform === "darwin") {
+        args.push("--use-mock-keychain", "--password-store=basic");
+      } else if (process.platform === "linux") {
+        args.push("--password-store=basic");
+      }
       if (process.env.PRISM_E2E === "1" && process.env.PRISM_E2E_BROWSER_HEADLESS === "1") {
         args.push("--headless=new");
-        if (process.platform === "darwin") args.push("--use-mock-keychain");
       }
       const pipeControlEnabled = this.controlTransport === "pipe";
       if (pipeControlEnabled) args.push("--remote-debugging-pipe");

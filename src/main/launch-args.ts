@@ -67,6 +67,12 @@ export function buildLaunchArgs(profile: BrowserProfile, options: LaunchArgument
     '--disable-component-update'
   ]
 
+  if (process.platform === 'darwin') {
+    args.push('--use-mock-keychain', '--password-store=basic')
+  } else if (process.platform === 'linux') {
+    args.push('--password-store=basic')
+  }
+
   if (profile.window.mode === 'custom') args.push(`--window-position=${profile.window.x},${profile.window.y}`)
 
   if (platformVersion) args.push(`--fingerprint-platform-version=${platformVersion}`)

@@ -46,7 +46,6 @@ export function AutomationModal({ open, status, proEnabled, onChanged, onClose }
 
   return (
     <Modal
-      centered
       open={open}
       width={780}
       title={<Space><ApiOutlined />{t("本地自动化 API")}</Space>}
