@@ -944,13 +944,6 @@ export default function App({ colorMode = 'light', onColorModeChange = () => {} 
       )
     },
     {
-      title: t("状态"),
-      dataIndex: 'status',
-      width: 100,
-      sorter: profileTableSorters.status,
-      render: (_value, profile) => statusTag(profile)
-    },
-    {
       title: t("代理"),
       dataIndex: 'proxy',
       width: 220,
@@ -983,6 +976,13 @@ export default function App({ colorMode = 'light', onColorModeChange = () => {} 
           <code className="seed-code" title={t("指纹种子：{0}", profile.fingerprint.seed)}>{profile.fingerprint.seed}</code>
         </div>
       )
+    },
+    {
+      title: t("状态"),
+      dataIndex: 'status',
+      width: 100,
+      sorter: profileTableSorters.status,
+      render: (_value, profile) => statusTag(profile)
     },
     {
       title: t("操作"),
