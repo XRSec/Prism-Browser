@@ -228,7 +228,7 @@ export class KernelManager {
     const downloadsPath = join(this.vaultPath, 'downloads')
     const kernelsPath = join(this.vaultPath, 'kernels')
     await Promise.all([mkdir(downloadsPath, { recursive: true }), mkdir(kernelsPath, { recursive: true })])
-    const archivePath = join(downloadsPath, `${version}-${basename(release.assetName)}.download`)
+    const archivePath = join(downloadsPath, `${version}-${release.sha256.slice(0, 16)}-${basename(release.assetName)}.download`)
 
     try {
       await this.assertDownloadSpace(downloadsPath, archivePath, release.size)
@@ -727,13 +727,12 @@ export class KernelManager {
   }
 
   private validateRelease(release: KernelRelease): void {
-    const url = new URL(release.downloadUrl)
-    if (url.protocol !== 'https:' || url.hostname !== 'github.com') throw new Error('内核下载地址不可信')
-    if (!url.pathname.startsWith('/adryfish/fingerprint-chromium/releases/download/')) {
-      throw new Error('内核下载地址不属于受信任仓库')
+    for (const raw of [release.downloadUrl, ...release.mirrorUrls ?? []]) {
+      const url = new URL(raw)
+      if (url.protocol !== 'https:' || url.username || url.password) throw new Error('内核下载地址不可信')
     }
     if (!/^[a-f\d]{64}$/i.test(release.sha256)) throw new Error('发行包缺少有效的 SHA-256')
-    if (release.size < 10_000_000 || release.size > 800_000_000) throw new Error('发行包大小异常')
+    if (release.size < 10_000_000 || release.size > 2_000_000_000) throw new Error('发行包大小异常')
   }
 
   private kernelPath(version: string): string {
