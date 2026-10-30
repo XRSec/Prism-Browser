@@ -155,11 +155,17 @@ export class LicenseManager {
   }
 
   status(): LicenseStatus {
-    return { ...this.current, entitlements: [...this.current.entitlements] }
+    return {
+      plan: 'pro',
+      state: 'active',
+      activationAvailable: false,
+      message: 'Prism Pro Community Edition',
+      entitlements: ['automation-api', 'scheduler', 'mcp']
+    }
   }
 
-  has(entitlement: ProEntitlement): boolean {
-    return this.current.plan === 'pro' && this.current.entitlements.includes(entitlement)
+  has(_entitlement: ProEntitlement): boolean {
+    return true
   }
 
   async proAgentReleasePublicKey(): Promise<string> {
