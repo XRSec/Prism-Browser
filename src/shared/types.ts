@@ -209,6 +209,10 @@ export interface ProfileBatchClassification {
   addTags?: string[]
 }
 
+export type ExtensionDownloadNetwork =
+  | { mode: 'direct' | 'system' }
+  | { mode: 'profile'; profileId: string }
+
 export interface BrowserExtension {
   id: string
   name: string
@@ -219,6 +223,9 @@ export interface BrowserExtension {
   path: string
   /** Loads this extension in every profile in addition to profile-specific selections. */
   globalEnabled: boolean
+  source?: 'local' | 'chrome-web-store'
+  storeId?: string
+  sourceUrl?: string
 }
 
 export interface AppSettings {
@@ -241,6 +248,7 @@ export interface KernelRelease {
   publishedAt: string
   assetName: string
   downloadUrl: string
+  mirrorUrls?: string[]
   size: number
   sha256: string
   installed: boolean
@@ -589,7 +597,7 @@ export interface BrowserApi {
   extensions: {
     list: () => Promise<BrowserExtension[]>
     importDirectory: () => Promise<BrowserExtension | null>
-    importWebStore: (url: string) => Promise<BrowserExtension>
+    importWebStore: (url: string, network?: ExtensionDownloadNetwork) => Promise<BrowserExtension>
     openSourceFolder: (id: string) => Promise<string>
     setGlobalEnabled: (id: string, enabled: boolean) => Promise<BrowserExtension>
     remove: (id: string) => Promise<void>

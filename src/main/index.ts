@@ -7,6 +7,7 @@ import { ProfileStore } from './profile-store'
 import { ElectronSecretCodec } from './secret-codec'
 import { SettingsStore } from './settings-store'
 import { KernelManager } from './kernel-manager'
+import { KernelReleaseCatalog } from './kernel-catalog'
 import { AppLogger } from './app-logger'
 import { ExtensionStore } from './extension-store'
 import { CookieManager } from './cookie-manager'
@@ -26,6 +27,7 @@ import { SchedulerManager } from './scheduler-manager'
 import { McpPermissionStore } from './mcp-permission-store'
 import { McpAuditLog } from './mcp-audit'
 import { McpControlManager } from './mcp-control-manager'
+import { ProfileCreationService } from './profile-creation-service'
 import { AnnouncementManager } from './announcement-manager'
 import { AdvertisementManager } from './advertisement-manager'
 import { WindowSyncManager, MacWindowSyncBridge, WindowsWindowSyncBridge } from './window-sync-manager'
@@ -121,7 +123,15 @@ app.whenReady().then(async () => {
     mainWindow?.webContents.send('profiles:changed', publicProfile(profile))
   }, extensions, logger)
   await launcher.initialize()
-  const kernels = new KernelManager(vaultPath, settings, () => undefined, logger, (version) => profiles.kernelUsers(version))
+  const catalog = new KernelReleaseCatalog(vaultPath, process.resourcesPath)
+  const kernels = new KernelManager(
+    vaultPath,
+    settings,
+    (progress) => mainWindow?.webContents.send('engine:install-progress', progress),
+    logger,
+    (version) => profiles.kernelUsers(version),
+    catalog
+  )
   const cookies = new CookieManager(profiles, settings, logger)
   const backups = new ProfileBackupManager(profiles, app.getVersion(), logger)
   const workspaceMigration = new WorkspaceMigrationManager(profiles, extensions, app.getVersion(), logger)
@@ -151,6 +161,9 @@ app.whenReady().then(async () => {
     (status) => mainWindow?.webContents.send('mcp:changed', status)
   )
   await mcp.initialize()
+  await mcp
+    .pruneOrphanedPermissions((await profiles.listTrash()).map((item) => item.profileId))
+    .catch((error) => logger?.error('清理已删除环境的 MCP 设置失败', error))
   const addressBarBridge = process.platform === 'darwin'
     ? new MacWindowSyncBridge(process.resourcesPath, logger)
     : process.platform === 'win32'
@@ -168,9 +181,28 @@ app.whenReady().then(async () => {
     automationAudit,
     process.resourcesPath,
     (status) => mainWindow?.webContents.send('automation:changed', status),
-    logger
+    logger,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    join(vaultPath, 'runtime')
   )
   automation.attachMcpBroker(mcp)
+  const profileCreator = new ProfileCreationService(
+    profiles,
+    (profile) => {
+      mainWindow?.webContents.send('profiles:changed', publicProfile(profile))
+      mainWindow?.webContents.send('mcp:changed', mcp!.status(automation!.status().state === 'running'))
+    },
+    (id) => extensions.list().some((extension) => extension.id === id)
+  )
+  automation.setProfileCreator(profileCreator)
+  mcp.setProfileCreator(profileCreator)
+  await automation.clearAutoStartSuppression()
+  if (licensing.has('mcp') && mcp.canStart()) {
+    await automation.ensureStarted().catch((error) => logger?.error('本地 AI 服务自动启动失败', error))
+  }
   scheduler = new SchedulerManager(
     new SchedulerStore(vaultPath),
     profiles,

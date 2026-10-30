@@ -1,12 +1,13 @@
 import { t, translateMessage as mt } from '../../shared/i18n'
-import { CloudDownloadOutlined, DeleteOutlined, EditOutlined, FolderAddOutlined, ReloadOutlined } from '@ant-design/icons'
-import { Alert, Button, Form, Input, List, Modal, Popconfirm, Space, Spin, Switch, Tag, Typography, message } from 'antd'
+import { CloudDownloadOutlined, DeleteOutlined, EditOutlined, FolderAddOutlined, ReloadOutlined, SafetyCertificateOutlined } from '@ant-design/icons'
+import { Alert, Button, Input, List, Modal, Popconfirm, Select, Space, Spin, Switch, Tag, Typography, message } from 'antd'
 import { useEffect, useState } from 'react'
-import type { BrowserExtension } from '../../shared/types'
+import type { BrowserExtension, BrowserProfileView, ExtensionDownloadNetwork } from '../../shared/types'
 
 interface ExtensionManagerModalProps {
   open: boolean
   extensions: BrowserExtension[]
+  profiles: BrowserProfileView[]
   onClose: () => void
   onChanged: (extensions: BrowserExtension[]) => void
 }
@@ -15,12 +16,13 @@ function errorText(error: unknown): string {
   return mt(error instanceof Error ? error.message : String(error))
 }
 
-export function ExtensionManagerModal({ open, extensions, onClose, onChanged }: ExtensionManagerModalProps) {
+export function ExtensionManagerModal({ open, extensions, profiles, onClose, onChanged }: ExtensionManagerModalProps) {
   const [loading, setLoading] = useState(false)
   const [importing, setImporting] = useState(false)
-  const [importingWebStore, setImportingWebStore] = useState(false)
-  const [webStoreModalOpen, setWebStoreModalOpen] = useState(false)
-  const [webStoreUrl, setWebStoreUrl] = useState('')
+  const [storeOpen, setStoreOpen] = useState(false)
+  const [storeUrl, setStoreUrl] = useState('')
+  const [storeNetwork, setStoreNetwork] = useState('direct')
+  const [storeImporting, setStoreImporting] = useState(false)
   const [opening, setOpening] = useState<string | null>(null)
   const [removing, setRemoving] = useState<string | null>(null)
   const [toggling, setToggling] = useState<string | null>(null)
@@ -56,17 +58,26 @@ export function ExtensionManagerModal({ open, extensions, onClose, onChanged }: 
   }
 
   async function importWebStore(): Promise<void> {
-    if (!webStoreUrl.trim()) return
-    setImportingWebStore(true)
+    if (!storeUrl.trim()) {
+      messageApi.warning(t("请粘贴 Chrome 应用商店扩展地址"))
+      return
+    }
+    setStoreImporting(true)
     try {
-      const imported = await window.browserApi.extensions.importWebStore(webStoreUrl.trim())
+      const network: ExtensionDownloadNetwork = storeNetwork === 'system'
+        ? { mode: 'system' }
+        : storeNetwork.startsWith('profile:')
+          ? { mode: 'profile', profileId: storeNetwork.slice('profile:'.length) }
+          : { mode: 'direct' }
+      const imported = await window.browserApi.extensions.importWebStore(storeUrl.trim(), network)
       onChanged([...extensions.filter((item) => item.id !== imported.id), imported])
-      setWebStoreModalOpen(false)
-      setWebStoreUrl('')
+      setStoreUrl('')
+      setStoreOpen(false)
+      messageApi.success(t("扩展“{0}”已安全导入，可在环境设置中启用", imported.name))
     } catch (error) {
-      messageApi.error(errorText(error))
+      messageApi.error(errorText(error), 6)
     } finally {
-      setImportingWebStore(false)
+      setStoreImporting(false)
     }
   }
 
@@ -110,7 +121,7 @@ export function ExtensionManagerModal({ open, extensions, onClose, onChanged }: 
     }
   }
 
-  return (<>
+  return (
     <Modal open={open} title={t("浏览器扩展")} width={720} footer={null} onCancel={onClose} destroyOnHidden>
       {contextHolder}
       <Alert
@@ -121,14 +132,15 @@ export function ExtensionManagerModal({ open, extensions, onClose, onChanged }: 
       />
       <div className="extension-toolbar">
         <Typography.Text type="secondary">{t("导入一次后，可在不同环境中选择不同扩展组合。")}</Typography.Text>
-        <Space>
+        <Space wrap>
           <Button icon={<ReloadOutlined />} loading={loading} onClick={() => void refresh()}>{t("刷新")}</Button>
-          <Button type="primary" icon={<FolderAddOutlined />} loading={importing} onClick={() => void importDirectory()}>{t("导入本地扩展")}</Button>
-          <Button type="primary" icon={<CloudDownloadOutlined />} onClick={() => setWebStoreModalOpen(true)}>{t("从 Chrome 商店安装")}</Button>
+          <Button icon={<FolderAddOutlined />} loading={importing} onClick={() => void importDirectory()}>{t("导入本地扩展")}</Button>
+          <Button type="primary" icon={<CloudDownloadOutlined />} onClick={() => setStoreOpen(true)}>{t("从 Chrome 商店安装")}</Button>
         </Space>
       </div>
       <Spin spinning={loading && extensions.length === 0}>
         <List
+          className="wrap-actions-list"
           dataSource={extensions}
           locale={{ emptyText: t("尚未导入浏览器扩展") }}
           renderItem={(extension) => (
@@ -161,10 +173,21 @@ export function ExtensionManagerModal({ open, extensions, onClose, onChanged }: 
               </Space>
             ]}>
               <List.Item.Meta
-                title={<Space><span>{extension.name}</span><Tag>v{extension.version}</Tag></Space>}
+                title={
+                  <Space>
+                    <span>{extension.name}</span>
+                    <Tag>v{extension.version}</Tag>
+                    {extension.source === 'chrome-web-store' && (
+                      <Tag color="blue" icon={<SafetyCertificateOutlined />}>{t("Chrome 商店")}</Tag>
+                    )}
+                  </Space>
+                }
                 description={
                   <div>
                     <div>{extension.description || t("无描述")}</div>
+                    {extension.storeId && (
+                      <Typography.Text type="secondary">{t("扩展 ID：{0}", extension.storeId)}</Typography.Text>
+                    )}
                     <Typography.Text type="secondary" className="extension-path" copyable={{ text: extension.path }}>{extension.path}</Typography.Text>
                   </div>
                 }
@@ -174,27 +197,48 @@ export function ExtensionManagerModal({ open, extensions, onClose, onChanged }: 
         />
       </Spin>
       <Typography.Paragraph type="secondary" style={{ marginTop: 12, marginBottom: 0 }}>{t("“全局启用”会让所有现有及以后新建的环境加载该扩展；扩展开关或源码修改需关闭并重新打开环境后生效。")}</Typography.Paragraph>
-    </Modal>
-    <Modal
-      open={webStoreModalOpen}
-      title={t("从 Chrome 商店安装扩展")}
-      okText={t("安装")}
-      cancelText={t("取消")}
-      confirmLoading={importingWebStore}
-      onOk={() => void importWebStore()}
-      onCancel={() => { setWebStoreModalOpen(false); setWebStoreUrl('') }}
-      destroyOnHidden
-    >
-      <Form layout="vertical">
-        <Form.Item label={t("Chrome 商店扩展链接")} extra={t("请粘贴 Chrome Web Store 扩展页面地址")}>
-          <Input
-            value={webStoreUrl}
-            onChange={(e) => setWebStoreUrl(e.target.value)}
-            placeholder="https://chrome.google.com/webstore/detail/..."
-            onPressEnter={() => void importWebStore()}
+      <Modal
+        open={storeOpen}
+        title={t("从 Chrome 应用商店安装")}
+        okText={t("下载并安装")}
+        cancelText={t("取消")}
+        confirmLoading={storeImporting}
+        okButtonProps={{ disabled: !storeUrl.trim() }}
+        closable={!storeImporting}
+        maskClosable={!storeImporting}
+        onOk={() => void importWebStore()}
+        onCancel={() => { if (!storeImporting) setStoreOpen(false) }}
+      >
+        <Typography.Paragraph type="secondary">{t("粘贴扩展详情页地址。Prism 会从 Google 官方服务下载并校验扩展，安装后可在环境设置中启用。")}</Typography.Paragraph>
+        <Input
+          autoFocus
+          value={storeUrl}
+          disabled={storeImporting}
+          placeholder={t("https://chromewebstore.google.com/detail/.../扩展ID")}
+          onChange={(event) => setStoreUrl(event.target.value)}
+          onPressEnter={() => { if (!storeImporting && storeUrl.trim()) void importWebStore() }}
+        />
+        <div style={{ marginTop: 16 }}>
+          <Typography.Text strong>{t("下载网络")}</Typography.Text>
+          <Select
+            value={storeNetwork}
+            disabled={storeImporting}
+            style={{ width: '100%', marginTop: 8 }}
+            options={[
+              { value: 'direct', label: t("本机直连") },
+              { value: 'system', label: t("跟随系统代理") },
+              ...profiles.filter((profile) => profile.proxy.protocol !== 'direct').map((profile) => ({
+                value: `profile:${profile.id}`,
+                label: `#${profile.serialNumber} · ${profile.name} (${profile.proxy.protocol.toUpperCase()} ${profile.proxy.host}:${profile.proxy.port})`
+              }))
+            ]}
+            onChange={setStoreNetwork}
           />
-        </Form.Item>
-      </Form>
+          <Typography.Paragraph type="secondary" style={{ marginTop: 8, marginBottom: 0 }}>
+            {t("无法直接访问 Google 服务时，可使用系统代理或已有环境的代理下载。这里只用于下载扩展，不会启动该环境。")}
+          </Typography.Paragraph>
+        </div>
+      </Modal>
     </Modal>
-  </>)
+  )
 }

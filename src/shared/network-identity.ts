@@ -47,6 +47,87 @@ export function localeForCountry(countryCode: string | undefined): { language: s
   return countryCode ? COUNTRY_LOCALES[countryCode.toUpperCase()] : undefined
 }
 
+export function acceptLanguagesForLanguage(language: string): string {
+  const known = Object.values(COUNTRY_LOCALES).find((locale) => locale.language === language)
+  if (known) return known.acceptLanguages
+  const base = language.split('-')[0]
+  return [...new Set(base === 'en' ? [language, 'en-US', 'en'] : [language, base, 'en-US', 'en'])].join(',')
+}
+
+const FALLBACK_FINGERPRINT_LOCALE = Object.freeze({
+  language: 'en-US',
+  acceptLanguages: 'en-US,en',
+  timezone: 'UTC'
+})
+
+const ENGLISH_REGIONS = new Set(['US', 'GB', 'AU', 'CA', 'IN', 'IE', 'NZ', 'ZA', 'SG', 'PH'])
+
+function browserLanguageTag(value: unknown): string | undefined {
+  if (typeof value !== 'string' || !value.trim()) return undefined
+  let locale: Intl.Locale
+  try {
+    locale = new Intl.Locale(value.trim().replace(/_/g, '-'))
+  } catch {
+    return undefined
+  }
+  const language = locale.language
+  if (!language || language === 'und') return undefined
+  let region = locale.region
+  if (language === 'zh' && !region) region = locale.script === 'Hant' ? 'TW' : 'CN'
+  if (!region) {
+    try {
+      region = locale.maximize().region
+    } catch { /* ignore */ }
+  }
+  if (language === 'en' && (!region || !ENGLISH_REGIONS.has(region))) region = 'US'
+  return region && /^(?:[A-Z]{2}|\d{3})$/.test(region) ? `${language}-${region}` : language
+}
+
+function validTimeZone(value: unknown): string | undefined {
+  if (typeof value !== 'string' || !value.trim() || value === 'Etc/Unknown') return undefined
+  try {
+    new Intl.DateTimeFormat('en-US', { timeZone: value.trim() }).format()
+    return value.trim()
+  } catch {
+    return undefined
+  }
+}
+
+export interface FingerprintLocale {
+  language: string
+  acceptLanguages: string
+  timezone: string
+}
+
+export function fingerprintLocaleFromSystem(info?: { languages?: string[]; timezone?: string }): FingerprintLocale {
+  const languages = Array.isArray(info?.languages) ? info.languages : []
+  const language = languages.map(browserLanguageTag).find(Boolean) ?? FALLBACK_FINGERPRINT_LOCALE.language
+  return {
+    language,
+    acceptLanguages: acceptLanguagesForLanguage(language),
+    timezone: validTimeZone(info?.timezone) ?? FALLBACK_FINGERPRINT_LOCALE.timezone
+  }
+}
+
+function runtimeSystemLocaleInfo(): { languages: string[]; timezone: string } {
+  let timezone = ''
+  try {
+    timezone = Intl.DateTimeFormat().resolvedOptions().timeZone ?? ''
+  } catch { /* ignore */ }
+  const languages = globalThis.navigator?.languages
+  return { languages: Array.isArray(languages) ? [...languages] : [], timezone }
+}
+
+let systemFingerprintLocale: FingerprintLocale | undefined
+
+export function setSystemFingerprintLocale(locale: FingerprintLocale): void {
+  systemFingerprintLocale = locale
+}
+
+export function defaultFingerprintLocale(): FingerprintLocale {
+  return systemFingerprintLocale ?? fingerprintLocaleFromSystem(runtimeSystemLocaleInfo())
+}
+
 type CompleteProxyIdentity = ProxyTestResult & {
   ok: true
   ip: string

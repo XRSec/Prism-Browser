@@ -329,26 +329,36 @@ export class ExtensionStore {
     } catch { return value }
   }
 
-  private async importValidatedDirectory(source: string, origin: { source: string; storeId?: string; sourceUrl?: string }): Promise<BrowserExtension> {
+  private async importValidatedDirectory(
+    source: string,
+    origin: { source: 'local' | 'chrome-web-store'; storeId?: string; sourceUrl?: string }
+  ): Promise<BrowserExtension> {
     const manifestPath = join(source, 'manifest.json')
     const manifest = await this.readManifest(manifestPath)
     if (manifest.manifest_version !== 2 && manifest.manifest_version !== 3) throw new Error('只支持 Manifest V2 或 V3 扩展')
     if (typeof manifest.name !== 'string' || !manifest.name.trim()) throw new Error('扩展 manifest 缺少名称')
     if (typeof manifest.version !== 'string' || !/^\d+(?:\.\d+){0,3}$/.test(manifest.version)) throw new Error('扩展 manifest 版本号无效')
     await inspectDirectory(source)
-    const name = await this.resolveMessage(source, manifest.name, manifest)
     const id = randomUUID()
     const staging = join(this.root, `.import-${id}`)
     const target = join(this.root, id)
     await mkdir(staging, { recursive: true })
     try {
       await cp(source, join(staging, 'extension'), { recursive: true, errorOnExist: true })
+      const resolvedName = await this.resolveMessage(source, manifest.name.trim(), manifest)
+      const resolvedDescription = typeof manifest.description === 'string'
+        ? await this.resolveMessage(source, manifest.description.trim(), manifest)
+        : ''
       const extension: BrowserExtension = {
-        id, name: name.startsWith('__MSG_') ? (origin.storeId ?? id.slice(0, 8)) : name.trim(),
-        version: manifest.version, description: typeof manifest.description === 'string' ? manifest.description.trim() : '',
-        manifestVersion: manifest.manifest_version, installedAt: new Date().toISOString(),
-        path: join(target, 'extension'), globalEnabled: false,
-        ...(origin.storeId ? { storeId: origin.storeId, sourceUrl: origin.sourceUrl } : {})
+        id,
+        name: resolvedName.startsWith('__MSG_') ? basename(source) : resolvedName,
+        version: manifest.version,
+        description: resolvedDescription.startsWith('__MSG_') ? '' : resolvedDescription,
+        manifestVersion: manifest.manifest_version,
+        installedAt: new Date().toISOString(),
+        path: join(target, 'extension'),
+        globalEnabled: false,
+        ...origin
       }
       await writeFile(join(staging, 'metadata.json'), JSON.stringify(extension, null, 2), { encoding: 'utf8', mode: 0o600 })
       await rename(staging, target)
@@ -361,40 +371,14 @@ export class ExtensionStore {
     }
   }
 
-  async importDirectory(sourceInput: string): Promise<BrowserExtension> {
+  async importDirectory(
+    sourceInput: string,
+    origin: { source: 'local' | 'chrome-web-store'; storeId?: string; sourceUrl?: string } = { source: 'local' }
+  ): Promise<BrowserExtension> {
     const source = resolve(sourceInput)
     const root = resolve(this.root)
     if (source === root || source.startsWith(`${root}${sep}`)) throw new Error('不能从扩展仓库内部重复导入')
-    const manifest = await this.readManifest(join(source, 'manifest.json'))
-    if (manifest.manifest_version !== 2 && manifest.manifest_version !== 3) throw new Error('只支持 Manifest V2 或 V3 扩展')
-    if (typeof manifest.name !== 'string' || !manifest.name.trim()) throw new Error('扩展 manifest 缺少名称')
-    if (typeof manifest.version !== 'string' || !/^\d+(?:\.\d+){0,3}$/.test(manifest.version)) throw new Error('扩展 manifest 版本号无效')
-    await inspectDirectory(source)
-    const id = randomUUID()
-    const staging = join(this.root, `.import-${id}`)
-    const target = join(this.root, id)
-    await mkdir(staging, { recursive: true })
-    try {
-      await cp(source, join(staging, 'extension'), { recursive: true, errorOnExist: true })
-      const extension: BrowserExtension = {
-        id,
-        name: manifest.name.startsWith('__MSG_') ? basename(source) : manifest.name.trim(),
-        version: manifest.version,
-        description: typeof manifest.description === 'string' ? manifest.description.trim() : '',
-        manifestVersion: manifest.manifest_version,
-        installedAt: new Date().toISOString(),
-        path: join(target, 'extension'),
-        globalEnabled: false
-      }
-      await writeFile(join(staging, 'metadata.json'), JSON.stringify(extension, null, 2), { encoding: 'utf8', mode: 0o600 })
-      await rename(staging, target)
-      this.extensions.set(id, extension)
-      this.logger?.info('浏览器扩展已导入', { extensionId: id, name: extension.name, version: extension.version })
-      return { ...extension }
-    } catch (error) {
-      await rm(staging, { recursive: true, force: true })
-      throw error
-    }
+    return this.importValidatedDirectory(source, origin)
   }
 
   async remove(id: string): Promise<void> {

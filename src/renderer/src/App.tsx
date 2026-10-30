@@ -5,6 +5,7 @@ import {
   AppstoreOutlined,
   AppstoreAddOutlined,
   CheckCircleFilled,
+  ClearOutlined,
   ClockCircleOutlined,
   CopyOutlined,
   CrownOutlined,
@@ -77,6 +78,22 @@ import { profileTableSorters } from './profile-table-sort'
 
 const { Sider, Content } = Layout
 
+const PAGE_SIZE_STORAGE_KEY = 'prism-browser-page-size'
+const PAGE_SIZE_OPTIONS = [10, 20, 50, 100] as const
+
+function loadSavedPageSize(): number {
+  try {
+    const raw = window.localStorage.getItem(PAGE_SIZE_STORAGE_KEY)
+    const parsed = Number(raw)
+    if (PAGE_SIZE_OPTIONS.includes(parsed as (typeof PAGE_SIZE_OPTIONS)[number])) {
+      return parsed
+    }
+  } catch {
+    // Ignore storage read errors
+  }
+  return 10
+}
+
 function humanError(error: unknown): string {
   const raw = error instanceof Error ? error.message : String(error)
   return mt(raw)
@@ -140,6 +157,8 @@ export default function App({ colorMode = 'light', onColorModeChange = () => {} 
   const [selectedStatus, setSelectedStatus] = useState('__all__')
   const [sortMode, setSortMode] = useState<'updated' | 'recent' | 'name' | 'created'>('updated')
   const [favoritesOnly, setFavoritesOnly] = useState(false)
+  const [pageSize, setPageSize] = useState<number>(loadSavedPageSize)
+  const [currentPage, setCurrentPage] = useState<number>(1)
   const [selectedIds, setSelectedIds] = useState<string[]>([])
   const [batchBusy, setBatchBusy] = useState(false)
   const [batchResult, setBatchResult] = useState<BatchOperationResult>()
@@ -704,6 +723,77 @@ export default function App({ colorMode = 'light', onColorModeChange = () => {} 
     }
   }
 
+  function handlePageSizeChange(nextPageSize: number): void {
+    setPageSize(nextPageSize)
+    try {
+      window.localStorage.setItem(PAGE_SIZE_STORAGE_KEY, String(nextPageSize))
+    } catch {
+      // Ignore storage write errors
+    }
+  }
+
+  async function clearSingleProfileCache(profile: BrowserProfileView): Promise<void> {
+    await withBusy(profile.id, async () => {
+      const before = await window.browserApi.profiles.storageInfo(profile.id)
+      const after = await window.browserApi.profiles.clearCache(profile.id)
+      const freed = Math.max(0, before.cacheBytes - after.cacheBytes)
+      void refreshStorageOverview()
+      messageApi.success(t("已清理 {0} 缓存", formatBytes(freed)))
+    })
+  }
+
+  async function runBatchClearCache(ids: string[]): Promise<void> {
+    const candidates = profiles.filter((profile) => ids.includes(profile.id))
+    if (!candidates.length) return
+    setBatchBusy(true)
+    setBusyIds((current) => new Set([...current, ...candidates.map((profile) => profile.id)]))
+    let freedBytes = 0
+    const errors: string[] = []
+    try {
+      for (let index = 0; index < candidates.length; index += 5) {
+        await Promise.all(candidates.slice(index, index + 5).map(async (profile) => {
+          try {
+            const before = await window.browserApi.profiles.storageInfo(profile.id)
+            const after = await window.browserApi.profiles.clearCache(profile.id)
+            freedBytes += Math.max(0, before.cacheBytes - after.cacheBytes)
+          } catch (error) {
+            errors.push(`${profile.name}：${humanError(error)}`)
+          }
+        }))
+      }
+      void refreshStorageOverview()
+      if (errors.length) {
+        setBatchResult({
+          operation: '清理缓存',
+          total: candidates.length,
+          succeeded: candidates.length - errors.length,
+          errors
+        })
+        messageApi.warning(t("完成 {0} 个，失败 {1} 个", candidates.length - errors.length, errors.length))
+      } else {
+        messageApi.success(t("已清理 {0} 缓存", formatBytes(freedBytes)))
+      }
+      setSelectedIds([])
+    } finally {
+      const targetIds = new Set(candidates.map((profile) => profile.id))
+      setBusyIds((current) => new Set([...current].filter((id) => !targetIds.has(id))))
+      setBatchBusy(false)
+    }
+  }
+
+  function confirmBatchClearCache(): void {
+    const ids = [...selectedIds]
+    if (!ids.length) return
+    Modal.confirm({
+      title: t("清理缓存"),
+      content: t("只清理缓存，Cookie、网站数据、书签和扩展不会被删除。"),
+      okText: t("清理缓存"),
+      okButtonProps: { danger: true },
+      cancelText: t("取消"),
+      onOk: () => runBatchClearCache(ids)
+    })
+  }
+
   function confirmBatchRemove(): void {
     const ids = [...selectedIds]
     Modal.confirm({
@@ -736,6 +826,7 @@ export default function App({ colorMode = 'light', onColorModeChange = () => {} 
       items: [
         { key: 'edit', icon: <EditOutlined />, label: t("编辑"), disabled: !editable },
         { key: 'data', icon: <DatabaseOutlined />, label: t("环境数据") },
+        { key: 'clear-cache', icon: <ClearOutlined />, label: t("清理缓存"), disabled: !editable },
         { key: 'diagnose', icon: <SafetyCertificateOutlined />, label: t("启动诊断") },
         { key: 'crashes', icon: <WarningFilled />, label: t("异常与恢复") },
         { key: 'proxy-check', icon: <ApiOutlined />, label: t("检测代理") },
@@ -747,6 +838,7 @@ export default function App({ colorMode = 'light', onColorModeChange = () => {} 
       onClick: ({ key }) => {
         if (key === 'edit') openEditor(profile)
         if (key === 'data') setDataProfile(profile)
+        if (key === 'clear-cache') void clearSingleProfileCache(profile)
         if (key === 'diagnose') void runDiagnostics(profile)
         if (key === 'crashes') void openCrashHistory(profile)
         if (key === 'proxy-check') void runProxyChecks([profile.id])
@@ -1118,6 +1210,7 @@ export default function App({ colorMode = 'light', onColorModeChange = () => {} 
                     >{t("批量打开")}</Button>
                     <Button size="small" icon={<PoweroffOutlined />} loading={batchBusy} onClick={() => void runBatch('close')}>{t("批量关闭")}</Button>
                     <Button size="small" icon={<ApiOutlined />} loading={batchBusy} onClick={() => void runProxyChecks(selectedIds)}>{t("检测代理")}</Button>
+                    <Button size="small" icon={<ClearOutlined />} loading={batchBusy} onClick={confirmBatchClearCache}>{t("清理缓存")}</Button>
                     <Button size="small" icon={<TagsOutlined />} disabled={batchBusy} onClick={() => setBatchClassificationOpen(true)}>{t("分组/标签")}</Button>
                     <Button size="small" danger icon={<DeleteOutlined />} disabled={batchBusy} onClick={confirmBatchRemove}>{t("移入回收站")}</Button>
                   </Space>
@@ -1173,7 +1266,20 @@ export default function App({ colorMode = 'light', onColorModeChange = () => {} 
                   preserveSelectedRowKeys: true,
                   onChange: (keys) => setSelectedIds(keys.map(String))
                 }}
-                pagination={profiles.length > 12 ? { pageSize: 12 } : false}
+                pagination={visibleProfiles.length > 0 ? {
+                  current: Math.min(currentPage, Math.max(1, Math.ceil(visibleProfiles.length / pageSize))),
+                  pageSize,
+                  showSizeChanger: true,
+                  pageSizeOptions: PAGE_SIZE_OPTIONS.map(String),
+                  onChange: (page, nextPageSize) => {
+                    if (nextPageSize && nextPageSize !== pageSize) {
+                      handlePageSizeChange(nextPageSize)
+                      setCurrentPage(1)
+                    } else {
+                      setCurrentPage(page)
+                    }
+                  }
+                } : false}
                 scroll={{ x: 1240 }}
                 locale={{
                   emptyText: (
@@ -1280,6 +1386,7 @@ export default function App({ colorMode = 'light', onColorModeChange = () => {} 
       <ExtensionManagerModal
         open={extensionManagerOpen}
         extensions={extensions}
+        profiles={profiles}
         onClose={() => setExtensionManagerOpen(false)}
         onChanged={setExtensions}
       />

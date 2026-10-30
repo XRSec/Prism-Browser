@@ -1,8 +1,10 @@
 import { t } from './i18n'
 import type { BrowserPlatform, FingerprintConfig, ProfileDraft, ProfileWindowConfig } from './types'
 import { applyHardwareProfile, defaultHardwareProfileId } from './hardware-profiles'
+import { defaultFingerprintLocale } from './network-identity'
 
 export const PROFILE_COLORS = ['#5965e8', '#1d9a6c', '#d97706', '#d9506b', '#7c4dce', '#0784a8']
+export const DEFAULT_START_URL = 'https://prismbrowser.app/'
 
 export function seedFromId(id: string): number {
   let hash = 0x811c9dc5
@@ -26,6 +28,7 @@ export function defaultPlatform(): BrowserPlatform {
 
 export function defaultFingerprint(seed = randomSeed()): FingerprintConfig {
   const platform = defaultPlatform()
+  const locale = defaultFingerprintLocale()
   const fingerprint: FingerprintConfig = {
     seed,
     hardwareProfileId: defaultHardwareProfileId(platform),
@@ -34,9 +37,9 @@ export function defaultFingerprint(seed = randomSeed()): FingerprintConfig {
     brand: 'Chrome',
     brandVersion: '',
     hardwareConcurrency: 8,
-    language: 'zh-CN',
-    acceptLanguages: 'zh-CN,zh,en-US,en',
-    timezone: 'Asia/Shanghai',
+    language: locale.language,
+    acceptLanguages: locale.acceptLanguages,
+    timezone: locale.timezone,
     webrtcPolicy: 'proxy_only',
     networkIdentityMode: 'proxy',
     proxyExitPolicy: 'block',
@@ -59,7 +62,7 @@ export function defaultProfileDraft(index = 1): ProfileDraft {
     tags: [],
     extensionIds: [],
     color: PROFILE_COLORS[(index - 1) % PROFILE_COLORS.length],
-    startUrls: ['https://browserleaks.com/'],
+    startUrls: [DEFAULT_START_URL],
     kernelVersion: '',
     window: defaultProfileWindow(),
     proxy: {

@@ -2,7 +2,7 @@ import { t, translateMessage as mt } from '../../shared/i18n'
 import { Alert, List, Modal, Typography } from 'antd'
 
 export interface BatchOperationResult {
-  operation: '启动' | '关闭'
+  operation: '启动' | '关闭' | '清理缓存'
   total: number
   succeeded: number
   errors: string[]

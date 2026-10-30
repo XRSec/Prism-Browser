@@ -2,10 +2,20 @@ import { mkdir, rename, stat, writeFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 
 export interface AutomationAuditEvent {
-  action: 'agent-start' | 'agent-stop' | 'emergency-stop' | 'profiles-list' | 'profile-status' | 'profile-launch' | 'profile-close'
+  action:
+    | 'agent-start'
+    | 'agent-stop'
+    | 'emergency-stop'
+    | 'profile-create'
+    | 'profiles-create-batch'
+    | 'profiles-list'
+    | 'profile-status'
+    | 'profile-launch'
+    | 'profile-close'
   outcome: 'allowed' | 'success' | 'failure'
   requestId?: string
   profileId?: string
+  profileIds?: string[]
   detail?: string
 }
 
@@ -34,6 +44,7 @@ export class AutomationAuditLog {
       ...event,
       requestId: event.requestId?.slice(0, 100),
       profileId: event.profileId?.slice(0, 100),
+      profileIds: event.profileIds?.slice(0, 50).map((id) => id.slice(0, 100)),
       detail: event.detail?.slice(0, 300)
     }
     const line = `${JSON.stringify(safe)}\n`

@@ -8,6 +8,7 @@ import { Readable, Transform } from 'node:stream'
 import { promisify } from 'node:util'
 import type { EngineStatus, KernelHealth, KernelInstallProgress, KernelRelease } from '../shared/types'
 import { locateBrowser, locateBrowserSelection, normalizeBrowserSelection } from './browser-locator'
+import type { KernelReleaseCatalog } from './kernel-catalog'
 import {
   collectKernelIntegrity,
   kernelPayloadIdentity,
@@ -101,7 +102,8 @@ export class KernelManager {
     private readonly settings: SettingsStore,
     private readonly onProgress: (progress: KernelInstallProgress) => void,
     private readonly logger?: Logger,
-    private readonly kernelUsers: (version: string) => string[] | Promise<string[]> = () => []
+    private readonly kernelUsers: (version: string) => string[] | Promise<string[]> = () => [],
+    private readonly catalog?: KernelReleaseCatalog
   ) {}
 
   setProKernelAccessCheck(check: () => boolean): void {
@@ -142,41 +144,57 @@ export class KernelManager {
       throw new Error('当前只支持自动安装 macOS 和 Windows 内核')
     }
     const installed = await this.installedManifests()
-    let releases: GithubRelease[]
-    try {
-      const response = await fetch(RELEASES_URL, {
-        headers: { accept: 'application/vnd.github+json', 'user-agent': 'Prism-Browser/0.1' },
-        signal: AbortSignal.timeout(15_000)
-      })
-      if (!response.ok) throw new Error(`获取内核版本失败（GitHub HTTP ${response.status}）`)
-      releases = await response.json() as GithubRelease[]
-    } catch (error) {
-      if (installed.size === 0) throw error
-      this.logger?.error('获取远程内核版本失败，展示本地版本', error)
-      releases = []
+    let remote: KernelRelease[] = []
+    if (this.catalog) {
+      try {
+        remote = await this.catalog.releases()
+      } catch (error) {
+        if (installed.size === 0) throw error
+        this.logger?.error('获取远程内核版本失败，展示本地版本', error)
+      }
+    } else {
+      try {
+        const response = await fetch(RELEASES_URL, {
+          headers: { accept: 'application/vnd.github+json', 'user-agent': 'Prism-Browser/0.1' },
+          signal: AbortSignal.timeout(15_000)
+        })
+        if (response.ok) {
+          const releases = await response.json() as GithubRelease[]
+          remote = releases
+            .filter((release) => !release.draft && !release.prerelease)
+            .flatMap((release) => {
+              const asset = supportedAsset(release.assets)
+              const digest = asset?.digest?.startsWith('sha256:') ? asset.digest.slice('sha256:'.length) : ''
+              if (!asset || !digest) return []
+              return [{
+                version: release.tag_name,
+                publishedAt: release.published_at,
+                assetName: asset.name,
+                downloadUrl: asset.browser_download_url,
+                size: asset.size,
+                sha256: digest,
+                installed: false,
+                remoteAvailable: true,
+                origin: 'release' as const
+              }]
+            })
+        }
+      } catch (error) {
+        if (installed.size === 0) throw error
+        this.logger?.error('获取备用远程内核版本失败', error)
+      }
     }
 
-    const remote = releases
-      .filter((release) => !release.draft && !release.prerelease)
-      .flatMap((release) => {
-        const asset = supportedAsset(release.assets)
-        const digest = asset?.digest?.startsWith('sha256:') ? asset.digest.slice('sha256:'.length) : ''
-        if (!asset || !digest) return []
-        const manifest = installed.get(release.tag_name)
-        return [{
-          version: release.tag_name,
-          publishedAt: release.published_at,
-          assetName: asset.name,
-          downloadUrl: asset.browser_download_url,
-          size: asset.size,
-          sha256: digest,
-          installed: Boolean(manifest),
-          remoteAvailable: true,
-          origin: manifest?.source ?? 'release',
-          executable: manifest ? join(this.kernelPath(release.tag_name), manifest.executableRelative) : undefined
-        } satisfies KernelRelease]
-      })
     const remoteVersions = new Set(remote.map((release) => release.version))
+    const mergedRemote = remote.map((release) => {
+      const manifest = installed.get(release.version)
+      return {
+        ...release,
+        installed: Boolean(manifest),
+        executable: manifest ? join(this.kernelPath(release.version), manifest.executableRelative) : undefined,
+        origin: manifest?.source ?? 'release'
+      }
+    })
     const localOnly = [...installed.values()]
       .filter((manifest) => !remoteVersions.has(manifest.version))
       .map((manifest) => ({
@@ -191,7 +209,7 @@ export class KernelManager {
         origin: manifest.source ?? 'release',
         executable: join(this.kernelPath(manifest.version), manifest.executableRelative)
       } satisfies KernelRelease))
-    return [...remote, ...localOnly]
+    return [...mergedRemote, ...localOnly]
   }
 
   async install(versionInput: string): Promise<EngineStatus> {
@@ -214,7 +232,18 @@ export class KernelManager {
 
     try {
       await this.assertDownloadSpace(downloadsPath, archivePath, release.size)
-      await this.download(release, archivePath)
+      let failure: unknown
+      for (const downloadUrl of [release.downloadUrl, ...release.mirrorUrls ?? []]) {
+        try {
+          await this.download({ ...release, downloadUrl }, archivePath)
+          failure = undefined
+          break
+        } catch (error) {
+          failure = error
+          if (this.installAbort?.signal.aborted) throw error
+        }
+      }
+      if (failure) throw failure
       this.emit(release, 'installing', release.size, release.size, '正在安装浏览器内核…')
       const manifest = process.platform === 'darwin'
         ? await this.installMac(release, archivePath)

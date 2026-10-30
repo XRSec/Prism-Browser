@@ -1,11 +1,14 @@
 import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
+import { chmodSync, mkdirSync, renameSync, rmSync, writeFileSync } from 'node:fs'
+import { chmod, mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import type { AutomationStartResult, AutomationStatus, BrowserProfile, McpConnection, McpStatus } from '../shared/types'
 import type { Logger } from './app-logger'
 import type { AutomationAuditLog } from './automation-audit'
 import type { BrowserLauncher } from './browser-launcher'
 import type { ProAgentChallenge, ProAgentHandshake } from './license-manager'
+import type { ProfileCreationService } from './profile-creation-service'
 import type { ProfileStore } from './profile-store'
 import { verifyProAgentBundle, type OsSignatureVerifier } from './pro-agent-integrity'
 
@@ -34,6 +37,29 @@ interface McpRequestBroker {
   handleAgentRequest(method: string, params: Record<string, unknown> | undefined, requestId: string): Promise<unknown>
   status(agentRunning?: boolean): McpStatus
   resetSessions(): void
+  canStart?(): boolean
+}
+
+function protocolError(error: unknown) {
+  const candidate = error as {
+    code?: unknown
+    retryable?: unknown
+    suggestedTool?: unknown
+    details?: Array<{ path?: unknown; message?: unknown }>
+  }
+  const details = Array.isArray(candidate?.details)
+    ? candidate.details
+        .filter((item): item is { path: string; message: string } => typeof item?.path === 'string' && typeof item?.message === 'string')
+        .slice(0, 20)
+        .map((item) => ({ path: item.path.slice(0, 200), message: item.message.slice(0, 300) }))
+    : []
+  return {
+    code: typeof candidate?.code === 'string' ? candidate.code : 'MCP_REQUEST_FAILED',
+    message: error instanceof Error ? error.message : 'mcp_request_failed',
+    retryable: candidate?.retryable === true,
+    ...(typeof candidate?.suggestedTool === 'string' ? { suggestedTool: candidate.suggestedTool } : {}),
+    ...(details.length ? { details } : {})
+  }
 }
 
 function publicAutomationProfile(profile: BrowserProfile) {
@@ -84,9 +110,13 @@ export class ProAgentManager {
   private controlled = new Set<string>()
   private expectedStop = false
   private mcpBroker?: McpRequestBroker
+  private profileCreator?: ProfileCreationService
   private mcpAccessToken = ''
-  private mcpTokenExposed = false
   private agentExecutable = ''
+  private readonly instanceId = randomUUID()
+  private recoveryTimer?: NodeJS.Timeout
+  private recoveryAttempts = 0
+  private readonly runtimeDirectory: string
 
   constructor(
     private readonly profiles: ProfileStore,
@@ -99,31 +129,41 @@ export class ProAgentManager {
     private readonly manifestPathOverride?: string,
     private readonly verifyBundle: BundleVerifier = verifyProAgentBundle,
     private readonly spawnAgent: SpawnAgent = spawn,
-    private readonly verifyOsSignature?: OsSignatureVerifier
-  ) {}
+    private readonly verifyOsSignature?: OsSignatureVerifier,
+    runtimeDirectory?: string
+  ) {
+    this.runtimeDirectory = runtimeDirectory ?? join(resourcesPath, 'runtime')
+  }
+
+  setProfileCreator(creator: ProfileCreationService): void {
+    this.profileCreator = creator
+  }
 
   status(): AutomationStatus {
     return { ...this.current, controlledProfileIds: [...this.controlled] }
   }
 
-  attachMcpBroker(broker: McpRequestBroker): void { this.mcpBroker = broker }
+  attachMcpBroker(broker: McpRequestBroker): void {
+    this.mcpBroker = broker
+  }
 
   async mcpConnection(): Promise<McpConnection> {
-    if (!this.licensing.has('mcp')) throw new Error('本地 AI MCP 需要 Prism Pro 授权')
     if (!this.mcpBroker) throw new Error('MCP 控制器尚未就绪')
-    if (this.current.state !== 'running') await this.start()
+    if (this.mcpBroker.status().policy?.enabled === false) throw new Error('MCP 全局开关已关闭')
+    await this.ensureStarted()
     if (!this.mcpAccessToken || !this.agentExecutable) throw new Error('Prism Pro Agent 未返回 MCP 会话凭据')
-    if (this.mcpTokenExposed) throw new Error('MCP 临时令牌已经显示过；如需重新配置，请停止后重新启动 MCP')
-    this.mcpTokenExposed = true
     return {
       ...this.mcpBroker.status(true),
       command: this.agentExecutable,
       args: ['--mcp'],
-      env: {
-        PRISM_MCP_ENDPOINT: this.current.endpoint!,
-        PRISM_MCP_TOKEN: this.mcpAccessToken
-      }
+      env: {}
     }
+  }
+
+  async ensureStarted(): Promise<AutomationStartResult> {
+    if (this.current.state === 'running') return { ...this.status(), accessToken: '' }
+    if (this.starting) return this.starting
+    return this.start()
   }
 
   async start(): Promise<AutomationStartResult> {
@@ -134,7 +174,6 @@ export class ProAgentManager {
   }
 
   private async startInternal(): Promise<AutomationStartResult> {
-    if (!this.licensing.has('automation-api')) throw new Error('本地自动化 API 需要 Prism Pro 授权')
     this.setStatus({ state: 'starting', message: '正在启动本地自动化 API', controlledProfileIds: [] })
     try {
       const manifestPath = this.manifestPathOverride ?? join(this.resourcesPath, 'pro-agent', 'manifest.json')
@@ -147,6 +186,21 @@ export class ProAgentManager {
       }) as ChildProcessWithoutNullStreams
       this.child = child
       this.expectedStop = false
+      child.stdin.on('error', (error) => {
+        if (this.child !== child) return
+        this.logger?.error('Prism Pro Agent 通信管道已断开', error)
+        this.mcpBroker?.resetSessions()
+        this.mcpAccessToken = ''
+        void this.removeConnectionState()
+        if (!this.expectedStop) {
+          this.setStatus({
+            state: 'error',
+            message: '本地自动化通信中断，请重新启动 MCP 会话',
+            controlledProfileIds: [...this.controlled]
+          })
+        }
+        if (!child.killed) child.kill('SIGKILL')
+      })
       let buffer = ''
       let handshakeSent = false
       const result = await new Promise<AutomationStartResult>((resolvePromise, reject) => {
@@ -189,23 +243,33 @@ export class ProAgentManager {
                 controlledProfileIds: []
               })
               this.mcpAccessToken = handled.ready.mcpAccessToken
-              this.mcpTokenExposed = false
               this.agentExecutable = bundle.executablePath
+              await this.writeConnectionState(handled.ready.endpoint, handled.ready.mcpAccessToken)
+              this.recoveryAttempts = 0
               this.audit.record({ action: 'agent-start', outcome: 'success' })
               resolvePromise({ ...this.status(), accessToken: handled.ready.accessToken })
             }).catch(fail)
           }
         })
         child.stderr.on('data', (chunk: Buffer) => {
-          this.logger?.error('Prism Pro Agent 写入了 stderr', { bytes: chunk.length })
+          this.logger?.error('Prism Pro Agent 写入了 stderr', {
+            bytes: chunk.length,
+            output: chunk.subarray(0, 4096).toString('utf8').trim()
+          })
         })
         child.once('error', (error) => fail(error))
         child.once('exit', (code, signal) => {
           this.child = null
           if (!settled) fail(new Error(`Prism Pro Agent 在就绪前退出（code=${code ?? '-'}, signal=${signal ?? '-'}）`))
           this.mcpBroker?.resetSessions()
-          if (this.expectedStop) this.setStatus({ state: 'stopped', message: '本地自动化 API 已停止', controlledProfileIds: [] })
-          else this.setStatus({ state: 'error', message: '本地自动化 API 意外停止，请重新启动', controlledProfileIds: [...this.controlled] })
+          this.mcpAccessToken = ''
+          void this.removeConnectionState()
+          if (this.expectedStop) {
+            this.setStatus({ state: 'stopped', message: '本地自动化 API 已停止', controlledProfileIds: [] })
+          } else {
+            this.setStatus({ state: 'error', message: '本地自动化 API 意外停止，正在自动恢复', controlledProfileIds: [...this.controlled] })
+            this.scheduleRecovery()
+          }
         })
       })
       return result
@@ -246,6 +310,15 @@ export class ProAgentManager {
     const id = typeof message.id === 'string' && /^[a-zA-Z0-9_-]{1,100}$/.test(message.id) ? message.id : randomUUID()
     const method = message.method
     const profileId = message.params?.profileId
+    if (method === 'agent.restart') {
+      if (this.mcpBroker?.status().policy?.enabled === false) {
+        this.write({ type: 'response', id, error: { code: 'MCP_GLOBAL_DISABLED', message: 'MCP is disabled by the user', retryable: false } })
+        return
+      }
+      this.write({ type: 'response', id, result: { accepted: true, state: 'restarting' } })
+      setTimeout(() => void this.restartService().catch((error) => this.logger?.error('自动重启本地 AI 服务失败', error)), 100)
+      return
+    }
     if (method?.startsWith('mcp.')) {
       if (!this.mcpBroker) {
         this.write({ type: 'response', id, error: 'mcp_not_available' })
@@ -255,14 +328,16 @@ export class ProAgentManager {
         const result = await this.mcpBroker.handleAgentRequest(method, message.params, id)
         this.write({ type: 'response', id, result })
       } catch (error) {
-        this.write({ type: 'response', id, error: error instanceof Error ? error.message : 'mcp_request_failed' })
+        this.write({ type: 'response', id, error: protocolError(error) })
       }
       return
     }
-    const action = method === 'profiles.list' ? 'profiles-list'
-      : method === 'profiles.status' ? 'profile-status'
-        : method === 'profiles.launch' ? 'profile-launch'
-          : method === 'profiles.close' ? 'profile-close' : null
+    const action = method === 'profiles.create' ? 'profile-create'
+      : method === 'profiles.createBatch' ? 'profiles-create-batch'
+        : method === 'profiles.list' ? 'profiles-list'
+          : method === 'profiles.status' ? 'profile-status'
+            : method === 'profiles.launch' ? 'profile-launch'
+              : method === 'profiles.close' ? 'profile-close' : null
     if (!action) {
       this.write({ type: 'response', id, error: 'method_not_allowed' })
       return
@@ -270,8 +345,21 @@ export class ProAgentManager {
     try {
       this.audit.record({ action, outcome: 'allowed', requestId: id, profileId: validProfileId(profileId) ? profileId : undefined })
       let result: unknown
-      if (method === 'profiles.list') result = this.profiles.list().map(publicAutomationProfile)
-      else {
+      let createdIds: string[] | undefined
+      if (method === 'profiles.create' || method === 'profiles.createBatch') {
+        if (!this.profileCreator) throw new Error('Profile creation is unavailable')
+        const created = await this.profileCreator.create(
+          message.params?.input,
+          method.endsWith('createBatch'),
+          'api',
+          () => undefined
+        )
+        createdIds = created.map((profile) => profile.id)
+        const items = created.map(publicAutomationProfile)
+        result = method.endsWith('createBatch') ? { profiles: items, count: items.length } : items[0]
+      } else if (method === 'profiles.list') {
+        result = this.profiles.list().map(publicAutomationProfile)
+      } else {
         if (!validProfileId(profileId)) throw new Error('环境 ID 无效')
         if (method === 'profiles.status') result = publicAutomationProfile(this.profiles.get(profileId))
         else if (method === 'profiles.launch') {
@@ -284,24 +372,49 @@ export class ProAgentManager {
           this.notifyCurrent()
         }
       }
-      this.audit.record({ action, outcome: 'success', requestId: id, profileId: validProfileId(profileId) ? profileId : undefined })
+      this.audit.record({
+        action,
+        outcome: 'success',
+        requestId: id,
+        profileId: validProfileId(profileId) ? profileId : undefined,
+        profileIds: createdIds
+      })
       this.write({ type: 'response', id, result })
     } catch (error) {
-      this.audit.record({ action, outcome: 'failure', requestId: id, profileId: validProfileId(profileId) ? profileId : undefined, detail: error instanceof Error ? error.message : String(error) })
-      this.write({ type: 'response', id, error: error instanceof Error ? error.message : 'request_failed' })
+      this.audit.record({
+        action,
+        outcome: 'failure',
+        requestId: id,
+        profileId: validProfileId(profileId) ? profileId : undefined,
+        detail: error instanceof Error ? error.message : String(error)
+      })
+      this.write({ type: 'response', id, error: protocolError(error) })
     }
   }
 
   async stop(emergency = false): Promise<AutomationStatus> {
+    if (this.recoveryTimer) clearTimeout(this.recoveryTimer)
+    this.recoveryTimer = undefined
+    this.recoveryAttempts = 0
     const child = this.child
     this.expectedStop = true
     if (child) {
-      this.write({ type: 'stop', emergency })
-      const exited = await new Promise<boolean>((resolvePromise) => {
-        const timer = setTimeout(() => resolvePromise(false), 2_000)
-        child.once('exit', () => { clearTimeout(timer); resolvePromise(true) })
-      })
-      if (!exited) child.kill('SIGKILL')
+      let stopSent = false
+      try {
+        this.write({ type: 'stop', emergency })
+        stopSent = true
+      } catch (error) {
+        this.logger?.error('停止 Prism Pro Agent 时通信通道已不可用', error)
+      }
+      if (stopSent) {
+        const exited = await new Promise<boolean>((resolvePromise) => {
+          const timer = setTimeout(() => resolvePromise(false), 2_000)
+          child.once('exit', () => { clearTimeout(timer); resolvePromise(true) })
+        })
+        if (!exited) child.kill('SIGKILL')
+      } else if (!child.killed) {
+        child.kill('SIGKILL')
+      }
     }
     if (emergency) {
       await Promise.allSettled([...this.controlled].map((id) => this.launcher.close(id)))
@@ -309,17 +422,126 @@ export class ProAgentManager {
     } else this.audit.record({ action: 'agent-stop', outcome: 'success' })
     this.controlled.clear()
     this.mcpAccessToken = ''
-    this.mcpTokenExposed = false
     this.agentExecutable = ''
+    await this.removeConnectionState()
     this.mcpBroker?.resetSessions()
     this.child = null
     this.setStatus({ state: 'stopped', message: emergency ? '自动化已紧急停止，相关浏览器已关闭' : '本地自动化 API 已停止', controlledProfileIds: [] })
     return this.status()
   }
 
+  async restartService(): Promise<AutomationStartResult> {
+    await this.stop(false)
+    return this.ensureStarted()
+  }
+
+  connectionStatePath(): string {
+    return join(this.runtimeDirectory, 'mcp-connection.json')
+  }
+
+  autoStartSuppressionPath(): string {
+    return join(this.runtimeDirectory, 'mcp-user-quit.json')
+  }
+
+  async clearAutoStartSuppression(): Promise<void> {
+    await rm(this.autoStartSuppressionPath(), { force: true }).catch(() => undefined)
+  }
+
+  suppressAutoStartSync(): void {
+    mkdirSync(this.runtimeDirectory, { recursive: true, mode: 0o700 })
+    if (process.platform !== 'win32') chmodSync(this.runtimeDirectory, 0o700)
+    const path = this.autoStartSuppressionPath()
+    const temporary = `${path}.${process.pid}.${randomUUID()}.tmp`
+    try {
+      writeFileSync(temporary, JSON.stringify({
+        schemaVersion: 1,
+        reason: 'user-quit',
+        appPid: process.pid,
+        createdAt: new Date().toISOString()
+      }), { encoding: 'utf8', mode: 0o600, flag: 'wx' })
+      if (process.platform !== 'win32') chmodSync(temporary, 0o600)
+      renameSync(temporary, path)
+    } catch (error) {
+      rmSync(temporary, { force: true })
+      throw error
+    }
+  }
+
+  async suppressAutoStart(): Promise<void> {
+    await mkdir(this.runtimeDirectory, { recursive: true, mode: 0o700 })
+    if (process.platform !== 'win32') await chmod(this.runtimeDirectory, 0o700)
+    const path = this.autoStartSuppressionPath()
+    const temporary = `${path}.${process.pid}.${randomUUID()}.tmp`
+    await writeFile(temporary, JSON.stringify({
+      schemaVersion: 1,
+      reason: 'user-quit',
+      appPid: process.pid,
+      createdAt: new Date().toISOString()
+    }), { encoding: 'utf8', mode: 0o600, flag: 'wx' })
+    if (process.platform !== 'win32') await chmod(temporary, 0o600)
+    await rename(temporary, path)
+  }
+
+  private async writeConnectionState(endpoint: string, token: string): Promise<void> {
+    await mkdir(this.runtimeDirectory, { recursive: true, mode: 0o700 })
+    if (process.platform !== 'win32') await chmod(this.runtimeDirectory, 0o700)
+    const path = this.connectionStatePath()
+    const temporary = `${path}.${process.pid}.${randomUUID()}.tmp`
+    const payload = JSON.stringify({
+      schemaVersion: 1,
+      instanceId: this.instanceId,
+      pid: process.pid,
+      endpoint,
+      token,
+      updatedAt: new Date().toISOString()
+    })
+    await writeFile(temporary, payload, { encoding: 'utf8', mode: 0o600, flag: 'wx' })
+    if (process.platform !== 'win32') await chmod(temporary, 0o600)
+    await rename(temporary, path)
+  }
+
+  private async removeConnectionState(): Promise<void> {
+    const path = this.connectionStatePath()
+    try {
+      const current = JSON.parse(await readFile(path, 'utf8')) as { instanceId?: string }
+      if (current.instanceId !== this.instanceId) return
+    } catch {
+      return
+    }
+    await rm(path, { force: true }).catch(() => undefined)
+  }
+
+  private scheduleRecovery(): void {
+    if (this.expectedStop || this.recoveryTimer || this.recoveryAttempts >= 4) return
+    if (this.mcpBroker?.canStart && !this.mcpBroker.canStart()) return
+    const delays = [300, 1000, 3000, 7000]
+    const delay = delays[this.recoveryAttempts++] ?? 7000
+    this.recoveryTimer = setTimeout(() => {
+      this.recoveryTimer = undefined
+      void this.ensureStarted().catch((error) => {
+        this.logger?.error('本地 AI 服务自动恢复失败', error)
+        this.scheduleRecovery()
+      })
+    }, delay)
+  }
+
   private write(value: unknown): void {
-    if (!this.child?.stdin.writable) throw new Error('Prism Pro Agent 通道不可用')
-    this.child.stdin.write(`${JSON.stringify(value)}\n`)
+    const child = this.child
+    if (!child?.stdin.writable || child.stdin.destroyed || child.stdin.writableEnded) {
+      throw new Error('Prism Pro Agent 通道不可用')
+    }
+    try {
+      child.stdin.write(`${JSON.stringify(value)}\n`, (error) => {
+        if (error && this.child === child) this.logger?.error('Prism Pro Agent 消息发送失败', error)
+      })
+    } catch (error) {
+      const code = (error as NodeJS.ErrnoException).code
+      if (code === 'EPIPE' || code === 'ERR_STREAM_DESTROYED') {
+        this.logger?.error('Prism Pro Agent 消息发送失败', error)
+        return
+      }
+      throw error
+    }
   }
 
   private notifyCurrent(): void { this.onChanged(this.status()) }

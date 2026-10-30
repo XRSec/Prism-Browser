@@ -1,8 +1,9 @@
 import { t } from '../shared/i18n'
-import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron'
+import { app, BrowserWindow, dialog, ipcMain, net, shell } from 'electron'
 import { lstat, readFile, stat, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
-import type { ProfileDraft } from '../shared/types'
+import { ProxyAgent, fetch as undiciFetch } from 'undici'
+import type { ExtensionDownloadNetwork, ProfileDraft } from '../shared/types'
 import type { KernelManager } from './kernel-manager'
 import { listBundledBrowsers, locateBrowser, locateBundledBrowser, normalizeBrowserSelection } from './browser-locator'
 import { mergeKernelCatalog } from './kernel-catalog'
@@ -10,6 +11,7 @@ import type { BrowserLauncher } from './browser-launcher'
 import type { ProfileStore } from './profile-store'
 import type { SettingsStore } from './settings-store'
 import { testProxy } from './proxy-tester'
+import { closeProxyBridge, openProxyBridge } from './proxy-bridge'
 import { validateProxyConfig } from '../shared/validation'
 import type { AppLogger } from './app-logger'
 import { parseProfileConfig, safeProfileFileName, serializeProfileConfig } from './profile-transfer'
@@ -32,6 +34,25 @@ import type { AdvertisementManager } from './advertisement-manager'
 import type { WindowSyncManager } from './window-sync-manager'
 
 export const PRO_PURCHASE_URL = 'https://pay.ldxp.cn/item/q23itv'
+
+function extensionDownloadNetwork(input: unknown): ExtensionDownloadNetwork {
+  if (!input || typeof input !== 'object') return { mode: 'direct' }
+  const value = input as Partial<ExtensionDownloadNetwork>
+  if (value.mode === 'direct' || value.mode === 'system') return { mode: value.mode }
+  if (value.mode === 'profile' && typeof value.profileId === 'string' && /^[a-zA-Z0-9-]{1,100}$/.test(value.profileId)) {
+    return { mode: 'profile', profileId: value.profileId }
+  }
+  throw new Error('扩展下载网络选择无效')
+}
+
+function extensionDownloadFailure(error: unknown, networkLabel: string): Error {
+  const cause = error instanceof Error && error.cause instanceof Error ? (error.cause as Error & { code?: string }) : undefined
+  const detail = `${error instanceof Error ? error.message : String(error)} ${cause?.message ?? ''} ${cause?.code ?? ''}`
+  if (/fetch failed|timeout|timed out|ECONN|ENETUNREACH|EHOSTUNREACH|EAI_AGAIN|ENOTFOUND|socket|connect|TLS|certificate|UND_ERR/i.test(detail)) {
+    return new Error(`无法通过${networkLabel}连接 Chrome 应用商店下载服务。请更换“下载网络”，或确认 clients2.google.com 和 clients2.googleusercontent.com 可以访问。`)
+  }
+  return error instanceof Error ? error : new Error(String(error))
+}
 
 interface IpcDependencies {
   profiles: ProfileStore
@@ -437,8 +458,34 @@ export function registerIpc({ profiles, settings, launcher, kernels, extensions,
     if (await profiles.usesExtension(id)) throw new Error('该扩展仍被浏览器环境使用，请先从环境配置中移除')
     await extensions.remove(id)
   })
-  ipcMain.handle('extensions:import-web-store', async (_event, url: string) => {
-    return extensions.importWebStore(url, (fetchUrl, options) => fetch(fetchUrl, options))
+  ipcMain.handle('extensions:import-web-store', async (_event, url: string, input?: unknown) => {
+    const network = extensionDownloadNetwork(input)
+    let networkLabel = '本机直连'
+    let localProxy: string | undefined
+    let dispatcher: ProxyAgent | undefined
+    let fetcher: typeof fetch | undefined
+    try {
+      if (network.mode === 'system') {
+        networkLabel = '系统代理'
+        fetcher = ((request: RequestInfo | URL, init?: RequestInit) => net.fetch(request.toString(), init as Parameters<typeof net.fetch>[1])) as typeof fetch
+      } else if (network.mode === 'profile') {
+        const profile = profiles.get(network.profileId)
+        if (profile.proxy.protocol === 'direct') throw new Error(`环境 #${profile.serialNumber} 没有配置代理`)
+        networkLabel = `环境 #${profile.serialNumber} 的代理`
+        localProxy = await openProxyBridge(profile.proxy)
+        if (!localProxy) throw new Error(`环境 #${profile.serialNumber} 没有可用的代理配置`)
+        dispatcher = new ProxyAgent(localProxy)
+        fetcher = ((request: RequestInfo | URL, init?: RequestInit) => undiciFetch(request as Parameters<typeof undiciFetch>[0], { ...(init as Parameters<typeof undiciFetch>[1]), dispatcher })) as unknown as typeof fetch
+      }
+      const imported = await extensions.importWebStore(url, fetcher)
+      logger.info('Chrome 应用商店扩展下载完成', { extensionId: imported.id, network: network.mode, profileId: network.mode === 'profile' ? network.profileId : undefined })
+      return imported
+    } catch (error) {
+      throw extensionDownloadFailure(error, networkLabel)
+    } finally {
+      await dispatcher?.close().catch(() => undefined)
+      await closeProxyBridge(localProxy)
+    }
   })
   ipcMain.handle('engine:cancel-install', (_event, version: string) => kernels.cancel(version))
   ipcMain.handle('engine:install-progress', () => kernels.progress())

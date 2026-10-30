@@ -15,6 +15,7 @@ import tr from 'antd/locale/tr_TR'
 import ja from 'antd/locale/ja_JP'
 import hi from 'antd/locale/hi_IN'
 import { getLocale, resolveLocale, setLocale, subscribeLocale } from '../../shared/i18n'
+import { fingerprintLocaleFromSystem, setSystemFingerprintLocale } from '../../shared/network-identity'
 import App from './App'
 import './styles.css'
 
@@ -82,8 +83,12 @@ function PrismApplication() {
 }
 
 async function mount(): Promise<void> {
-  const selected = await window.browserApi.uiLanguage.get().catch(() => 'en')
+  const [selected, system] = await Promise.all([
+    window.browserApi.uiLanguage.get().catch(() => navigator.language),
+    window.browserApi.uiLanguage.systemLocale().catch(() => undefined)
+  ])
   setLocale(resolveLocale(selected))
+  if (system) setSystemFingerprintLocale(fingerprintLocaleFromSystem(system))
   document.documentElement.lang = getLocale()
   ReactDOM.createRoot(document.getElementById('root')!).render(<React.StrictMode><PrismApplication /></React.StrictMode>)
 }
