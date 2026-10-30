@@ -2,6 +2,7 @@ import { access, constants } from 'node:fs'
 import { join } from 'node:path'
 import { spawn } from 'node:child_process'
 import type { ChildProcess } from 'node:child_process'
+import { screen } from 'electron'
 import type { Logger } from './app-logger'
 
 export interface WindowSyncSettings {
@@ -277,29 +278,103 @@ export class WindowSyncManager {
     }
   }
 
-  async tile(profileIds: string[], layout: WindowTileLayout, area: WindowArea): Promise<void> {
+  private async resolveWorkArea(ids: string[], area?: WindowArea): Promise<WindowArea> {
+    if (area && area.width > 320 && area.height > 240) {
+      return area
+    }
+    try {
+      if (ids.length > 0) {
+        const bounds = await this.launcher.browserWindowBounds(ids[0])
+        if (bounds && bounds.width > 0 && bounds.height > 0) {
+          const display = screen.getDisplayMatching({
+            x: bounds.left ?? 0,
+            y: bounds.top ?? 0,
+            width: bounds.width,
+            height: bounds.height
+          })
+          if (display?.workArea && display.workArea.width > 0 && display.workArea.height > 0) {
+            return {
+              x: display.workArea.x,
+              y: display.workArea.y,
+              width: display.workArea.width,
+              height: display.workArea.height
+            }
+          }
+        }
+      }
+    } catch {
+      // ignore
+    }
+    try {
+      const primary = screen.getPrimaryDisplay()
+      if (primary?.workArea && primary.workArea.width > 0 && primary.workArea.height > 0) {
+        return {
+          x: primary.workArea.x,
+          y: primary.workArea.y,
+          width: primary.workArea.width,
+          height: primary.workArea.height
+        }
+      }
+    } catch {
+      // ignore
+    }
+    return { x: 0, y: 0, width: 1440, height: 900 }
+  }
+
+  async tile(profileIds: string[], layout: WindowTileLayout, area: WindowArea, keepCurrentSize = false): Promise<void> {
     this.requirePro()
     const ids = this.runningIds(profileIds)
     if (ids.length < 2) throw new Error('至少选择 2 个正在运行的环境')
+    const resolvedArea = await this.resolveWorkArea(ids, area)
     const gap = this.platform === 'win32' ? 0 : 10
+
     if (layout === 'overlap') {
-      const width = Math.max(520, Math.floor(area.width * 0.76))
-      const height = Math.max(420, Math.floor(area.height * 0.78))
+      const width = Math.max(520, Math.floor(resolvedArea.width * 0.76))
+      const height = Math.max(420, Math.floor(resolvedArea.height * 0.78))
       await Promise.all(ids.map((id, index) => this.launcher.setBrowserWindowBounds(id, {
-        left: area.x + gap + index * 28,
-        top: area.y + gap + index * 28,
+        left: resolvedArea.x + gap + index * 28,
+        top: resolvedArea.y + gap + index * 28,
         width,
         height,
       })))
       return
     }
+
+    if (keepCurrentSize) {
+      let targetWidth = 600
+      let targetHeight = 450
+      try {
+        const mainBounds = await this.launcher.browserWindowBounds(ids[0])
+        if (mainBounds && mainBounds.width > 0 && mainBounds.height > 0) {
+          targetWidth = Math.max(320, mainBounds.width)
+          targetHeight = Math.max(240, mainBounds.height)
+        }
+      } catch {
+        // fallback
+      }
+      const maxColumns = Math.max(1, Math.floor((resolvedArea.width - gap) / (targetWidth + gap)))
+      const columns = Math.min(ids.length, maxColumns)
+
+      await Promise.all(ids.map((id, index) => {
+        const col = index % columns
+        const row = Math.floor(index / columns)
+        return this.launcher.setBrowserWindowBounds(id, {
+          left: resolvedArea.x + gap + col * (targetWidth + gap),
+          top: resolvedArea.y + gap + row * (targetHeight + gap),
+          width: targetWidth,
+          height: targetHeight,
+        })
+      }))
+      return
+    }
+
     const columns = Math.ceil(Math.sqrt(ids.length))
     const rows = Math.ceil(ids.length / columns)
-    const width = Math.max(320, Math.floor((area.width - gap * (columns + 1)) / columns))
-    const height = Math.max(240, Math.floor((area.height - gap * (rows + 1)) / rows))
+    const width = Math.max(320, Math.floor((resolvedArea.width - gap * (columns + 1)) / columns))
+    const height = Math.max(240, Math.floor((resolvedArea.height - gap * (rows + 1)) / rows))
     await Promise.all(ids.map((id, index) => this.launcher.setBrowserWindowBounds(id, {
-      left: area.x + gap + index % columns * (width + gap),
-      top: area.y + gap + Math.floor(index / columns) * (height + gap),
+      left: resolvedArea.x + gap + index % columns * (width + gap),
+      top: resolvedArea.y + gap + Math.floor(index / columns) * (height + gap),
       width,
       height,
     })))

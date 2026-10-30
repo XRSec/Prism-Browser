@@ -529,7 +529,7 @@ export function registerIpc({ profiles, settings, launcher, kernels, extensions,
   ipcMain.handle('window-sync:status', () => windowSync.status())
   ipcMain.handle('window-sync:start', (_event, options) => windowSync.start(options))
   ipcMain.handle('window-sync:stop', () => windowSync.stop())
-  ipcMain.handle('window-sync:tile', (_event, profileIds, layout, area) => windowSync.tile(profileIds, layout, area))
+  ipcMain.handle('window-sync:tile', (_event, profileIds, layout, area, keepSize) => windowSync.tile(profileIds, layout, area, keepSize))
   ipcMain.handle('window-sync:uniform-size', (_event, mainProfileId, followerProfileIds) => windowSync.uniformSize(mainProfileId, followerProfileIds))
   ipcMain.handle('window-sync:bring-to-front', (_event, profileIds) => windowSync.bringToFront(profileIds))
   ipcMain.handle('window-sync:same-tabs', (_event, mainProfileId, followerProfileIds) => windowSync.sameTabs(mainProfileId, followerProfileIds))

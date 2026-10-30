@@ -633,7 +633,7 @@ export interface BrowserApi {
     status: () => Promise<WindowSyncStatus>
     start: (options: WindowSyncStartOptions) => Promise<WindowSyncStatus>
     stop: () => Promise<WindowSyncStatus>
-    tile: (profileIds: string[], layout: 'grid' | 'overlap', area: { x: number; y: number; width: number; height: number }) => Promise<void>
+    tile: (profileIds: string[], layout: 'grid' | 'overlap', area: { x: number; y: number; width: number; height: number }, keepSize?: boolean) => Promise<void>
     uniformSize: (mainProfileId: string, followerProfileIds: string[]) => Promise<void>
     bringToFront: (profileIds: string[]) => Promise<void>
     sameTabs: (mainProfileId: string, followerProfileIds: string[]) => Promise<void>

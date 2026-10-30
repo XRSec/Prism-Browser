@@ -1264,5 +1264,6 @@
   "已更新扩展数据共享设置": "Extension data sharing settings updated",
   "取消全选": "Deselect All",
   "选择提供初始数据的环境": "Select profile providing initial data",
-  "请勾选接入共享数据的环境": "Select profiles to share data"
+  "请勾选接入共享数据的环境": "Select profiles to share data",
+  "保持大小平铺": "Tile (Keep Size)"
 }

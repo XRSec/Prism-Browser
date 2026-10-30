@@ -281,15 +281,23 @@ export function WindowSyncModal({ open, profiles, status, proEnabled, onChanged,
                 icon={<AppstoreOutlined />}
                 loading={busy === 'grid'}
                 disabled={selectedIds.length < 2}
-                onClick={() => void operation('grid', () => window.browserApi.windowSync.tile(selectedIds, 'grid', { x: 0, y: 0, width: 0, height: 0 }))}
+                onClick={() => void operation('grid', () => window.browserApi.windowSync.tile(selectedIds, 'grid', { x: 0, y: 0, width: window.screen.availWidth, height: window.screen.availHeight }, false))}
               >
                 {t("网格平铺")}
               </Button>
               <Button
                 icon={<AppstoreOutlined />}
+                loading={busy === 'grid-keep'}
+                disabled={selectedIds.length < 2}
+                onClick={() => void operation('grid-keep', () => window.browserApi.windowSync.tile(selectedIds, 'grid', { x: 0, y: 0, width: window.screen.availWidth, height: window.screen.availHeight }, true))}
+              >
+                {t("保持大小平铺")}
+              </Button>
+              <Button
+                icon={<AppstoreOutlined />}
                 loading={busy === 'overlap'}
                 disabled={selectedIds.length < 2}
-                onClick={() => void operation('overlap', () => window.browserApi.windowSync.tile(selectedIds, 'overlap', { x: 0, y: 0, width: 0, height: 0 }))}
+                onClick={() => void operation('overlap', () => window.browserApi.windowSync.tile(selectedIds, 'overlap', { x: 0, y: 0, width: window.screen.availWidth, height: window.screen.availHeight }))}
               >
                 {t("重叠排列")}
               </Button>
