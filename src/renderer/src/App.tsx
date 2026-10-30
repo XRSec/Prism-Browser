@@ -119,11 +119,14 @@ function proxyCheckTag(profile: BrowserProfileView) {
   const detail = check.ok
     ? [check.ip, check.country, check.city, `${check.latencyMs} ms`, new Date(check.checkedAt).toLocaleString(getLocale())].filter(Boolean).join(' · ')
     : `${mt(check.error ?? t("连接失败"))} · ${new Date(check.checkedAt).toLocaleString(getLocale())}`
+  const statusClass = check.exitChanged ? 'warning' : check.ok ? stale ? 'warning' : 'success' : 'error'
   return (
     <Tooltip title={detail}>
-      <Tag color={check.exitChanged ? 'volcano' : check.ok ? stale ? 'warning' : 'success' : 'error'} className="proxy-check-tag">
-        {check.ok ? `${check.ip ?? t("可用")} · ${check.latencyMs} ms${check.exitChanged ? ' · ' + t('出口变化') : stale ? ' · ' + t('已过期') : ''}` : t("检测失败")}
-      </Tag>
+      <span className={`proxy-check-tag ${statusClass}`}>
+        {check.ok
+          ? `${check.ip ?? t("可用")}${check.country ? ' · ' + check.country : ''} · ${check.latencyMs} ms${check.exitChanged ? ' · ' + t('出口变化') : stale ? ' · ' + t('已过期') : ''}`
+          : t("检测失败")}
+      </span>
     </Tooltip>
   )
 }
@@ -179,7 +182,11 @@ export default function App({ colorMode = 'light', onColorModeChange = () => {} 
   const [batchClassificationOpen, setBatchClassificationOpen] = useState(false)
   const [batchGroupEnabled, setBatchGroupEnabled] = useState(false)
   const [batchGroup, setBatchGroup] = useState('')
+  const [batchTagsEnabled, setBatchTagsEnabled] = useState(false)
   const [batchTags, setBatchTags] = useState('')
+  const [batchAddTags, setBatchAddTags] = useState('')
+  const [batchMcpEnabled, setBatchMcpEnabled] = useState(false)
+  const [batchMcpMode, setBatchMcpMode] = useState<'inherit' | 'allow' | 'deny'>('inherit')
   const [storage, setStorage] = useState<StorageOverview>()
   const [storageLoading, setStorageLoading] = useState(false)
   const [updateStatus, setUpdateStatus] = useState<AppUpdateStatus | null>(null)
@@ -698,24 +705,45 @@ export default function App({ colorMode = 'light', onColorModeChange = () => {} 
 
   async function saveBatchClassification(): Promise<void> {
     const group = batchGroup.trim()
-    const addTags = [...new Set(batchTags.split(/[,，]/).map((tag) => tag.trim()).filter(Boolean))]
-    if (!batchGroupEnabled && !addTags.length) {
-      messageApi.warning(t("请填写目标分组或要追加的标签"))
+    const replaceTags = batchTagsEnabled
+      ? [...new Set(batchTags.split(/[,，]/).map((tag) => tag.trim()).filter(Boolean))]
+      : undefined
+    const addTags = !batchTagsEnabled && batchAddTags.trim()
+      ? [...new Set(batchAddTags.split(/[,，]/).map((tag) => tag.trim()).filter(Boolean))]
+      : undefined
+
+    if (!batchGroupEnabled && !batchTagsEnabled && !addTags?.length && !batchMcpEnabled) {
+      messageApi.warning(t("请选择修改分组、修改标签、追加标签或修改 MCP 授权"))
       return
     }
     setBatchBusy(true)
     try {
-      const changed = await window.browserApi.profiles.classifyMany(selectedIds, {
-        group: batchGroupEnabled ? group : undefined,
-        addTags
-      })
-      for (const profile of changed) upsert(profile)
+      if (batchGroupEnabled || batchTagsEnabled || addTags?.length) {
+        const changed = await window.browserApi.profiles.classifyMany(selectedIds, {
+          group: batchGroupEnabled ? group : undefined,
+          tags: replaceTags,
+          addTags
+        })
+        for (const profile of changed) upsert(profile)
+      }
+      if (batchMcpEnabled) {
+        const allow = batchMcpMode === 'inherit' ? null : batchMcpMode === 'allow'
+        let latestPerms: McpProfilePermission[] | undefined
+        for (const id of selectedIds) {
+          latestPerms = await window.browserApi.mcp.setPermission(id, allow)
+        }
+        if (latestPerms) setMcpPermissions(latestPerms)
+      }
       setBatchClassificationOpen(false)
       setBatchGroupEnabled(false)
       setBatchGroup('')
+      setBatchTagsEnabled(false)
       setBatchTags('')
+      setBatchAddTags('')
+      setBatchMcpEnabled(false)
+      setBatchMcpMode('inherit')
       setSelectedIds([])
-      messageApi.success(t("已更新 {0} 个环境", changed.length))
+      messageApi.success(t("已批量更新 {0} 个环境", selectedIds.length))
     } catch (error) {
       messageApi.error(humanError(error))
     } finally {
@@ -1269,8 +1297,9 @@ export default function App({ colorMode = 'light', onColorModeChange = () => {} 
                 pagination={visibleProfiles.length > 0 ? {
                   current: Math.min(currentPage, Math.max(1, Math.ceil(visibleProfiles.length / pageSize))),
                   pageSize,
-                  showSizeChanger: true,
+                  showSizeChanger: { showSearch: false, placement: 'bottomRight' },
                   pageSizeOptions: PAGE_SIZE_OPTIONS.map(String),
+                  showTotal: (total) => <span className="pagination-total-text">{t("共 {0} 个环境", total)}</span>,
                   onChange: (page, nextPageSize) => {
                     if (nextPageSize && nextPageSize !== pageSize) {
                       handlePageSizeChange(nextPageSize)
@@ -1419,13 +1448,71 @@ export default function App({ colorMode = 'light', onColorModeChange = () => {} 
         cancelText={t("取消")}
         confirmLoading={batchBusy}
         onOk={() => void saveBatchClassification()}
-        onCancel={() => { setBatchClassificationOpen(false); setBatchGroupEnabled(false); setBatchGroup(''); setBatchTags('') }}
+        onCancel={() => {
+          setBatchClassificationOpen(false)
+          setBatchGroupEnabled(false)
+          setBatchGroup('')
+          setBatchTagsEnabled(false)
+          setBatchTags('')
+          setBatchAddTags('')
+          setBatchMcpEnabled(false)
+          setBatchMcpMode('inherit')
+        }}
       >
-        <Typography.Paragraph type="secondary">{t("可选择设置或清空分组；标签会追加并自动去重。")}</Typography.Paragraph>
-        <Space direction="vertical" className="batch-classification-fields">
-          <Checkbox checked={batchGroupEnabled} onChange={(event) => setBatchGroupEnabled(event.target.checked)}>{t("修改分组（留空即清除分组）")}</Checkbox>
-          <Input disabled={!batchGroupEnabled} value={batchGroup} maxLength={40} placeholder={t("目标分组")} onChange={(event) => setBatchGroup(event.target.value)} />
-          <Input value={batchTags} placeholder={t("追加标签，使用逗号分隔（可选）")} onChange={(event) => setBatchTags(event.target.value)} />
+        <Typography.Paragraph type="secondary">{t("可选择修改分组、覆盖/清空标签，或批量调整本地 AI · MCP 授权。")}</Typography.Paragraph>
+        <Space direction="vertical" size={12} className="batch-classification-fields">
+          <div>
+            <Checkbox checked={batchGroupEnabled} onChange={(event) => setBatchGroupEnabled(event.target.checked)}>
+              {t("修改分组（留空即清除分组）")}
+            </Checkbox>
+            <Input
+              disabled={!batchGroupEnabled}
+              value={batchGroup}
+              maxLength={40}
+              placeholder={t("目标分组")}
+              onChange={(event) => setBatchGroup(event.target.value)}
+              style={{ marginTop: 6 }}
+            />
+          </div>
+
+          <div>
+            <Checkbox checked={batchTagsEnabled} onChange={(event) => setBatchTagsEnabled(event.target.checked)}>
+              {t("修改标签（留空即清除标签）")}
+            </Checkbox>
+            <Input
+              disabled={!batchTagsEnabled}
+              value={batchTags}
+              placeholder={t("目标标签，逗号分隔（留空即清空标签）")}
+              onChange={(event) => setBatchTags(event.target.value)}
+              style={{ marginTop: 6 }}
+            />
+          </div>
+
+          {!batchTagsEnabled && (
+            <Input
+              value={batchAddTags}
+              placeholder={t("追加标签，使用逗号分隔（可选）")}
+              onChange={(event) => setBatchAddTags(event.target.value)}
+            />
+          )}
+
+          <div>
+            <Checkbox checked={batchMcpEnabled} onChange={(event) => setBatchMcpEnabled(event.target.checked)}>
+              {t("修改本地 AI · MCP 授权")}
+            </Checkbox>
+            <Select
+              disabled={!batchMcpEnabled}
+              value={batchMcpMode}
+              className="full-width"
+              style={{ marginTop: 6 }}
+              options={[
+                { value: 'inherit', label: t("跟随全局授权方式") },
+                { value: 'allow', label: t("单独允许 AI 控制") },
+                { value: 'deny', label: t("单独禁止 AI 控制") }
+              ]}
+              onChange={setBatchMcpMode}
+            />
+          </div>
         </Space>
       </Modal>
     </Layout>

@@ -45,13 +45,22 @@ export function AutomationModal({ open, status, proEnabled, onChanged, onClose }
         : status?.state === 'unavailable' ? t("不可用") : t("已停止")
 
   return (
-    <Modal open={open} width={780} title={<Space><ApiOutlined />{t("本地自动化 API")}</Space>} footer={null} onCancel={onClose} className="automation-modal">
+    <Modal
+      centered
+      open={open}
+      width={780}
+      title={<Space><ApiOutlined />{t("本地自动化 API")}</Space>}
+      footer={null}
+      onCancel={onClose}
+      className="automation-modal"
+      destroyOnHidden
+    >
       <Space direction="vertical" size={16} style={{ width: '100%' }}>
         <Alert
-          type={running ? 'success' : proEnabled ? 'info' : 'warning'}
+          type={running ? 'success' : 'info'}
           showIcon
           icon={<SafetyCertificateOutlined />}
-          title={running ? t("API 已启动，仅当前设备可访问") : proEnabled ? t("默认关闭，按需启动") : t("此功能需要 Prism Pro")}
+          title={running ? t("API 已启动，仅当前设备可访问") : t("默认关闭，按需启动")}
           description={t("API 可以创建、批量创建、查询、启动和关闭环境；仅限本机令牌访问。")}
         />
 
@@ -137,7 +146,7 @@ export function AutomationModal({ open, status, proEnabled, onChanged, onClose }
               type="primary"
               icon={<RocketOutlined />}
               loading={busy}
-              disabled={!proEnabled || status?.state === 'starting'}
+              disabled={status?.state === 'starting'}
               onClick={() => void run(() => window.browserApi.automation.start(), true)}
             >
               {t("启动本地 API")}

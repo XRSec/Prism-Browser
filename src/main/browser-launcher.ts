@@ -175,7 +175,7 @@ export class BrowserLauncher {
     const operation = (async () => {
       const closing = this.closeOperations.get(id);
       if (closing) await closing.catch(() => void 0);
-      return this.profiles.withProfileDataOperation(id, () => this.withLaunchSlot(() => this.launchProfile(id, options)));
+      return this.withLaunchSlot(() => this.launchProfile(id, options));
     })();
     this.launchOperations.set(id, operation);
     try {
@@ -843,7 +843,7 @@ export class BrowserLauncher {
     const error = proxyLaunchError(updated.proxyCheck, updated.fingerprint.proxyExitPolicy);
     if (error) throw new Error(error);
     if (updated.fingerprint.networkIdentityMode === "proxy" && updated.proxyCheck?.geoConfidence === "conflict" && !allowGeoConflict) {
-      throw new Error(`${GEOIP_CONFLICT_CONFIRMATION_PREFIX} ${geoConflictLaunchQuestion(updated.proxyCheck.geoConflict ?? "GeoIP 数据源对代理地区判断不一致")}`);
+      throw new Error(`${GEOIP_CONFLICT_CONFIRMATION_PREFIX} ${updated.proxyCheck.geoConflict ?? 'GeoIP 数据源对代理地区判断不一致'}；继续使用可能导致 IP 地区与时区、语言或地理位置不一致，影响指纹效果。是否仍要启动？`);
     }
     if (updated.fingerprint.networkIdentityMode === "proxy" && !hasCompleteProxyIdentity(updated.proxyCheck, { allowGeoConflict })) {
       throw new Error("代理地理信息不完整，无法生成一致的时区、语言和地理位置；请重新检测或改用手动网络身份");

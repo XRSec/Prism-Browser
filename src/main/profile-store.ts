@@ -353,19 +353,25 @@ export class ProfileStore {
     const ids = [...new Set(idsInput)]
     if (!ids.length) throw new Error('没有选择浏览器环境')
     if (ids.length > 500) throw new Error('单次最多修改 500 个浏览器环境')
-    if (patch.group === undefined && !patch.addTags?.length) throw new Error('请填写分组或要追加的标签')
+    if (patch.group === undefined && patch.tags === undefined && !patch.addTags?.length) {
+      throw new Error('请选择要修改的分组或标签')
+    }
     if (patch.group !== undefined && typeof patch.group !== 'string') throw new Error('环境分组格式无效')
+    if (patch.tags !== undefined && (!Array.isArray(patch.tags) || !patch.tags.every((tag) => typeof tag === 'string'))) {
+      throw new Error('环境标签格式无效')
+    }
     if (patch.addTags !== undefined && (!Array.isArray(patch.addTags) || !patch.addTags.every((tag) => typeof tag === 'string'))) {
       throw new Error('环境标签格式无效')
     }
     const now = new Date().toISOString()
     const nextProfiles = ids.map((id) => {
       const current = this.get(id)
+      const nextTags = patch.tags !== undefined ? patch.tags : [...current.tags, ...(patch.addTags ?? [])]
       const validated = validateProfileDraft({
         name: current.name,
         note: current.note,
         group: patch.group === undefined ? current.group : patch.group,
-        tags: [...current.tags, ...(patch.addTags ?? [])],
+        tags: nextTags,
         extensionIds: current.extensionIds,
         color: current.color,
         startUrls: current.startUrls,

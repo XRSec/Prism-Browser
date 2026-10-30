@@ -206,6 +206,7 @@ export type ProfileDraft = Pick<
 
 export interface ProfileBatchClassification {
   group?: string
+  tags?: string[]
   addTags?: string[]
 }
 

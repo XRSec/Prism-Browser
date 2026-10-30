@@ -55,9 +55,9 @@ export function acceptLanguagesForLanguage(language: string): string {
 }
 
 const FALLBACK_FINGERPRINT_LOCALE = Object.freeze({
-  language: 'en-US',
-  acceptLanguages: 'en-US,en',
-  timezone: 'UTC'
+  language: 'zh-CN',
+  acceptLanguages: 'zh-CN,zh,en-US,en',
+  timezone: 'Asia/Shanghai'
 })
 
 const ENGLISH_REGIONS = new Set(['US', 'GB', 'AU', 'CA', 'IN', 'IE', 'NZ', 'ZA', 'SG', 'PH'])
@@ -125,7 +125,7 @@ export function setSystemFingerprintLocale(locale: FingerprintLocale): void {
 }
 
 export function defaultFingerprintLocale(): FingerprintLocale {
-  return systemFingerprintLocale ?? fingerprintLocaleFromSystem(runtimeSystemLocaleInfo())
+  return systemFingerprintLocale ?? FALLBACK_FINGERPRINT_LOCALE
 }
 
 type CompleteProxyIdentity = ProxyTestResult & {

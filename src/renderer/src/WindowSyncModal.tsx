@@ -103,6 +103,7 @@ export function WindowSyncModal({ open, profiles, status, proEnabled, onChanged,
 
   return (
     <Modal
+      centered
       open={open}
       width={860}
       title={
