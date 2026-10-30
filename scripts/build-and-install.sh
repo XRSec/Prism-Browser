@@ -2,7 +2,7 @@
 # 本地构建并安装到 /Applications（使用自签名证书，无需 Apple TSA 时间戳）
 set -euo pipefail
 
-CERT_NAME="${CSC_NAME:-PiWeb Local Developer}"
+CERT_NAME="${CSC_NAME:-XRSec Local Developer}"
 INSTALL_PATH="/Applications/Prism Browser.app"
 BUILD_DIR="$(dirname "$0")/.."
 

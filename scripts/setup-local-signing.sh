@@ -1,8 +1,8 @@
 #!/bin/zsh
 set -euo pipefail
 
-CERT_NAME="${1:-PiWeb Local Developer}"
-OUTPUT_DIR="${2:-$HOME/.prismbrowser/certs}"
+CERT_NAME="${1:-XRSec Local Developer}"
+OUTPUT_DIR="${2:-$HOME/.xrsec/certs}"
 KEYCHAIN="${KEYCHAIN:-$(security default-keychain | tr -d '" \t')}"
 
 if [[ -z "$KEYCHAIN" ]]; then
