@@ -967,7 +967,7 @@ export default function App({ colorMode = 'light', onColorModeChange = () => {} 
     {
       title: t("指纹"),
       dataIndex: 'fingerprint',
-      width: 230,
+      width: 270,
       sorter: profileTableSorters.fingerprint,
       render: (_value, profile) => (
         <div className="fingerprint-cell">
@@ -980,15 +980,9 @@ export default function App({ colorMode = 'light', onColorModeChange = () => {} 
           <span className={`webrtc-badge ${profile.fingerprint.webrtcPolicy}`}>
             {profile.fingerprint.webrtcPolicy === 'proxy_only' ? t("WebRTC 防泄漏") : profile.fingerprint.webrtcPolicy === 'public_only' ? t("WebRTC 公网") : t("WebRTC 默认")}
           </span>
+          <code className="seed-code" title={t("指纹种子：{0}", profile.fingerprint.seed)}>{profile.fingerprint.seed}</code>
         </div>
       )
-    },
-    {
-      title: t("指纹种子"),
-      dataIndex: ['fingerprint', 'seed'],
-      width: 125,
-      sorter: profileTableSorters.seed,
-      render: (seed: number) => <code className="seed-code">{seed}</code>
     },
     {
       title: t("操作"),
@@ -1309,7 +1303,7 @@ export default function App({ colorMode = 'light', onColorModeChange = () => {} 
                     }
                   }
                 } : false}
-                scroll={{ x: 1240 }}
+                scroll={{ x: 1140 }}
                 locale={{
                   emptyText: (
                     <Empty description={t("还没有浏览器环境")}>
