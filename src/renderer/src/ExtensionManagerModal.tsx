@@ -1,5 +1,5 @@
 import { t, translateMessage as mt } from '../../shared/i18n'
-import { CloudDownloadOutlined, DeleteOutlined, EditOutlined, FolderAddOutlined, ReloadOutlined, SafetyCertificateOutlined } from '@ant-design/icons'
+import { CloudDownloadOutlined, DeleteOutlined, EditOutlined, FolderAddOutlined, ReloadOutlined, SafetyCertificateOutlined, ShareAltOutlined } from '@ant-design/icons'
 import { Alert, Button, Input, List, Modal, Popconfirm, Select, Space, Spin, Switch, Tag, Typography, message } from 'antd'
 import { useEffect, useState } from 'react'
 import type { BrowserExtension, BrowserProfileView, ExtensionDownloadNetwork } from '../../shared/types'
@@ -26,7 +26,38 @@ export function ExtensionManagerModal({ open, extensions, profiles, onClose, onC
   const [opening, setOpening] = useState<string | null>(null)
   const [removing, setRemoving] = useState<string | null>(null)
   const [toggling, setToggling] = useState<string | null>(null)
+  const [sharingModalExtension, setSharingModalExtension] = useState<BrowserExtension | null>(null)
+  const [sharingEnabled, setSharingEnabled] = useState(false)
+  const [sharingSourceProfileId, setSharingSourceProfileId] = useState<string | undefined>()
+  const [sharingTargetProfileIds, setSharingTargetProfileIds] = useState<string[]>([])
+  const [savingSharing, setSavingSharing] = useState(false)
   const [messageApi, contextHolder] = message.useMessage()
+
+  function openDataSharingModal(extension: BrowserExtension): void {
+    setSharingModalExtension(extension)
+    setSharingEnabled(Boolean(extension.dataSharing?.enabled))
+    setSharingSourceProfileId(extension.dataSharing?.sourceProfileId || profiles[0]?.id)
+    setSharingTargetProfileIds(extension.dataSharing?.targetProfileIds || profiles.map((p) => p.id))
+  }
+
+  async function saveDataSharing(): Promise<void> {
+    if (!sharingModalExtension) return
+    setSavingSharing(true)
+    try {
+      const updated = await window.browserApi.extensions.updateDataSharing(sharingModalExtension.id, {
+        enabled: sharingEnabled,
+        sourceProfileId: sharingSourceProfileId,
+        targetProfileIds: sharingTargetProfileIds
+      })
+      onChanged(extensions.map((ext) => (ext.id === updated.id ? updated : ext)))
+      messageApi.success(t("已更新扩展数据共享设置"))
+      setSharingModalExtension(null)
+    } catch (error) {
+      messageApi.error(errorText(error))
+    } finally {
+      setSavingSharing(false)
+    }
+  }
 
   async function refresh(): Promise<void> {
     setLoading(true)
@@ -146,6 +177,12 @@ export function ExtensionManagerModal({ open, extensions, profiles, onClose, onC
           renderItem={(extension) => (
             <List.Item actions={[
               <Button
+                key="share"
+                type="text"
+                icon={<ShareAltOutlined />}
+                onClick={() => openDataSharingModal(extension)}
+              >{t("数据共享")}</Button>,
+              <Button
                 key="edit"
                 type="text"
                 icon={<EditOutlined />}
@@ -179,6 +216,9 @@ export function ExtensionManagerModal({ open, extensions, profiles, onClose, onC
                     <Tag>v{extension.version}</Tag>
                     {extension.source === 'chrome-web-store' && (
                       <Tag color="blue" icon={<SafetyCertificateOutlined />}>{t("Chrome 商店")}</Tag>
+                    )}
+                    {extension.dataSharing?.enabled && (
+                      <Tag color="green">{t("数据共享中")}</Tag>
                     )}
                   </Space>
                 }
@@ -238,6 +278,75 @@ export function ExtensionManagerModal({ open, extensions, profiles, onClose, onC
             {t("无法直接访问 Google 服务时，可使用系统代理或已有环境的代理下载。这里只用于下载扩展，不会启动该环境。")}
           </Typography.Paragraph>
         </div>
+      </Modal>
+      <Modal
+        open={Boolean(sharingModalExtension)}
+        title={t("配置扩展数据共享") + (sharingModalExtension ? ` · ${sharingModalExtension.name}` : '')}
+        okText={t("保存")}
+        cancelText={t("取消")}
+        confirmLoading={savingSharing}
+        onOk={() => void saveDataSharing()}
+        onCancel={() => setSharingModalExtension(null)}
+      >
+        <Typography.Paragraph type="secondary">
+          {t("启用后，勾选的环境将共享同一份数据（启动时拉取，窗口关闭后自动写回）；未勾选的环境保留自己独立的本地数据。")}
+        </Typography.Paragraph>
+        <div style={{ marginBottom: 16 }}>
+          <Space size={12}>
+            <Typography.Text strong>{t("共享插件数据")}</Typography.Text>
+            <Switch
+              checked={sharingEnabled}
+              onChange={setSharingEnabled}
+            />
+          </Space>
+        </div>
+        {sharingEnabled && (
+          <>
+            <div style={{ marginBottom: 16 }}>
+              <Typography.Text strong style={{ display: 'block', marginBottom: 6 }}>{t("主数据源环境")}</Typography.Text>
+              <Select
+                value={sharingSourceProfileId}
+                style={{ width: '100%' }}
+                placeholder={t("选择提供初始数据的环境")}
+                options={profiles.map((p) => ({
+                  value: p.id,
+                  label: `#${p.serialNumber} · ${p.name}`
+                }))}
+                onChange={setSharingSourceProfileId}
+              />
+            </div>
+            <div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                <Typography.Text strong>{t("接入环境")}</Typography.Text>
+                <Button
+                  size="small"
+                  type="link"
+                  onClick={() => {
+                    if (sharingTargetProfileIds.length === profiles.length) {
+                      setSharingTargetProfileIds([])
+                    } else {
+                      setSharingTargetProfileIds(profiles.map((p) => p.id))
+                    }
+                  }}
+                >
+                  {sharingTargetProfileIds.length === profiles.length ? t("取消全选") : t("全选所有环境")}
+                </Button>
+              </div>
+              <Select
+                mode="multiple"
+                value={sharingTargetProfileIds}
+                style={{ width: '100%' }}
+                placeholder={t("请勾选接入共享数据的环境")}
+                maxTagCount="responsive"
+                options={profiles.map((p) => ({
+                  value: p.id,
+                  label: `#${p.serialNumber} · ${p.name}`
+                }))}
+                onChange={setSharingTargetProfileIds}
+              />
+            </div>
+          </>
+        )}
       </Modal>
     </Modal>
   )

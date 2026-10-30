@@ -3,7 +3,7 @@ import { app, BrowserWindow, dialog, ipcMain, net, shell } from 'electron'
 import { lstat, readFile, stat, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { ProxyAgent, fetch as undiciFetch } from 'undici'
-import type { ExtensionDownloadNetwork, ProfileDraft } from '../shared/types'
+import type { ExtensionDataSharingConfig, ExtensionDownloadNetwork, ProfileDraft } from '../shared/types'
 import type { KernelManager } from './kernel-manager'
 import { listBundledBrowsers, locateBrowser, locateBundledBrowser, normalizeBrowserSelection } from './browser-locator'
 import { mergeKernelCatalog } from './kernel-catalog'
@@ -467,6 +467,9 @@ export function registerIpc({ profiles, settings, launcher, kernels, extensions,
   })
   ipcMain.handle('extensions:set-global-enabled', (_event, id: string, enabled: boolean) => {
     return extensions.setGlobalEnabled(id, enabled)
+  })
+  ipcMain.handle('extensions:update-data-sharing', (_event, id: string, config: ExtensionDataSharingConfig) => {
+    return extensions.updateDataSharing(id, config)
   })
   ipcMain.handle('extensions:remove', async (_event, id: string) => {
     if (await profiles.usesExtension(id)) throw new Error('该扩展仍被浏览器环境使用，请先从环境配置中移除')

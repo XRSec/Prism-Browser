@@ -7,6 +7,7 @@ import type { BrowserCrashRecord, BrowserProfile, LaunchDiagnosticCheck, LaunchD
 import { locateBrowserForProfile } from './browser-locator'
 import { buildLaunchArgs } from './launch-args'
 import { ensureDefaultProfilePreferences, ensureSharedExtensionStorage } from './profile-preferences'
+import { syncExtensionDataOnLaunch, syncExtensionDataOnClose } from './extension-data-sharing'
 import type { ProfileStore } from './profile-store'
 import type { SettingsStore } from './settings-store'
 import { closeProxyBridge, openProxyBridge } from './proxy-bridge'
@@ -228,6 +229,7 @@ export class BrowserLauncher {
       await mkdir(runtimePath, { recursive: true });
       await ensureDefaultProfilePreferences(this.profiles.profileDataPath(id));
       await ensureSharedExtensionStorage(this.profiles.profileDataPath(id));
+      await syncExtensionDataOnLaunch(this.profiles.vaultPath, id, this.extensions.list(), this.logger);
       const args = buildLaunchArgs(profile, {
         userDataDir: this.profiles.profileDataPath(id),
         proxyUrl: localProxyUrl,
@@ -311,6 +313,7 @@ export class BrowserLauncher {
               });
             }
           }
+          await syncExtensionDataOnClose(this.profiles.vaultPath, id, this.extensions.list(), this.logger).catch(() => void 0);
           const next = await this.profiles.setRuntime(id, { status, lastError });
           this.onChanged(next);
         } catch (error) {

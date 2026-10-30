@@ -215,6 +215,12 @@ export type ExtensionDownloadNetwork =
   | { mode: 'direct' | 'system' }
   | { mode: 'profile'; profileId: string }
 
+export interface ExtensionDataSharingConfig {
+  enabled: boolean
+  sourceProfileId?: string
+  targetProfileIds?: string[]
+}
+
 export interface BrowserExtension {
   id: string
   name: string
@@ -228,6 +234,7 @@ export interface BrowserExtension {
   source?: 'local' | 'chrome-web-store'
   storeId?: string
   sourceUrl?: string
+  dataSharing?: ExtensionDataSharingConfig
 }
 
 export interface AppSettings {
@@ -614,6 +621,7 @@ export interface BrowserApi {
     importWebStore: (url: string, network?: ExtensionDownloadNetwork) => Promise<BrowserExtension>
     openSourceFolder: (id: string) => Promise<string>
     setGlobalEnabled: (id: string, enabled: boolean) => Promise<BrowserExtension>
+    updateDataSharing: (id: string, config: ExtensionDataSharingConfig) => Promise<BrowserExtension>
     remove: (id: string) => Promise<void>
   }
   advertisements: {

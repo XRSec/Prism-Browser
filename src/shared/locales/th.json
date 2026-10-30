@@ -1252,5 +1252,17 @@
   "默认全部关闭，逐个授权": "การเข้าถึงถูกปิดโดยค่าเริ่มต้น อนุญาตแต่ละโปรไฟล์แยกกัน",
   "默认关闭，按需启动": "ปิดตามค่าเริ่มต้น เริ่มตามต้องการ",
   "代理白名单": "Proxy Bypass List",
-  "绕过代理的目标主机或域名，多个以分号分隔，例如 *.example.com;192.168.*": "Target hosts or domains bypassing proxy, separated by semicolons, e.g. *.example.com;192.168.*"
+  "绕过代理的目标主机或域名，多个以分号分隔，例如 *.example.com;192.168.*": "Target hosts or domains bypassing proxy, separated by semicolons, e.g. *.example.com;192.168.*",
+  "数据共享": "Data Sharing",
+  "数据共享中": "Data Shared",
+  "配置扩展数据共享": "Configure Extension Data Sharing",
+  "共享插件数据": "Share Extension Data",
+  "主数据源环境": "Source Profile",
+  "接入环境": "Target Profiles",
+  "全选所有环境": "Select All Profiles",
+  "启用后，勾选的环境将共享同一份数据（启动时拉取，窗口关闭后自动写回）；未勾选的环境保留自己独立的本地数据。": "When enabled, selected profiles share the same extension data (pulled on launch, synced back on close); unselected profiles keep independent data.",
+  "已更新扩展数据共享设置": "Extension data sharing settings updated",
+  "取消全选": "Deselect All",
+  "选择提供初始数据的环境": "Select profile providing initial data",
+  "请勾选接入共享数据的环境": "Select profiles to share data"
 }

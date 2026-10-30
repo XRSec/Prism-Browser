@@ -3,7 +3,7 @@ import { randomUUID } from 'node:crypto'
 import { access, cp, lstat, mkdir, readdir, readFile, rename, rm, stat, writeFile } from 'node:fs/promises'
 import { basename, dirname, join, posix, resolve, sep } from 'node:path'
 import { inflateRawSync } from 'node:zlib'
-import type { BrowserExtension } from '../shared/types'
+import type { BrowserExtension, ExtensionDataSharingConfig } from '../shared/types'
 import type { Logger } from './app-logger'
 
 interface ChromeExtensionManifest {
@@ -399,6 +399,17 @@ export class ExtensionStore {
     await writeFile(join(this.root, id, 'metadata.json'), JSON.stringify(next, null, 2), { encoding: 'utf8', mode: 0o600 })
     this.extensions.set(id, next)
     this.logger?.info(enabled ? '浏览器扩展已全局启用' : '浏览器扩展已取消全局启用', { extensionId: id })
+    return { ...next }
+  }
+
+  async updateDataSharing(id: string, config: ExtensionDataSharingConfig): Promise<BrowserExtension> {
+    if (typeof id !== 'string' || !/^[a-f\d-]{36}$/i.test(id)) throw new Error('浏览器扩展 ID 无效')
+    const current = this.extensions.get(id)
+    if (!current) throw new Error('浏览器扩展不存在')
+    const next = { ...current, dataSharing: config }
+    await writeFile(join(this.root, id, 'metadata.json'), JSON.stringify(next, null, 2), { encoding: 'utf8', mode: 0o600 })
+    this.extensions.set(id, next)
+    this.logger?.info('浏览器扩展数据共享策略已更新', { extensionId: id, enabled: config.enabled })
     return { ...next }
   }
 

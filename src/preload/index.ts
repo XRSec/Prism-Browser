@@ -157,6 +157,7 @@ const api: BrowserApi = {
     importWebStore: (url: string, network) => ipcRenderer.invoke('extensions:import-web-store', url, network),
     openSourceFolder: (id: string) => ipcRenderer.invoke('extensions:open-source-folder', id),
     setGlobalEnabled: (id: string, enabled: boolean) => ipcRenderer.invoke('extensions:set-global-enabled', id, enabled),
+    updateDataSharing: (id: string, config) => ipcRenderer.invoke('extensions:update-data-sharing', id, config),
     remove: (id: string) => ipcRenderer.invoke('extensions:remove', id)
   },
   advertisements: {
