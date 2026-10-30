@@ -66,6 +66,11 @@ const api: BrowserApi = {
     verify: (version: string) => ipcRenderer.invoke('engine:verify', version),
     cancelInstall: (version: string) => ipcRenderer.invoke('engine:cancel-install', version),
     installProgress: () => ipcRenderer.invoke('engine:install-progress'),
+    onInstallProgress: (listener) => {
+      const handler = (_event: Electron.IpcRendererEvent, progress: Parameters<typeof listener>[0]) => listener(progress)
+      ipcRenderer.on('engine:install-progress', handler)
+      return () => ipcRenderer.removeListener('engine:install-progress', handler)
+    },
     ensureCommunity: () => ipcRenderer.invoke('engine:ensure-community')
   },
   updates: {

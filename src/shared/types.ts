@@ -538,6 +538,7 @@ export interface BrowserApi {
     verify: (version: string) => Promise<KernelHealth>
     cancelInstall: (version: string) => Promise<void>
     installProgress: () => Promise<KernelInstallProgress | null>
+    onInstallProgress: (listener: (progress: KernelInstallProgress | null) => void) => () => void
     ensureCommunity: () => Promise<EngineStatus>
   }
   updates: {

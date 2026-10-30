@@ -561,3 +561,92 @@ button, input, textarea { font: inherit; }
 .nav-item > span { min-width: 0; overflow-wrap: anywhere; }
 .community-card small, .community-action { white-space: normal; }
 .extension-toolbar, .recycle-toolbar, .kernel-toolbar { flex-wrap: wrap; gap: 12px; }
+
+/* ── Window Sync Modal ── */
+.window-sync-modal .ant-modal-content {
+  border-radius: 16px;
+}
+.window-sync-selection-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+.window-sync-field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.window-sync-field-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.window-sync-field-hint {
+  font-size: 11px;
+}
+.window-sync-select {
+  width: 100% !important;
+}
+.window-sync-card {
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface-subtle);
+}
+.window-sync-card-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+.window-sync-switches-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+}
+.window-sync-switch-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  font-size: 13px;
+}
+.window-sync-delay-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px dashed var(--line);
+}
+.window-sync-delay-label {
+  font-size: 13px;
+  color: var(--ink);
+  font-weight: 500;
+}
+.window-sync-button-clusters {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.window-sync-cluster {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+.window-sync-action-btn.primary {
+  min-width: 120px;
+}
+.window-sync-visit-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.window-sync-url-input {
+  flex: 1;
+}
+
