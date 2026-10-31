@@ -1,6 +1,6 @@
 import { t } from '../../shared/i18n'
-import { ApiOutlined, BookOutlined, CheckOutlined, CopyOutlined, DownloadOutlined, GlobalOutlined, InfoCircleOutlined, LinkOutlined, ReloadOutlined, ThunderboltOutlined } from '@ant-design/icons'
-import { Alert, Button, Card, Form, Input, InputNumber, Modal, Radio, Select, Space, Table, Tabs, Tag, Typography, message } from 'antd'
+import { ApiOutlined, AppstoreOutlined, BookOutlined, CheckOutlined, CopyOutlined, DownloadOutlined, GlobalOutlined, InfoCircleOutlined, LinkOutlined, ReloadOutlined, ThunderboltOutlined } from '@ant-design/icons'
+import { Alert, Button, Card, Collapse, Form, Input, InputNumber, Modal, Radio, Select, Space, Table, Tabs, Tag, Typography, message } from 'antd'
 import { useMemo, useState } from 'react'
 import type { BrowserProfileView, ProfileDraft, ProxyProtocol } from '../../shared/types'
 
@@ -19,7 +19,7 @@ export function MihomoAssistantModal({
   onClose,
   onProfileUpdated
 }: MihomoAssistantModalProps) {
-  const [activeTab, setActiveTab] = useState<'docs' | 'generator' | 'zashboard'>('docs')
+  const [activeTab, setActiveTab] = useState<'docs' | 'clients' | 'generator' | 'zashboard'>('docs')
   const [scope, setScope] = useState<'all' | 'selected'>(selectedProfileIds.length ? 'selected' : 'all')
   const [host, setHost] = useState('127.0.0.1')
   const [port, setPort] = useState<number>(17890)
@@ -51,7 +51,7 @@ export function MihomoAssistantModal({
       return {
         profile,
         username,
-        proxyUrl: `${protocol}://${username}:${password}@${host}:${port}`,
+        proxyUrl: `${protocol}://${username}:[REDACTED_PASSWORD]@${host}:${port}`,
         canApply: profile.status === 'closed' || profile.status === 'error'
       }
     })
@@ -92,9 +92,36 @@ export function MihomoAssistantModal({
     return lines.join('\n')
   }, [port, host, controllerHost, controllerPort, controllerSecret, password, assignments])
 
+  // 动态生成适合 Clash Verge / Flclash / Mihomo Party 的 JavaScript 扩展脚本
+  const jsScriptConfig = useMemo(() => {
+    const userList = assignments.map(a => `    '${a.username}:${password}'`).join(',\n')
+    const ruleList = assignments.slice(0, 3).map((a, i) => `    'IN-USER,${a.username},节点名称-${i + 1}'`).join(',\n')
+    return `// 适用于：Clash Verge Rev / Flclash / Mihomo Party 扩展脚本 (Script)
+// 原订阅更新时，该脚本自动在内存中合并分流规则，绝不冲掉配置！
+function main(config) {
+  // 1. 设置本地监听与用户认证
+  config['mixed-port'] = ${port};
+  config['allow-lan'] = false;
+  config['bind-address'] = '${host}';
+
+  // 2. 注入多用户认证标签
+  config['users'] = [
+${userList || "    'node-0001:prism'"}
+  ];
+
+  // 3. 注入 IN-USER 规则（插入至 rules 顶部优先匹配）
+  const prismRules = [
+${ruleList || "    'IN-USER,node-0001,指定节点'"}
+  ];
+  config.rules = [...prismRules, ...(config.rules || [])];
+
+  return config;
+}`
+  }, [assignments, password, port, host])
+
   // 计算 Zashboard / Web UI 的完整访问 URL
   const dashboardUrl = useMemo(() => {
-    const secretParam = controllerSecret ? `&secret=${encodeURIComponent(controllerSecret)}` : ''
+    const secretParam = controllerSecret ? `&secret=[REDACTED_CREDENTIAL](controllerSecret)}` : ''
     if (dashboardSource === 'jsdelivr') {
       return `https://cdn.jsdelivr.net/gh/Zephyruso/zashboard@gh-pages/?host=${controllerHost}&port=${controllerPort}${secretParam}#/proxies`
     }
@@ -172,20 +199,20 @@ export function MihomoAssistantModal({
       open={open}
       title={<Space><ApiOutlined />{t("Mihomo 本地分流方案与助手")}</Space>}
       footer={null}
-      width={880}
+      width={900}
       style={{ top: 20 }}
       onCancel={onClose}
       destroyOnClose
     >
       <Tabs
         activeKey={activeTab}
-        onChange={(k) => setActiveTab(k as 'docs' | 'generator' | 'zashboard')}
+        onChange={(k) => setActiveTab(k as 'docs' | 'clients' | 'generator' | 'zashboard')}
         items={[
           {
             key: 'docs',
             label: <Space><BookOutlined />{t("技术原理解析与分流指南")}</Space>,
             children: (
-              <Space direction="vertical" style={{ width: '100%' }} size={16}>
+              <Space direction="vertical" style={{ width: '100%' }} size={14}>
                 <Alert
                   type="info"
                   showIcon
@@ -211,7 +238,7 @@ export function MihomoAssistantModal({
                   <div style={{ background: 'var(--surface-subtle)', padding: 10, borderRadius: 6, fontSize: 11, fontFamily: 'ui-monospace, Menlo, monospace' }}>
                     <div><strong>Profile 代理配置:</strong> socks5://node-0001:prism@127.0.0.1:17890</div>
                     <div style={{ color: 'var(--muted)', marginTop: 4 }}>
-                      流量带着 [node-0001] 标记进入 Mihomo 17890 端口 $\rightarrow$ 触发 IN-USER 规则 $\rightarrow$ 精准从指定的出口节点送达目标网站。
+                      流量带着 [node-0001] 标签进入 Mihomo 17890 端口 $\rightarrow$ 触发 IN-USER 规则 $\rightarrow$ 精准由对应的物理出口节点送出。
                     </div>
                   </div>
                 </Card>
@@ -236,7 +263,7 @@ users:
   - "pro-vps1:prism"
 
 rules:
-  # 1. 指定账号走特定节点
+  # 1. 单独指定环境走特定出口
   - IN-USER,node-0001,🇺🇸 专线节点-美国-01
   - IN-USER,node-0002,🇯🇵 专线节点-日本-02
   # 2. 让特定 Pro 分组或业务环境走专用高纯净节点池
@@ -249,7 +276,7 @@ rules:
                   </div>
                   <Input.TextArea
                     readOnly
-                    autoSize={{ minRows: 9, maxRows: 12 }}
+                    autoSize={{ minRows: 7, maxRows: 10 }}
                     style={{ fontFamily: 'ui-monospace, Menlo, monospace', fontSize: 11 }}
                     value={
 `mixed-port: 17890
@@ -262,7 +289,7 @@ users:
   - "pro-vps1:prism"
 
 rules:
-  # 1. 指定账号走特定节点
+  # 1. 单独指定环境走特定出口
   - IN-USER,node-0001,🇺🇸 专线节点-美国-01
   - IN-USER,node-0002,🇯🇵 专线节点-日本-02
   # 2. 让特定 Pro 分组或业务环境走专用高纯净节点池
@@ -270,6 +297,108 @@ rules:
   # 3. 兜底
   - MATCH,DIRECT`
                     }
+                  />
+                </Card>
+              </Space>
+            )
+          },
+          {
+            key: 'clients',
+            label: <Space><AppstoreOutlined />{t("客户端覆写模式教程 (Flclash / Verge)")}</Space>,
+            children: (
+              <Space direction="vertical" style={{ width: '100%' }} size={14}>
+                <Alert
+                  type="success"
+                  showIcon
+                  title={t("为什么强烈推荐使用“覆写 (Override) / 扩展脚本 (Script)”模式？")}
+                  description={
+                    <div style={{ fontSize: 12, lineHeight: 1.6 }}>
+                      {t("机场订阅通常每隔一段时间就会自动更新，如果直接在订阅下载的 YAML 里手写规则，一点击“更新订阅”你的修改就会全部被冲掉！使用覆写或扩展脚本，客户端在内存中将 Prism 规则与机场订阅动态合并，机场随便更新，Prism 分流永久有效！")}
+                    </div>
+                  }
+                />
+
+                <Collapse
+                  defaultActiveKey={['flclash', 'verge']}
+                  size="small"
+                  items={[
+                    {
+                      key: 'flclash',
+                      label: <Typography.Text strong>{t("1. Flclash 覆写配置步骤")}</Typography.Text>,
+                      children: (
+                        <div style={{ fontSize: 12, lineHeight: 1.6 }}>
+                          <ol style={{ paddingLeft: 18, margin: '4px 0' }}>
+                            <li>{t("打开 Flclash 客户端，点击左侧导航栏的【设置 (Settings)】。")}</li>
+                            <li>{t("找到【覆写 (Override)】或【扩展脚本 (Script)】选项。")}</li>
+                            <li>{t("新建或编辑覆写配置，推荐选择【JavaScript 脚本】模式（也可选择 YAML Merge）。")}</li>
+                            <li>{t("将下方动态生成的 JavaScript 脚本代码贴入编辑器中，保存并开启开关。")}</li>
+                            <li>{t("返回主界面刷新配置，即可在 17890 端口上同时生效原订阅节点与 Prism 多环境分流！")}</li>
+                          </ol>
+                        </div>
+                      )
+                    },
+                    {
+                      key: 'verge',
+                      label: <Typography.Text strong>{t("2. Clash Verge Rev 覆写配置步骤")}</Typography.Text>,
+                      children: (
+                        <div style={{ fontSize: 12, lineHeight: 1.6 }}>
+                          <ol style={{ paddingLeft: 18, margin: '4px 0' }}>
+                            <li>{t("打开 Clash Verge Rev，点击左侧【订阅 (Profiles)】。")}</li>
+                            <li>{t("在右上角点击【新建】，类型选择【Script (扩展脚本)】，名称填写如 Prism-Override。")}</li>
+                            <li>{t("右键新建的脚本点击【编辑】，将下方的 JavaScript 脚本完全覆盖贴入并保存。")}</li>
+                            <li>{t("右键该脚本点击【启用 (Enable)】。此时无论原机场订阅如何更新，分流规则均自动置顶生效！")}</li>
+                          </ol>
+                        </div>
+                      )
+                    },
+                    {
+                      key: 'mihomo_party',
+                      label: <Typography.Text strong>{t("3. Mihomo Party 覆写配置步骤")}</Typography.Text>,
+                      children: (
+                        <div style={{ fontSize: 12, lineHeight: 1.6 }}>
+                          <ol style={{ paddingLeft: 18, margin: '4px 0' }}>
+                            <li>{t("进入 Mihomo Party 左侧导航的【覆写 (Overrides)】菜单。")}</li>
+                            <li>{t("点击右上角【新建覆写】，类型选择【JavaScript】，命名为 Prism-Split。")}</li>
+                            <li>{t("将下方的 JavaScript 代码填入代码框，点击右下角保存并激活生效。")}</li>
+                          </ol>
+                        </div>
+                      )
+                    },
+                    {
+                      key: 'cfw',
+                      label: <Typography.Text strong>{t("4. Clash for Windows (CFW) Mixin 模式")}</Typography.Text>,
+                      children: (
+                        <div style={{ fontSize: 12, lineHeight: 1.6 }}>
+                          <ol style={{ paddingLeft: 18, margin: '4px 0' }}>
+                            <li>{t("进入 CFW 的【Settings】页面，滚动至【Mixin】模块。")}</li>
+                            <li>{t("点击【YAML】右侧的【Edit】，贴入第三个 Tab 提供的 YAML 片段。")}</li>
+                            <li>{t("返回开启【Mixin】右侧的开关即可。")}</li>
+                          </ol>
+                        </div>
+                      )
+                    }
+                  ]}
+                />
+
+                <Card size="small" title={t("针对你当前环境动态生成的 JavaScript 扩展脚本代码 (一键复制)")}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                    <Typography.Text type="secondary" style={{ fontSize: 11 }}>
+                      {t("该脚本会自动将当前 {0} 个环境的 users 凭据与 IN-USER 置顶规则合并至主配置中：", assignments.length)}
+                    </Typography.Text>
+                    <Button
+                      type="primary"
+                      size="small"
+                      icon={copiedSection === 'jsscript' ? <CheckOutlined /> : <CopyOutlined />}
+                      onClick={() => void copyText(jsScriptConfig, 'jsscript')}
+                    >
+                      {copiedSection === 'jsscript' ? t("已复制 JS 脚本") : t("复制 JS 脚本代码")}
+                    </Button>
+                  </div>
+                  <Input.TextArea
+                    readOnly
+                    autoSize={{ minRows: 7, maxRows: 12 }}
+                    style={{ fontFamily: 'ui-monospace, Menlo, monospace', fontSize: 11 }}
+                    value={jsScriptConfig}
                   />
                 </Card>
               </Space>
