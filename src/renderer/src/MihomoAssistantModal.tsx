@@ -3,7 +3,6 @@ import {
   BookOutlined,
   CheckOutlined,
   CopyOutlined,
-  DownloadOutlined,
   FileTextOutlined,
   FolderOpenOutlined,
   GlobalOutlined,
@@ -782,11 +781,11 @@ ${ruleList || "    'IN-USER,node-0001,DIRECT'"}
                       value={dashboardSource}
                       onChange={setDashboardSource}
                       options={[
-                        { value: 'local', label: '内置 UI (127.0.0.1:9090/ui)' },
+                        { value: 'local', label: `本地内置 UI (${normalizedControllerAddress}/ui)` },
                         { value: 'zash_online', label: 'Zashboard 官方在线托管 (board.zash.run)' },
                         { value: 'metacubexd', label: 'MetaCubeXD 官方在线托管' }
                       ]}
-                      style={{ width: 260 }}
+                      style={{ width: 280 }}
                     />
                     <Input
                       size="small"
@@ -825,19 +824,6 @@ ${ruleList || "    'IN-USER,node-0001,DIRECT'"}
                     style={{ width: '100%', height: '100%', border: 'none' }}
                     title="Zashboard Controller"
                   />
-                </div>
-
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 11, color: 'var(--muted)' }}>
-                  <span>提示：Mihomo 配置中已包含 external-ui-url，启动时 Mihomo 会自动下载并解压 Web UI。无需手动内置。</span>
-                  <Button
-                    size="small"
-                    type="link"
-                    icon={<DownloadOutlined />}
-                    href="https://github.com/Zephyruso/zashboard/releases/latest/download/dist-cdn-fonts.zip"
-                    target="_blank"
-                  >
-                    下载离线面板 (dist-cdn-fonts.zip)
-                  </Button>
                 </div>
               </Space>
             )
