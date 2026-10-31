@@ -33,6 +33,7 @@ import type { McpControlManager } from './mcp-control-manager'
 import type { AnnouncementManager } from './announcement-manager'
 import type { AdvertisementManager } from './advertisement-manager'
 import type { WindowSyncManager } from './window-sync-manager'
+import type { MihomoManager } from './mihomo-manager'
 
 export const PRO_PURCHASE_URL = 'https://pay.ldxp.cn/item/q23itv'
 
@@ -74,9 +75,10 @@ interface IpcDependencies {
   announcements: AnnouncementManager
   advertisements: AdvertisementManager
   windowSync: WindowSyncManager
+  mihomo: MihomoManager
 }
 
-export function registerIpc({ profiles, settings, launcher, kernels, extensions, cookies, logger, backups, workspaceMigration, appSession, updater, licensing, automation, scheduler, mcp, announcements, advertisements, windowSync }: IpcDependencies): void {
+export function registerIpc({ profiles, settings, launcher, kernels, extensions, cookies, logger, backups, workspaceMigration, appSession, updater, licensing, automation, scheduler, mcp, announcements, advertisements, windowSync, mihomo }: IpcDependencies): void {
   ipcMain.handle('profiles:list', () => profiles.list().map(publicProfile))
   ipcMain.handle('profiles:storage-health', () => profiles.storageHealth())
   ipcMain.handle('profiles:create', async (_event, draft: ProfileDraft) => publicProfile(await profiles.create(draft)))
@@ -563,5 +565,20 @@ export function registerIpc({ profiles, settings, launcher, kernels, extensions,
       } catch {}
     }
     return { success: false, path: candidates[0] }
+  })
+  ipcMain.handle('mihomo:get-status', () => mihomo.getStatus())
+  ipcMain.handle('mihomo:start', async (_event, options) => {
+    return mihomo.start(options)
+  })
+  ipcMain.handle('mihomo:stop', async () => {
+    return mihomo.stop()
+  })
+  ipcMain.handle('mihomo:get-logs', () => mihomo.getLogs())
+  ipcMain.handle('mihomo:save-config', async (_event, content: string, customPath?: string) => {
+    return mihomo.saveConfigFile(content, customPath)
+  })
+  ipcMain.handle('mihomo:select-file', async (event, type: 'binary' | 'config') => {
+    const owner = BrowserWindow.fromWebContents(event.sender) ?? undefined
+    return mihomo.selectFile(type, owner)
   })
 }

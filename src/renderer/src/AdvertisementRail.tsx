@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { message } from 'antd'
-import { t, translateMessage as mt } from '../../shared/i18n'
+import { translateMessage as mt } from '../../shared/i18n'
 import { ArrowLeftOutlined, ArrowRightOutlined, PauseOutlined, CaretRightOutlined, ExportOutlined } from '@ant-design/icons'
 import type { AdvertisementItem, AdvertisementStatus } from '../../shared/types'
 
@@ -69,8 +69,8 @@ export function AdvertisementRail() {
   return (
     <section
       className={`advertisement-rail tone-${active?.tone ?? 'neutral'}`}
-      aria-label={t("精选内容")}
-      aria-roledescription={t("轮播")}
+      aria-label="精选内容"
+      aria-roledescription="轮播"
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       onFocusCapture={() => setFocused(true)}
@@ -81,11 +81,11 @@ export function AdvertisementRail() {
       {contextHolder}
       {active ? (
         <>
-          <span className="rail-label">{t("广告")}</span>
+          <span className="rail-label">{"广告"}</span>
           <button
             className="rail-content"
             onClick={() => void window.browserApi.advertisements.open(active.id).catch((error) =>
-              messageApi.error(error instanceof Error ? mt(error.message) : t("暂时无法打开链接"))
+              messageApi.error(error instanceof Error ? mt(error.message) : "暂时无法打开链接")
             )}
           >
             <strong>{active.title}</strong>
@@ -97,15 +97,15 @@ export function AdvertisementRail() {
           </button>
           {items.length > 1 && (
             <div className="rail-controls">
-              <button aria-label={t("上一条广告")} onClick={() => change(-1)}><ArrowLeftOutlined /></button>
+              <button aria-label={"上一条广告"} onClick={() => change(-1)}><ArrowLeftOutlined /></button>
               <span className="rail-count">
                 {activeIndex + 1}
                 <i>/</i>
                 {items.length}
               </span>
-              <button aria-label={t("下一条广告")} onClick={() => change(1)}><ArrowRightOutlined /></button>
+              <button aria-label={"下一条广告"} onClick={() => change(1)}><ArrowRightOutlined /></button>
               <button
-                aria-label={paused ? t("继续轮播") : t("暂停轮播")}
+                aria-label={paused ? "继续轮播" : "暂停轮播"}
                 aria-pressed={paused}
                 onClick={() => setPaused((value) => !value)}
               >
@@ -117,7 +117,7 @@ export function AdvertisementRail() {
       ) : (
         <>
           <span className="rail-label">PRISM</span>
-          <span className="rail-idle">{t("独立的浏览器身份，有序的工作空间。")}</span>
+          <span className="rail-idle">{"独立的浏览器身份，有序的工作空间。"}</span>
           <span className="rail-local">LOCAL FIRST</span>
         </>
       )}

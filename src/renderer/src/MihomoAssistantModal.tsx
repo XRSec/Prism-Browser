@@ -1,8 +1,24 @@
-import { t } from '../../shared/i18n'
-import { ApiOutlined, AppstoreOutlined, BookOutlined, CheckOutlined, CopyOutlined, DownloadOutlined, FileTextOutlined, GlobalOutlined, InfoCircleOutlined, LinkOutlined, ReloadOutlined, ThunderboltOutlined } from '@ant-design/icons'
-import { Alert, Button, Card, Collapse, Form, Input, InputNumber, Modal, Radio, Select, Space, Table, Tabs, Tag, Typography, message } from 'antd'
-import { useMemo, useState } from 'react'
-import type { BrowserProfileView, ProfileDraft, ProxyProtocol } from '../../shared/types'
+import {
+  ApiOutlined,
+  AppstoreOutlined,
+  BookOutlined,
+  CheckOutlined,
+  CopyOutlined,
+  DownloadOutlined,
+  FileTextOutlined,
+  FolderOpenOutlined,
+  GlobalOutlined,
+  InfoCircleOutlined,
+  LinkOutlined,
+  PlayCircleOutlined,
+  PoweroffOutlined,
+  ReloadOutlined,
+  SaveOutlined,
+  ThunderboltOutlined
+} from '@ant-design/icons'
+import { Alert, Badge, Button, Card, Collapse, Form, Input, InputNumber, Modal, Radio, Select, Space, Table, Tabs, Tag, Typography, message } from 'antd'
+import { useEffect, useMemo, useState } from 'react'
+import type { BrowserProfileView, MihomoStatus, ProfileDraft, ProxyProtocol } from '../../shared/types'
 
 interface MihomoAssistantModalProps {
   open: boolean
@@ -40,6 +56,106 @@ export function MihomoAssistantModal({
   const [controllerSecret, setControllerSecret] = useState('')
   const [dashboardSource, setDashboardSource] = useState<'jsdelivr' | 'local' | 'zash_online' | 'metacubexd'>('jsdelivr')
   const [iframeKey, setIframeKey] = useState(1)
+
+  // Mihomo 后台轻量托管进程控制状态
+  const [mihomoStatus, setMihomoStatus] = useState<MihomoStatus | null>(null)
+  const [isStartingMihomo, setIsStartingMihomo] = useState(false)
+  const [isStoppingMihomo, setIsStoppingMihomo] = useState(false)
+  const [showLogs, setShowLogs] = useState(false)
+  const [liveLogs, setLiveLogs] = useState<string[]>([])
+
+  useEffect(() => {
+    if (!open) return
+    window.browserApi.mihomo
+      .getStatus()
+      .then((status) => {
+        setMihomoStatus(status)
+        if (status.binaryPath) setMihomoBinaryPath(status.binaryPath)
+        if (status.configPath) setMihomoConfigPath(status.configPath)
+        setLiveLogs(status.recentLogs || [])
+      })
+      .catch(() => undefined)
+
+    const unsubscribe = window.browserApi.mihomo.onStatusChanged((status) => {
+      setMihomoStatus(status)
+      if (status.binaryPath) setMihomoBinaryPath(status.binaryPath)
+      if (status.configPath) setMihomoConfigPath(status.configPath)
+      setLiveLogs(status.recentLogs || [])
+    })
+
+    return () => unsubscribe()
+  }, [open])
+
+  const handleSelectBinary = async () => {
+    try {
+      const selected = await window.browserApi.mihomo.selectFile('binary')
+      if (selected) {
+        setMihomoBinaryPath(selected)
+      }
+    } catch (err) {
+      message.error(String(err))
+    }
+  }
+
+  const handleSelectConfig = async () => {
+    try {
+      const selected = await window.browserApi.mihomo.selectFile('config')
+      if (selected) {
+        setMihomoConfigPath(selected)
+      }
+    } catch (err) {
+      message.error(String(err))
+    }
+  }
+
+  const handleStartMihomo = async () => {
+    setIsStartingMihomo(true)
+    try {
+      const status = await window.browserApi.mihomo.start({
+        binaryPath: mihomoBinaryPath,
+        configPath: mihomoConfigPath
+      })
+      setMihomoStatus(status)
+      message.success("Mihomo 进程启动成功")
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error)
+      message.error(msg)
+    } finally {
+      setIsStartingMihomo(false)
+    }
+  }
+
+  const handleStopMihomo = async () => {
+    setIsStoppingMihomo(true)
+    try {
+      const status = await window.browserApi.mihomo.stop()
+      setMihomoStatus(status)
+      message.info("Mihomo 进程已停止")
+    } catch (error) {
+      message.error(String(error))
+    } finally {
+      setIsStoppingMihomo(false)
+    }
+  }
+
+  const handleSaveAndStart = async () => {
+    setIsStartingMihomo(true)
+    try {
+      const savedPath = await window.browserApi.mihomo.saveConfig(yamlConfig)
+      setMihomoConfigPath(savedPath)
+      const status = await window.browserApi.mihomo.start({
+        binaryPath: mihomoBinaryPath,
+        configPath: savedPath
+      })
+      setMihomoStatus(status)
+      message.success("分流配置已保存到金库并成功启动 Mihomo！")
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error)
+      message.error(msg)
+    } finally {
+      setIsStartingMihomo(false)
+    }
+  }
 
   const targetProfiles = useMemo(() => {
     return scope === 'all'
@@ -141,7 +257,7 @@ ${ruleList || "    'IN-USER,node-0001,指定节点'"}
   async function copyText(text: string, id: string): Promise<void> {
     await navigator.clipboard.writeText(text)
     setCopiedSection(id)
-    message.success(t("已复制到剪贴板"))
+    message.success("已复制到剪贴板")
     setTimeout(() => setCopiedSection(''), 2000)
   }
 
@@ -149,12 +265,12 @@ ${ruleList || "    'IN-USER,node-0001,指定节点'"}
     try {
       const res = await window.browserApi.docs.openPath('docs/mihomo-routing-guide.md')
       if (res.success) {
-        message.success(t("已在默认程序中打开本地手册"))
+        message.success("已在默认程序中打开本地手册")
       } else {
-        message.info(t("文档位于: {0}", res.path))
+        message.info(`文档位于: ${res.path}`)
       }
     } catch {
-      message.error(t("打开失败，请直接查看 docs/mihomo-routing-guide.md"))
+      message.error("打开失败，请直接查看 docs/mihomo-routing-guide.md")
     }
   }
 
@@ -205,16 +321,16 @@ ${ruleList || "    'IN-USER,node-0001,指定节点'"}
 
     setApplying(false)
     if (errors.length) {
-      message.warning(t("已为 {0} 个环境应用代理，{1} 个失败或跳过", successCount, errors.length))
+      message.warning(`已为 ${successCount} 个环境应用代理，${errors.length} 个失败或跳过`)
     } else {
-      message.success(t("已成功为全部 {0} 个环境应用 Mihomo 本地代理", successCount))
+      message.success(`已成功为全部 ${successCount} 个环境应用 Mihomo 本地代理`)
     }
   }
 
   return (
     <Modal
       open={open}
-      title={<Space><ApiOutlined />{t("Mihomo 本地分流方案与助手")}</Space>}
+      title={<Space><ApiOutlined />{"Mihomo 本地分流方案与助手"}</Space>}
       footer={null}
       width={900}
       style={{ top: 20 }}
@@ -223,14 +339,14 @@ ${ruleList || "    'IN-USER,node-0001,指定节点'"}
     >
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
         <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-          {t("单核心多环境分流指南、轻量托管参数与可视化 Zashboard 面板")}
+          {"单核心多环境分流指南、轻量托管参数与可视化 Zashboard 面板"}
         </Typography.Text>
         <Space size={8}>
           <Button size="small" type="primary" ghost icon={<FileTextOutlined />} onClick={() => void openLocalDoc()}>
-            {t("打开本地权威手册")}
+            {"打开本地权威手册"}
           </Button>
           <Button size="small" icon={<CopyOutlined />} onClick={() => void copyText('docs/mihomo-routing-guide.md', 'docpath')}>
-            {copiedSection === 'docpath' ? t("已复制路径") : t("复制文档路径")}
+            {copiedSection === 'docpath' ? "已复制路径" : "复制文档路径"}
           </Button>
         </Space>
       </div>
@@ -241,29 +357,29 @@ ${ruleList || "    'IN-USER,node-0001,指定节点'"}
         items={[
           {
             key: 'docs',
-            label: <Space><BookOutlined />{t("技术原理解析与分流指南")}</Space>,
+            label: <Space><BookOutlined />{"技术原理解析与分流指南"}</Space>,
             children: (
               <Space direction="vertical" style={{ width: '100%' }} size={14}>
                 <Alert
                   type="info"
                   showIcon
                   icon={<InfoCircleOutlined />}
-                  title={t("为什么需要单核心本地分流？")}
+                  title={"为什么需要单核心本地分流？"}
                   description={
                     <div style={{ fontSize: 12, lineHeight: 1.6 }}>
                       <p style={{ margin: '4px 0' }}>
-                        {t("指纹浏览器多账号防关联的核心是“不同环境必须有不同的出口 IP”。传统做法要么购买大量昂贵的独立静态代理，要么为每个节点开启单独的代理软件，导致内存占用过大且极易混淆。")}
+                        {"指纹浏览器多账号防关联的核心是“不同环境必须有不同的出口 IP”。传统做法要么购买大量昂贵的独立静态代理，要么为每个节点开启单独的代理软件，导致内存占用过大且极易混淆。"}
                       </p>
                       <p style={{ margin: '4px 0' }}>
-                        {t("Mihomo (Clash.Meta) 原生支持在单一后台进程中，通过用户认证信息进行分流（IN-USER 规则），实现让 Profile A 走节点 1、Profile B (或 Pro 组) 走节点 2，极度节省系统资源。")}
+                        {"Mihomo (Clash.Meta) 原生支持在单一后台进程中，通过用户认证信息进行分流（IN-USER 规则），实现让 Profile A 走节点 1、Profile B (或 Pro 组) 走节点 2，极度节省系统资源。"}
                       </p>
                     </div>
                   }
                 />
 
-                <Card size="small" title={t("核心原理解析：Listen Users 本质是“分流路由标签”")}>
+                <Card size="small" title={"核心原理解析：Listen Users 本质是“分流路由标签”"}>
                   <Typography.Paragraph style={{ fontSize: 12, lineHeight: 1.6, marginBottom: 8 }}>
-                    {t("在 127.0.0.1 本地回环网络中，不需要复杂的密码防破解。我们可以把用户名（Username）直接作为该环境的唯一“路由身份标签”，密码统一填写（如 prism）：")}
+                    {"在 127.0.0.1 本地回环网络中，不需要复杂的密码防破解。我们可以把用户名（Username）直接作为该环境的唯一“路由身份标签”，密码统一填写（如 prism）："}
                   </Typography.Paragraph>
 
                   <div style={{ background: 'var(--surface-subtle)', padding: 10, borderRadius: 6, fontSize: 11, fontFamily: 'ui-monospace, Menlo, monospace' }}>
@@ -274,10 +390,10 @@ ${ruleList || "    'IN-USER,node-0001,指定节点'"}
                   </div>
                 </Card>
 
-                <Card size="small" title={t("典型分流场景实战：Pro 环境组走指定节点")}>
+                <Card size="small" title={"典型分流场景实战：Pro 环境组走指定节点"}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
                     <Typography.Text type="secondary" style={{ fontSize: 11 }}>
-                      {t("将以下规则片段添加到你的 Mihomo / Clash 配置文件中：")}
+                      {"将以下规则片段添加到你的 Mihomo / Clash 配置文件中："}
                     </Typography.Text>
                     <Button
                       size="small"
@@ -302,7 +418,7 @@ rules:
   # 3. 兜底
   - MATCH,DIRECT`, 'rules')}
                     >
-                      {copiedSection === 'rules' ? t("已复制示例") : t("复制示例 YAML")}
+                      {copiedSection === 'rules' ? "已复制示例" : "复制示例 YAML"}
                     </Button>
                   </div>
                   <Input.TextArea
@@ -335,33 +451,126 @@ rules:
           },
           {
             key: 'generator',
-            label: <Space><ThunderboltOutlined />{t("轻量启动与凭据配置")}</Space>,
+            label: <Space><ThunderboltOutlined />{"轻量启动与凭据配置"}</Space>,
             children: (
               <Space direction="vertical" style={{ width: '100%' }} size={14}>
-                <Card size="small" title={t("替用户省掉一个启动器：Mihomo 轻量托管参数")}>
+                <Card
+                  size="small"
+                  title={
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
+                      <Space>
+                        <span>{"替用户省掉一个启动器：Mihomo 轻量托管"}</span>
+                        {mihomoStatus?.running ? (
+                          <Tag color="success" icon={<CheckOutlined />}>
+                            {`运行中 (PID: ${mihomoStatus.pid})`}
+                          </Tag>
+                        ) : (
+                          <Tag color="default">{"已停止"}</Tag>
+                        )}
+                      </Space>
+                      <Space wrap size={6}>
+                        {mihomoStatus?.running ? (
+                          <>
+                            <Button
+                              size="small"
+                              danger
+                              icon={<PoweroffOutlined />}
+                              loading={isStoppingMihomo}
+                              onClick={handleStopMihomo}
+                            >
+                              {"停止进程"}
+                            </Button>
+                            <Button
+                              size="small"
+                              icon={<GlobalOutlined />}
+                              onClick={() => setActiveTab('zashboard')}
+                            >
+                              {"监控面板"}
+                            </Button>
+                          </>
+                        ) : (
+                          <>
+                            <Button
+                              size="small"
+                              type="primary"
+                              icon={<PlayCircleOutlined />}
+                              loading={isStartingMihomo}
+                              onClick={handleStartMihomo}
+                            >
+                              {"启动进程"}
+                            </Button>
+                            <Button
+                              size="small"
+                              icon={<SaveOutlined />}
+                              loading={isStartingMihomo}
+                              onClick={handleSaveAndStart}
+                            >
+                              {"保存配置并启动"}
+                            </Button>
+                          </>
+                        )}
+                        <Button
+                          size="small"
+                          type={showLogs ? 'primary' : 'default'}
+                          icon={<FileTextOutlined />}
+                          onClick={() => setShowLogs(!showLogs)}
+                        >
+                          {`实时日志 (${liveLogs.length})`}
+                        </Button>
+                      </Space>
+                    </div>
+                  }
+                >
                   <Typography.Paragraph type="secondary" style={{ fontSize: 12, marginBottom: 8 }}>
-                    {t("日常只用 Shadowrocket 或直连的用户，无需安装复杂的客户端。在此指定核心路径与已有配置，由后台静默拉起子进程，浏览器关闭时自动退出：")}
+                    {"日常只用 Shadowrocket 或直连的用户，无需安装外部客户端。在此指定核心路径与已有配置，由后台静默拉起子进程，浏览器关闭时自动退出："}
                   </Typography.Paragraph>
+
+                  {mihomoStatus?.error && (
+                    <Alert
+                      type="error"
+                      showIcon
+                      message={mihomoStatus.error}
+                      style={{ marginBottom: 10 }}
+                    />
+                  )}
 
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 8 }}>
                     <div>
-                      <Typography.Text strong style={{ fontSize: 11 }}>{t("Mihomo 二进制文件路径")}</Typography.Text>
+                      <Typography.Text strong style={{ fontSize: 11 }}>{"Mihomo 二进制文件路径"}</Typography.Text>
                       <Input
                         size="small"
                         value={mihomoBinaryPath}
                         onChange={(e) => setMihomoBinaryPath(e.target.value)}
                         placeholder="/opt/homebrew/bin/mihomo"
                         style={{ marginTop: 4 }}
+                        suffix={
+                          <Button
+                            size="small"
+                            type="text"
+                            icon={<FolderOpenOutlined />}
+                            onClick={handleSelectBinary}
+                            title={"选择二进制文件"}
+                          />
+                        }
                       />
                     </div>
                     <div>
-                      <Typography.Text strong style={{ fontSize: 11 }}>{t("使用的配置文件路径 (或订阅)")}</Typography.Text>
+                      <Typography.Text strong style={{ fontSize: 11 }}>{"使用的配置文件路径 (或订阅)"}</Typography.Text>
                       <Input
                         size="small"
                         value={mihomoConfigPath}
                         onChange={(e) => setMihomoConfigPath(e.target.value)}
-                        placeholder="~/Downloads/config.yaml"
+                        placeholder="~/Library/Application Support/prism-browser/vault/mihomo/config.yaml"
                         style={{ marginTop: 4 }}
+                        suffix={
+                          <Button
+                            size="small"
+                            type="text"
+                            icon={<FolderOpenOutlined />}
+                            onClick={handleSelectConfig}
+                            title={"选择配置文件"}
+                          />
+                        }
                       />
                     </div>
                   </div>
@@ -370,33 +579,58 @@ rules:
                     <div style={{ color: 'var(--muted)' }}># 后台静默执行命令（自动绑定沙盒运行目录与覆写配置）：</div>
                     <div>{mihomoBinaryPath} -d "~/Library/Application Support/prism-browser/vault/mihomo" -f "{mihomoConfigPath}"</div>
                   </div>
+
+                  {showLogs && (
+                    <div style={{ marginTop: 8, background: '#1e1e1e', color: '#d4d4d4', padding: '8px 10px', borderRadius: 6, fontSize: 11, fontFamily: 'ui-monospace, Menlo, monospace', maxHeight: 180, overflowY: 'auto' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', color: '#888', borderBottom: '1px solid #333', paddingBottom: 4, marginBottom: 6 }}>
+                        <span>{`Mihomo 控制台输出 (最近 ${liveLogs.length} 行)`}</span>
+                        <Space size={12}>
+                          <span style={{ cursor: 'pointer', color: '#1890ff' }} onClick={() => void copyText(liveLogs.join('\n'), 'logs')}>
+                            {copiedSection === 'logs' ? "已复制" : "复制全部"}
+                          </span>
+                          <span style={{ cursor: 'pointer', color: '#ff4d4f' }} onClick={() => setLiveLogs([])}>
+                            {"清空显示"}
+                          </span>
+                        </Space>
+                      </div>
+                      {liveLogs.length === 0 ? (
+                        <div style={{ color: '#666', fontStyle: 'italic' }}>{"暂无日志输出。启动进程后将显示 stdout/stderr。"}</div>
+                      ) : (
+                        liveLogs.map((log, i) => (
+                          <div key={i} style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-all', lineHeight: 1.4 }}>
+                            {log}
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  )}
                 </Card>
 
                 <Form layout="vertical" size="small">
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 16px' }}>
-                    <Form.Item label={t("目标环境范围")}>
+                    <Form.Item label={"目标环境范围"}>
                       <Radio.Group value={scope} onChange={(e) => setScope(e.target.value)}>
-                        <Radio value="all">{t("全部环境 ({0} 个)", allProfiles.length)}</Radio>
+                        <Radio value="all">{`全部环境 (${allProfiles.length} 个)`}</Radio>
                         <Radio value="selected" disabled={selectedProfileIds.length === 0}>
-                          {t("当前选中 ({0} 个)", selectedProfileIds.length)}
+                          {`当前选中 (${selectedProfileIds.length} 个)`}
                         </Radio>
                       </Radio.Group>
                     </Form.Item>
 
-                    <Form.Item label={t("编号规则")}>
+                    <Form.Item label={"编号规则"}>
                       <Radio.Group value={namingMode} onChange={(e) => setNamingMode(e.target.value)}>
-                        <Radio value="order">{t("顺序递增 (0001, 0002...)")}</Radio>
-                        <Radio value="serial">{t("匹配环境序号 (#01 -> 0001)")}</Radio>
+                        <Radio value="order">{"顺序递增 (0001, 0002...)"}</Radio>
+                        <Radio value="serial">{"匹配环境序号 (#01 -> 0001)"}</Radio>
                       </Radio.Group>
                     </Form.Item>
                   </div>
 
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0 12px' }}>
-                    <Form.Item label={t("本地监听主机")}>
+                    <Form.Item label={"本地监听主机"}>
                       <Input value={host} onChange={(e) => setHost(e.target.value)} placeholder="127.0.0.1" />
                     </Form.Item>
 
-                    <Form.Item label={t("Mihomo 端口")}>
+                    <Form.Item label={"Mihomo 端口"}>
                       <InputNumber
                         value={port}
                         min={1024}
@@ -406,7 +640,7 @@ rules:
                       />
                     </Form.Item>
 
-                    <Form.Item label={t("代理协议")}>
+                    <Form.Item label={"代理协议"}>
                       <Select
                         value={protocol}
                         options={[
@@ -417,24 +651,24 @@ rules:
                       />
                     </Form.Item>
 
-                    <Form.Item label={t("账号前缀")}>
+                    <Form.Item label={"账号前缀"}>
                       <Input value={prefix} onChange={(e) => setPrefix(e.target.value)} placeholder="node-" />
                     </Form.Item>
                   </div>
 
-                  <Form.Item label={t("统一代理密码 (本地回环使用统一密码即可)")}>
+                  <Form.Item label={"统一代理密码 (本地回环使用统一密码即可)"}>
                     <Input value={password} onChange={(e) => setPassword(e.target.value)} placeholder="prism" />
                   </Form.Item>
                 </Form>
 
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <Typography.Text strong>{t("Mihomo 配置补丁 (包含 Users 与规则模板)")}</Typography.Text>
+                  <Typography.Text strong>{"Mihomo 配置补丁 (包含 Users 与规则模板)"}</Typography.Text>
                   <Button
                     type="primary"
                     icon={copiedSection === 'yaml' ? <CheckOutlined /> : <CopyOutlined />}
                     onClick={() => void copyText(yamlConfig, 'yaml')}
                   >
-                    {copiedSection === 'yaml' ? t("已复制配置") : t("复制 Mihomo 配置")}
+                    {copiedSection === 'yaml' ? "已复制配置" : "复制 Mihomo 配置"}
                   </Button>
                 </div>
                 <Input.TextArea
@@ -445,7 +679,7 @@ rules:
                 />
 
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 }}>
-                  <Typography.Text strong>{t("环境代理分配预览 ({0} 个环境)", assignments.length)}</Typography.Text>
+                  <Typography.Text strong>{`环境代理分配预览 (${assignments.length} 个环境)`}</Typography.Text>
                   <Button
                     type="primary"
                     danger
@@ -454,7 +688,7 @@ rules:
                     disabled={!assignments.length}
                     onClick={() => void applyToProfiles()}
                   >
-                    {t("一键批量应用代理到环境", assignments.length)}
+                    {`一键批量应用代理到环境`}
                   </Button>
                 </div>
 
@@ -465,7 +699,7 @@ rules:
                   pagination={{ pageSize: 5 }}
                   columns={[
                     {
-                      title: t("环境"),
+                      title: "环境",
                       key: 'name',
                       render: (_, item) => (
                         <Space>
@@ -475,28 +709,28 @@ rules:
                       )
                     },
                     {
-                      title: t("分配账号 (分流标识)"),
+                      title: "分配账号 (分流标识)",
                       dataIndex: 'username',
                       key: 'username',
                       render: (username) => <Tag color="blue">{username}</Tag>
                     },
                     {
-                      title: t("统一密码"),
+                      title: "统一密码",
                       key: 'password',
                       render: () => <Typography.Text code>{password}</Typography.Text>
                     },
                     {
-                      title: t("本地端点"),
+                      title: "本地端点",
                       key: 'endpoint',
                       render: () => <span>{protocol}://{host}:{port}</span>
                     },
                     {
-                      title: t("状态"),
+                      title: "状态",
                       key: 'status',
                       render: (_, item) => item.canApply ? (
-                        <Tag color="green">{t("可更新")}</Tag>
+                        <Tag color="green">{"可更新"}</Tag>
                       ) : (
-                        <Tag color="orange">{t("运行中需先关闭")}</Tag>
+                        <Tag color="orange">{"运行中需先关闭"}</Tag>
                       )
                     }
                   ]}
@@ -506,16 +740,16 @@ rules:
           },
           {
             key: 'clients',
-            label: <Space><AppstoreOutlined />{t("客户端覆写模式教程 (Flclash / Verge)")}</Space>,
+            label: <Space><AppstoreOutlined />{"客户端覆写模式教程 (Flclash / Verge)"}</Space>,
             children: (
               <Space direction="vertical" style={{ width: '100%' }} size={14}>
                 <Alert
                   type="success"
                   showIcon
-                  title={t("为什么强烈推荐使用“覆写 (Override) / 扩展脚本 (Script)”模式？")}
+                  title={"为什么强烈推荐使用“覆写 (Override) / 扩展脚本 (Script)”模式？"}
                   description={
                     <div style={{ fontSize: 12, lineHeight: 1.6 }}>
-                      {t("机场订阅通常每隔一段时间就会自动更新，如果直接在订阅下载的 YAML 里手写规则，一点击“更新订阅”你的修改就会全部被冲掉！使用覆写或扩展脚本，客户端在内存中将 Prism 规则与机场订阅动态合并，机场随便更新，Prism 分流永久有效！")}
+                      {"机场订阅通常每隔一段时间就会自动更新，如果直接在订阅下载的 YAML 里手写规则，一点击“更新订阅”你的修改就会全部被冲掉！使用覆写或扩展脚本，客户端在内存中将 Prism 规则与机场订阅动态合并，机场随便更新，Prism 分流永久有效！"}
                     </div>
                   }
                 />
@@ -526,55 +760,55 @@ rules:
                   items={[
                     {
                       key: 'flclash',
-                      label: <Typography.Text strong>{t("1. Flclash 覆写配置步骤")}</Typography.Text>,
+                      label: <Typography.Text strong>{"1. Flclash 覆写配置步骤"}</Typography.Text>,
                       children: (
                         <div style={{ fontSize: 12, lineHeight: 1.6 }}>
                           <ol style={{ paddingLeft: 18, margin: '4px 0' }}>
-                            <li>{t("打开 Flclash 客户端，点击左侧导航栏的【设置 (Settings)】。")}</li>
-                            <li>{t("找到【覆写 (Override)】或【扩展脚本 (Script)】选项。")}</li>
-                            <li>{t("新建或编辑覆写配置，推荐选择【JavaScript 脚本】模式（也可选择 YAML Merge）。")}</li>
-                            <li>{t("将下方动态生成的 JavaScript 脚本代码贴入编辑器中，保存并开启开关。")}</li>
-                            <li>{t("返回主界面刷新配置，即可在 17890 端口上同时生效原订阅节点与 Prism 多环境分流！")}</li>
+                            <li>{"打开 Flclash 客户端，点击左侧导航栏的【设置 (Settings)】。"}</li>
+                            <li>{"找到【覆写 (Override)】或【扩展脚本 (Script)】选项。"}</li>
+                            <li>{"新建或编辑覆写配置，推荐选择【JavaScript 脚本】模式（也可选择 YAML Merge）。"}</li>
+                            <li>{"将下方动态生成的 JavaScript 脚本代码贴入编辑器中，保存并开启开关。"}</li>
+                            <li>{"返回主界面刷新配置，即可在 17890 端口上同时生效原订阅节点与 Prism 多环境分流！"}</li>
                           </ol>
                         </div>
                       )
                     },
                     {
                       key: 'verge',
-                      label: <Typography.Text strong>{t("2. Clash Verge Rev 覆写配置步骤")}</Typography.Text>,
+                      label: <Typography.Text strong>{"2. Clash Verge Rev 覆写配置步骤"}</Typography.Text>,
                       children: (
                         <div style={{ fontSize: 12, lineHeight: 1.6 }}>
                           <ol style={{ paddingLeft: 18, margin: '4px 0' }}>
-                            <li>{t("打开 Clash Verge Rev，点击左侧【订阅 (Profiles)】。")}</li>
-                            <li>{t("在右上角点击【新建】，类型选择【Script (扩展脚本)】，名称填写如 Prism-Override。")}</li>
-                            <li>{t("右键新建的脚本点击【编辑】，将下方的 JavaScript 脚本完全覆盖贴入并保存。")}</li>
-                            <li>{t("右键该脚本点击【启用 (Enable)】。此时无论原机场订阅如何更新，分流规则均自动置顶生效！")}</li>
+                            <li>{"打开 Clash Verge Rev，点击左侧【订阅 (Profiles)】。"}</li>
+                            <li>{"在右上角点击【新建】，类型选择【Script (扩展脚本)】，名称填写如 Prism-Override。"}</li>
+                            <li>{"右键新建的脚本点击【编辑】，将下方的 JavaScript 脚本完全覆盖贴入并保存。"}</li>
+                            <li>{"右键该脚本点击【启用 (Enable)】。此时无论原机场订阅如何更新，分流规则均自动置顶生效！"}</li>
                           </ol>
                         </div>
                       )
                     },
                     {
                       key: 'mihomo_party',
-                      label: <Typography.Text strong>{t("3. Mihomo Party 覆写配置步骤")}</Typography.Text>,
+                      label: <Typography.Text strong>{"3. Mihomo Party 覆写配置步骤"}</Typography.Text>,
                       children: (
                         <div style={{ fontSize: 12, lineHeight: 1.6 }}>
                           <ol style={{ paddingLeft: 18, margin: '4px 0' }}>
-                            <li>{t("进入 Mihomo Party 左侧导航的【覆写 (Overrides)】菜单。")}</li>
-                            <li>{t("点击右上角【新建覆写】，类型选择【JavaScript】，命名为 Prism-Split。")}</li>
-                            <li>{t("将下方的 JavaScript 代码填入代码框，点击右下角保存并激活生效。")}</li>
+                            <li>{"进入 Mihomo Party 左侧导航的【覆写 (Overrides)】菜单。"}</li>
+                            <li>{"点击右上角【新建覆写】，类型选择【JavaScript】，命名为 Prism-Split。"}</li>
+                            <li>{"将下方的 JavaScript 代码填入代码框，点击右下角保存并激活生效。"}</li>
                           </ol>
                         </div>
                       )
                     },
                     {
                       key: 'cfw',
-                      label: <Typography.Text strong>{t("4. Clash for Windows (CFW) Mixin 模式")}</Typography.Text>,
+                      label: <Typography.Text strong>{"4. Clash for Windows (CFW) Mixin 模式"}</Typography.Text>,
                       children: (
                         <div style={{ fontSize: 12, lineHeight: 1.6 }}>
                           <ol style={{ paddingLeft: 18, margin: '4px 0' }}>
-                            <li>{t("进入 CFW 的【Settings】页面，滚动至【Mixin】模块。")}</li>
-                            <li>{t("点击【YAML】右侧的【Edit】，贴入第三个 Tab 提供的 YAML 片段。")}</li>
-                            <li>{t("返回开启【Mixin】右侧的开关即可。")}</li>
+                            <li>{"进入 CFW 的【Settings】页面，滚动至【Mixin】模块。"}</li>
+                            <li>{"点击【YAML】右侧的【Edit】，贴入第三个 Tab 提供的 YAML 片段。"}</li>
+                            <li>{"返回开启【Mixin】右侧的开关即可。"}</li>
                           </ol>
                         </div>
                       )
@@ -582,10 +816,10 @@ rules:
                   ]}
                 />
 
-                <Card size="small" title={t("针对你当前环境动态生成的 JavaScript 扩展脚本代码 (一键复制)")}>
+                <Card size="small" title={"针对你当前环境动态生成的 JavaScript 扩展脚本代码 (一键复制)"}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
                     <Typography.Text type="secondary" style={{ fontSize: 11 }}>
-                      {t("该脚本会自动将当前 {0} 个环境的 users 凭据与 IN-USER 置顶规则合并至主配置中：", assignments.length)}
+                      {`该脚本会自动将当前 ${assignments.length} 个环境的 users 凭据与 IN-USER 置顶规则合并至主配置中：`}
                     </Typography.Text>
                     <Button
                       type="primary"
@@ -593,7 +827,7 @@ rules:
                       icon={copiedSection === 'jsscript' ? <CheckOutlined /> : <CopyOutlined />}
                       onClick={() => void copyText(jsScriptConfig, 'jsscript')}
                     >
-                      {copiedSection === 'jsscript' ? t("已复制 JS 脚本") : t("复制 JS 脚本代码")}
+                      {copiedSection === 'jsscript' ? "已复制 JS 脚本" : "复制 JS 脚本代码"}
                     </Button>
                   </div>
                   <Input.TextArea
@@ -608,7 +842,7 @@ rules:
           },
           {
             key: 'zashboard',
-            label: <Space><GlobalOutlined />{t("Zashboard 可视化面板")}</Space>,
+            label: <Space><GlobalOutlined />{"Zashboard 可视化面板"}</Space>,
             children: (
               <Space direction="vertical" style={{ width: '100%' }} size={12}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
@@ -619,7 +853,7 @@ rules:
                       onChange={setDashboardSource}
                       options={[
                         { value: 'jsdelivr', label: 'Zashboard (jsDelivr CDN 直连推荐)' },
-                        { value: 'local', label: t("内置 UI (127.0.0.1:9090/ui)") },
+                        { value: 'local', label: "内置 UI (127.0.0.1:9090/ui)" },
                         { value: 'zash_online', label: 'Zashboard 官方托管 (board.zash.run)' },
                         { value: 'metacubexd', label: 'MetaCubeXD 官方托管' }
                       ]}
@@ -649,13 +883,13 @@ rules:
                   </Space>
                   <Space size={8}>
                     <Button size="small" icon={<ReloadOutlined />} onClick={() => setIframeKey((k) => k + 1)}>
-                      {t("刷新面板")}
+                      {"刷新面板"}
                     </Button>
                     <Button size="small" icon={<CopyOutlined />} onClick={() => void copyText(dashboardUrl, 'dashUrl')}>
-                      {t("复制链接")}
+                      {"复制链接"}
                     </Button>
                     <Button size="small" type="primary" icon={<LinkOutlined />} onClick={openExternalDashboard}>
-                      {t("新窗口打开")}
+                      {"新窗口打开"}
                     </Button>
                   </Space>
                 </div>
@@ -670,7 +904,7 @@ rules:
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 6 }}>
                   <Typography.Text type="secondary" style={{ fontSize: 11 }}>
-                    {t("提示：需确保本地 Mihomo 开启了 external-controller。若想本地离线运行面板，可下载发行包解压至 Mihomo 的 ui 目录。")}
+                    {"提示：需确保本地 Mihomo 开启了 external-controller。若想本地离线运行面板，可下载发行包解压至 Mihomo 的 ui 目录。"}
                   </Typography.Text>
                   <Button
                     size="small"
@@ -679,7 +913,7 @@ rules:
                     href="https://github.com/Zephyruso/zashboard/releases/latest/download/dist-cdn-fonts.zip"
                     target="_blank"
                   >
-                    {t("下载离线面板 (dist-cdn-fonts.zip)")}
+                    {"下载离线面板 (dist-cdn-fonts.zip)"}
                   </Button>
                 </div>
               </Space>

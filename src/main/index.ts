@@ -31,6 +31,7 @@ import { ProfileCreationService } from './profile-creation-service'
 import { AnnouncementManager } from './announcement-manager'
 import { AdvertisementManager } from './advertisement-manager'
 import { WindowSyncManager, MacWindowSyncBridge, WindowsWindowSyncBridge } from './window-sync-manager'
+import { MihomoManager } from './mihomo-manager'
 
 let mainWindow: BrowserWindow | null = null
 let launcher: BrowserLauncher | null = null
@@ -40,6 +41,7 @@ let automation: ProAgentManager | null = null
 let scheduler: SchedulerManager | null = null
 let mcp: McpControlManager | null = null
 let windowSync: WindowSyncManager | null = null
+let mihomo: MihomoManager | null = null
 
 if (process.platform === 'win32') app.setAppUserModelId('com.xrsec.prismbrowser')
 
@@ -215,7 +217,11 @@ app.whenReady().then(async () => {
     logger
   )
   await scheduler.initialize()
-  registerIpc({ profiles, settings, launcher, kernels, extensions, cookies, logger, backups, workspaceMigration, appSession, updater, licensing, automation, scheduler, mcp, announcements, advertisements, windowSync })
+  mihomo = new MihomoManager(vaultPath, (status) => {
+    mainWindow?.webContents.send('mihomo:status-changed', status)
+  })
+  await mihomo.initialize()
+  registerIpc({ profiles, settings, launcher, kernels, extensions, cookies, logger, backups, workspaceMigration, appSession, updater, licensing, automation, scheduler, mcp, announcements, advertisements, windowSync, mihomo })
   mainWindow = createWindow()
   if (app.isPackaged && process.env.PRISM_E2E !== '1') {
     setTimeout(() => void updater.check().catch(() => undefined), 10_000)
@@ -245,7 +251,12 @@ app.on('before-quit', (event) => {
   event.preventDefault()
   const current = launcher
   launcher = null
-  void Promise.allSettled([scheduler?.shutdown() ?? Promise.resolve(), mcp?.shutdown() ?? Promise.resolve(), windowSync?.stop() ?? Promise.resolve()]).then(() => Promise.allSettled([
+  void Promise.allSettled([
+    scheduler?.shutdown() ?? Promise.resolve(),
+    mcp?.shutdown() ?? Promise.resolve(),
+    windowSync?.stop() ?? Promise.resolve(),
+    mihomo?.cleanup() ?? Promise.resolve()
+  ]).then(() => Promise.allSettled([
     current.closeAll(), automation?.stop(false) ?? Promise.resolve()
   ])).finally(async () => {
     logger?.info('Prism Browser 已退出')

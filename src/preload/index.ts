@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron'
-import type { BrowserApi, BrowserProfileView, ProfileBatchClassification, ProfileDraft, ProfileLaunchOptions, WindowSyncStartOptions, WindowSyncStatus } from '../shared/types'
+import type { BrowserApi, BrowserProfileView, MihomoStartOptions, MihomoStatus, ProfileBatchClassification, ProfileDraft, ProfileLaunchOptions, WindowSyncStartOptions, WindowSyncStatus } from '../shared/types'
 
 const api: BrowserApi = {
   uiLanguage: {
@@ -184,6 +184,19 @@ const api: BrowserApi = {
   },
   docs: {
     openPath: (relativePath: string) => ipcRenderer.invoke('docs:open-path', relativePath)
+  },
+  mihomo: {
+    getStatus: () => ipcRenderer.invoke('mihomo:get-status'),
+    start: (options?: MihomoStartOptions) => ipcRenderer.invoke('mihomo:start', options),
+    stop: () => ipcRenderer.invoke('mihomo:stop'),
+    getLogs: () => ipcRenderer.invoke('mihomo:get-logs'),
+    saveConfig: (content: string, customPath?: string) => ipcRenderer.invoke('mihomo:save-config', content, customPath),
+    selectFile: (type: 'binary' | 'config') => ipcRenderer.invoke('mihomo:select-file', type),
+    onStatusChanged: (listener: (status: MihomoStatus) => void) => {
+      const handler = (_event: Electron.IpcRendererEvent, status: MihomoStatus): void => listener(status)
+      ipcRenderer.on('mihomo:status-changed', handler)
+      return () => ipcRenderer.removeListener('mihomo:status-changed', handler)
+    }
   }
 }
 

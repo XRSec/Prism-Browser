@@ -503,6 +503,21 @@ export interface WindowSyncStatus {
   addressBarSync?: string
 }
 
+export interface MihomoStatus {
+  running: boolean
+  pid?: number
+  startedAt?: string
+  binaryPath: string
+  configPath: string
+  error?: string
+  recentLogs: string[]
+}
+
+export interface MihomoStartOptions {
+  binaryPath?: string
+  configPath?: string
+}
+
 export interface BrowserApi {
   uiLanguage: {
     get(): Promise<UiLocale>
@@ -654,5 +669,14 @@ export interface BrowserApi {
   }
   docs: {
     openPath: (relativePath: string) => Promise<{ success: boolean; path: string }>
+  }
+  mihomo: {
+    getStatus: () => Promise<MihomoStatus>
+    start: (options?: MihomoStartOptions) => Promise<MihomoStatus>
+    stop: () => Promise<MihomoStatus>
+    getLogs: () => Promise<string[]>
+    saveConfig: (content: string, customPath?: string) => Promise<string>
+    selectFile: (type: 'binary' | 'config') => Promise<string | null>
+    onStatusChanged: (listener: (status: MihomoStatus) => void) => () => void
   }
 }
