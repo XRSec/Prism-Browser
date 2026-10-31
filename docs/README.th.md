@@ -1,10 +1,9 @@
-# Prism Browser Community
+# Prism Browser
 
 [English](../README.md) | [简体中文](README.zh-CN.md) | [繁體中文](README.zh-TW.md) | [Русский](README.ru.md) | [Tiếng Việt](README.vi.md) | **[ไทย](README.th.md)** | [Português (Brasil)](README.pt-BR.md)
 
 [Français](README.fr.md) | [Українська](README.uk.md) | [Español](README.es.md) | [Türkçe](README.tr.md) | [日本語](README.ja.md) | [हिन्दी](README.hi.md)
 
-ผู้พัฒนา: [DFarm](https://x.com/DFarm_club) · เว็บไซต์ทางการ: [prismbrowser.app](https://prismbrowser.app/)
 
 Prism Browser เป็นโปรแกรมจัดการโปรไฟล์เบราว์เซอร์บนเครื่องที่ปรับแต่งลายนิ้วมือดิจิทัลได้ โดยใช้ Chromium ที่ปรับแต่งมา แต่ละโปรไฟล์มีคุกกี้ แคช ข้อมูลส่วนขยาย การตั้งค่าพร็อกซี และลายนิ้วมือแยกจากกัน จึงใช้จัดการตัวตนเบราว์เซอร์หลายชุดได้อย่างเป็นอิสระ
 
@@ -97,10 +96,10 @@ npm run dist:win
 
 อย่าโพสต์รหัสเปิดใช้งาน รหัสผ่านพร็อกซี คุกกี้ ข้อมูลกระเป๋าเงิน กุญแจส่วนตัว หรือไฟล์วินิจฉัยที่มีข้อมูลส่วนบุคคลใน issue สาธารณะ แจ้งขั้นตอนทำซ้ำขั้นต่ำ รุ่น แพลตฟอร์ม และผลกระทบ โดยลบข้อมูลลับก่อน คะแนนทดสอบลายนิ้วมือที่เปลี่ยนไปไม่จำเป็นต้องเป็นช่องโหว่ โปรดระบุเว็บไซต์ เวลา รุ่นเอนจิน และรายการที่ไม่ผ่าน
 
-โค้ดที่เป็นของ Prism Browser Community ใช้ [MIT License](LICENSE) ส่วน Chromium, Electron และองค์ประกอบอื่นใช้สัญญาอนุญาตของตน การแจกจ่าย Chromium ต้องคงไฟล์ `LICENSE`, `LICENSES` และประกาศที่จำเป็นไว้ สัญญาอนุญาตโค้ดไม่ได้ให้สิทธิ์เครื่องหมายการค้าของชื่อ โลโก้ หรือไอคอน Prism โดยอัตโนมัติ
+โค้ดที่เป็นของ Prism Browser ใช้ [MIT License](LICENSE) ส่วน Chromium, Electron และองค์ประกอบอื่นใช้สัญญาอนุญาตของตน การแจกจ่าย Chromium ต้องคงไฟล์ `LICENSE`, `LICENSES` และประกาศที่จำเป็นไว้ สัญญาอนุญาตโค้ดไม่ได้ให้สิทธิ์เครื่องหมายการค้าของชื่อ โลโก้ หรือไอคอน Prism โดยอัตโนมัติ
 
 ใช้โครงการเฉพาะการแยกเบราว์เซอร์ การทดสอบอัตโนมัติ การวิจัยความเป็นส่วนตัว และการจัดการบัญชีที่ถูกกฎหมายและได้รับอนุญาต พร้อมปฏิบัติตามข้อกำหนดเว็บไซต์และกฎหมายที่เกี่ยวข้อง
 
 ## ประวัติจำนวนดาว
 
-[![Prism Browser Community Star History](https://api.star-history.com/svg?repos=XRSec/Prism-Browser&type=Date)](https://www.star-history.com/#XRSec/Prism-Browser&Date)
+[![Prism Browser Star History](https://api.star-history.com/svg?repos=XRSec/Prism-Browser&type=Date)](https://www.star-history.com/#XRSec/Prism-Browser&Date)

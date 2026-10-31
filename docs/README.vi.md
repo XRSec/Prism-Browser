@@ -1,10 +1,9 @@
-# Prism Browser Community
+# Prism Browser
 
 [English](../README.md) | [简体中文](README.zh-CN.md) | [繁體中文](README.zh-TW.md) | [Русский](README.ru.md) | **[Tiếng Việt](README.vi.md)** | [ไทย](README.th.md) | [Português (Brasil)](README.pt-BR.md)
 
 [Français](README.fr.md) | [Українська](README.uk.md) | [Español](README.es.md) | [Türkçe](README.tr.md) | [日本語](README.ja.md) | [हिन्दी](README.hi.md)
 
-Tác giả: [DFarm](https://x.com/DFarm_club) · Trang chính thức: [prismbrowser.app](https://prismbrowser.app/)
 
 Prism Browser là trình quản lý hồ sơ trình duyệt cục bộ có thể cấu hình dấu vân tay, được xây dựng trên Chromium tùy chỉnh. Mỗi hồ sơ có cookie, bộ nhớ đệm, dữ liệu tiện ích, cài đặt proxy và dấu vân tay riêng, giúp quản lý nhiều danh tính trình duyệt tách biệt.
 
@@ -97,10 +96,10 @@ Trong trang quản lý bộ máy của Prism, nhập bản biên dịch cục b�
 
 Không đăng mã kích hoạt, mật khẩu proxy, cookie, thông tin ví, khóa riêng hay tệp chẩn đoán chứa dữ liệu cá nhân trong issue công khai. Cung cấp bước tái hiện tối thiểu, phiên bản, nền tảng và ảnh hưởng sau khi loại bỏ dữ liệu nhạy cảm. Thay đổi điểm kiểm tra dấu vân tay không nhất thiết là lỗ hổng; hãy nêu trang kiểm tra, thời gian, phiên bản bộ máy và các mục không đạt.
 
-Mã thuộc Prism Browser Community dùng [giấy phép MIT](LICENSE). Chromium, Electron và các thành phần bên thứ ba giữ giấy phép riêng. Khi phân phối Chromium, phải giữ các tệp `LICENSE`, `LICENSES` và thông báo bắt buộc. Giấy phép mã nguồn không tự động cấp quyền nhãn hiệu đối với tên, logo hoặc biểu tượng Prism.
+Mã thuộc Prism Browser dùng [giấy phép MIT](LICENSE). Chromium, Electron và các thành phần bên thứ ba giữ giấy phép riêng. Khi phân phối Chromium, phải giữ các tệp `LICENSE`, `LICENSES` và thông báo bắt buộc. Giấy phép mã nguồn không tự động cấp quyền nhãn hiệu đối với tên, logo hoặc biểu tượng Prism.
 
 Chỉ sử dụng cho việc tách biệt trình duyệt, kiểm thử tự động, nghiên cứu quyền riêng tư và quản lý tài khoản hợp pháp, được cho phép; tuân thủ điều khoản của trang đích và luật địa phương.
 
 ## Lịch sử số sao
 
-[![Prism Browser Community Star History](https://api.star-history.com/svg?repos=XRSec/Prism-Browser&type=Date)](https://www.star-history.com/#XRSec/Prism-Browser&Date)
+[![Prism Browser Star History](https://api.star-history.com/svg?repos=XRSec/Prism-Browser&type=Date)](https://www.star-history.com/#XRSec/Prism-Browser&Date)

@@ -1,10 +1,9 @@
-# Prism Browser Community
+# Prism Browser
 
 [English](../README.md) | [简体中文](README.zh-CN.md) | **[繁體中文](README.zh-TW.md)** | [Русский](README.ru.md) | [Tiếng Việt](README.vi.md) | [ไทย](README.th.md) | [Português (Brasil)](README.pt-BR.md)
 
 [Français](README.fr.md) | [Українська](README.uk.md) | [Español](README.es.md) | [Türkçe](README.tr.md) | [日本語](README.ja.md) | [हिन्दी](README.hi.md)
 
-作者：[DFarm](https://x.com/DFarm_club) · 官網：[prismbrowser.app](https://prismbrowser.app/)
 
 Prism Browser 是以自訂 Chromium 為基礎的本機指紋瀏覽器環境管理器。每個環境都有獨立的 Cookie、快取、擴充功能資料、代理設定與指紋設定，可用來管理多個彼此隔離的瀏覽器身分。
 
@@ -97,10 +96,10 @@ npm run dist:win
 
 請勿在公開 Issue 貼出啟用碼、代理密碼、Cookie、錢包資訊、私密金鑰或含個資的診斷資料。回報時提供去識別化的重現步驟、版本、平台與影響。指紋檢測分數變化不一定是安全漏洞；請附上測試網站、時間、核心版本及失敗欄位。
 
-Prism Browser Community 自有程式碼採用 [MIT License](LICENSE)。Chromium、Electron 及其他第三方元件仍適用各自授權；散佈 Chromium 時必須保留相關 `LICENSE`、`LICENSES` 與聲明。原始碼授權不自動授予 Prism 名稱、標誌與圖示的商標使用權。
+Prism Browser 自有程式碼採用 [MIT License](LICENSE)。Chromium、Electron 及其他第三方元件仍適用各自授權；散佈 Chromium 時必須保留相關 `LICENSE`、`LICENSES` 與聲明。原始碼授權不自動授予 Prism 名稱、標誌與圖示的商標使用權。
 
 僅限合法且經授權的瀏覽器隔離、自動化測試、隱私研究及帳號管理用途，並遵守目標網站條款與當地法律。
 
 ## Star 歷史
 
-[![Prism Browser Community Star History](https://api.star-history.com/svg?repos=XRSec/Prism-Browser&type=Date)](https://www.star-history.com/#XRSec/Prism-Browser&Date)
+[![Prism Browser Star History](https://api.star-history.com/svg?repos=XRSec/Prism-Browser&type=Date)](https://www.star-history.com/#XRSec/Prism-Browser&Date)

@@ -1,10 +1,9 @@
-# Prism Browser Community
+# Prism Browser
 
 [English](../README.md) | [简体中文](README.zh-CN.md) | [繁體中文](README.zh-TW.md) | [Русский](README.ru.md) | [Tiếng Việt](README.vi.md) | [ไทย](README.th.md) | [Português (Brasil)](README.pt-BR.md)
 
 [Français](README.fr.md) | [Українська](README.uk.md) | **[Español](README.es.md)** | [Türkçe](README.tr.md) | [日本語](README.ja.md) | [हिन्दी](README.hi.md)
 
-Autor: [DFarm](https://x.com/DFarm_club) · Sitio oficial: [prismbrowser.app](https://prismbrowser.app/)
 
 Prism Browser es un gestor local de perfiles de navegador con huellas digitales, basado en Chromium personalizado. Cada perfil dispone de cookies, caché, datos de extensiones, ajustes de proxy y configuración de huella independientes para mantener varias identidades de navegación aisladas.
 
@@ -97,10 +96,10 @@ En la gestión de motores de Prism, importa la compilación local: selecciona `C
 
 No publiques códigos de activación, contraseñas de proxy, cookies, información de monederos, claves privadas ni diagnósticos con datos personales en los issues. Incluye pasos mínimos de reproducción, versión, plataforma e impacto, sin información sensible. Un cambio en la puntuación de una prueba de huellas no implica necesariamente una vulnerabilidad; indica sitio, fecha, versión del motor y campos que fallaron.
 
-El código propio de Prism Browser Community usa la [licencia MIT](LICENSE). Chromium, Electron y otros componentes mantienen sus respectivas licencias. Las distribuciones de Chromium deben conservar los archivos `LICENSE`, `LICENSES` y avisos exigidos. La licencia del código no concede automáticamente derechos de marca sobre el nombre, logotipo o iconos de Prism.
+El código propio de Prism Browser usa la [licencia MIT](LICENSE). Chromium, Electron y otros componentes mantienen sus respectivas licencias. Las distribuciones de Chromium deben conservar los archivos `LICENSE`, `LICENSES` y avisos exigidos. La licencia del código no concede automáticamente derechos de marca sobre el nombre, logotipo o iconos de Prism.
 
 Utiliza el proyecto únicamente para aislamiento de navegadores, pruebas automatizadas, investigación de privacidad y gestión de cuentas legales y autorizados, respetando los términos de los sitios y las leyes aplicables.
 
 ## Historial de estrellas
 
-[![Prism Browser Community Star History](https://api.star-history.com/svg?repos=XRSec/Prism-Browser&type=Date)](https://www.star-history.com/#XRSec/Prism-Browser&Date)
+[![Prism Browser Star History](https://api.star-history.com/svg?repos=XRSec/Prism-Browser&type=Date)](https://www.star-history.com/#XRSec/Prism-Browser&Date)

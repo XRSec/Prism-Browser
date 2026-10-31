@@ -1,24 +1,12 @@
-# Prism Browser Community
+# Prism Browser
 
 [English](../README.md) | **[简体中文](README.zh-CN.md)** | [繁體中文](README.zh-TW.md) | [Русский](README.ru.md) | [Tiếng Việt](README.vi.md) | [ไทย](README.th.md) | [Português (Brasil)](README.pt-BR.md)
 
 [Français](README.fr.md) | [Українська](README.uk.md) | [Español](README.es.md) | [Türkçe](README.tr.md) | [日本語](README.ja.md) | [हिन्दी](README.hi.md)
 
-作者：[DFarm](https://x.com/DFarm_club)
+Prism Browser 是一个基于定制 Chromium 的开源本地优先多环境指纹浏览器与反检测环境管理器。每个环境拥有独立的 Cookie、缓存、扩展数据、代理设置和指纹配置，适合管理多个相互隔离的浏览器身份，实现零系统默认配置污染。
 
-官网：[https://prismbrowser.app/](https://prismbrowser.app/)
-
-Prism Browser 是一个基于定制 Chromium 的本地指纹浏览器环境管理器。每个环境拥有独立的 Cookie、缓存、扩展数据、代理设置和指纹配置，适合管理多个相互隔离的浏览器身份。
-
-浏览器环境、Cookie、代理凭据和浏览历史默认只保存在用户自己的设备上。Community 版本可以免费使用，不限制本地环境数量。
-
-## 项目维护说明
-
-本仓库将继续公开保留，供学习、审阅和社区自行构建使用。自 Prism Browser `v0.3.17` 起，产品版的新功能、修复及后续源码更新不再常规同步到本仓库。随着桌面应用、指纹内核、跨平台打包、Pro 功能和多条发布分支持续增长，同时维护公开版与产品版已经带来较高的开发和测试成本。
-
-本次例外同步了 0.3.19 的通用多语言支持，并补充公开版原有界面的翻译；不包含 Pro 私有运行时、授权服务、新增 Pro 功能或私有发布配置。此同步不代表恢复产品版源码的持续同步。
-
-现有源码、提交历史和历史 Release 不会删除。后续功能、修复和安装包请以[官网](https://prismbrowser.app/)与本仓库 [Releases](../../releases) 页面发布的信息为准。
+浏览器环境、Cookie、代理凭据和浏览历史默认只保存在用户自己的设备上。多环境管理、本地自动化 API、定时调度任务以及本地 AI (MCP) 控制能力均已完整开放使用。
 
 ## 界面语言
 
@@ -172,41 +160,15 @@ cd tools\windows-kernel
 
 导入后先执行内核校验，再将它设为当前内核。已有环境仍会保留各自的数据和配置。
 
-## Community 与 Pro
-
-Community 已经包含完整的本地浏览器环境管理能力，可以永久免费使用。Prism Pro 在此基础上增加适合自动化、长期运行和本地 AI 协作的专业功能。
-
-| 功能 | Community | Prism Pro |
-| --- | :---: | :---: |
-| 不限数量的本地浏览器环境 | ✓ | ✓ |
-| 指纹配置、代理与 WebRTC 防泄漏 | ✓ | ✓ |
-| 独立 Cookie、缓存、扩展和浏览器数据 | ✓ | ✓ |
-| 环境复制、分组、批量操作和本地迁移 | ✓ | ✓ |
-| 随应用提供的 Community 指纹内核 | ✓ | ✓ |
-| 官方提供的新内核 | — | ✓ |
-| 本地自动化 API | — | ✓ |
-| 本地计划任务 | — | ✓ |
-| 本地 AI · MCP 控制 | — | ✓ |
-
-### Pro 功能
-
-- **官方新内核**：无需在本机编译，即可使用随新版 Prism Browser 提供的新内核。
-- **本地自动化 API**：在本机查询、启动和关闭指定浏览器环境，使用临时访问令牌，不对公网开放。
-- **本地计划任务**：按照一次、每天或每周规则自动启动和关闭环境，适合固定时间运行的本地工作流程。
-- **本地 AI · MCP**：只授权 AI 控制你选中的环境；AI 可以访问网页、读取页面内容、点击页面并填写表单，可随时停止或撤销环境权限。
-- **本地优先**：Community 和 Pro 的环境数据都保存在用户自己的设备上，不会因为升级 Pro 而上传浏览器环境、Cookie、扩展数据或代理凭据。
-
-Pro 为单设备一年授权。一枚激活码同一时间绑定一台设备；主动解绑后，可以在另一台设备继续使用剩余有效期。授权到期或解除绑定不会删除本地环境，Community 基础功能仍然可以继续使用。
-
 ## 安全报告
 
-请不要在公开 Issue 中提交激活码、代理密码、Cookie、钱包信息、完整浏览器环境、私钥或包含个人数据的诊断文件。报告安全问题时，请提供最小复现步骤、受影响版本、平台和影响范围，并先删除敏感数据。
+请不要在公开 Issue 中提交代理密码、Cookie、钱包信息、完整浏览器环境、私钥或包含个人数据的诊断文件。报告安全问题时，请提供最小复现步骤、受影响版本、平台和影响范围，并先删除敏感数据。
 
 第三方检测网站的评分变化不一定代表安全漏洞。提交检测问题时，请同时提供检测网站、测试时间、内核版本、操作系统和具体失败字段。
 
 ## 许可证与第三方组件
 
-Prism Browser Community 自有代码以 MIT License 发布。Chromium、ungoogled-chromium、fingerprint-chromium、Electron、React、Ant Design、Vite、TypeScript、Vitest、proxy-chain、undici、zod 及其他第三方组件继续遵循各自的开源许可证。
+Prism Browser 自有代码以 MIT License 发布。Chromium、ungoogled-chromium、fingerprint-chromium、Electron、React、Ant Design、Vite、TypeScript、Vitest、proxy-chain、undici、zod 及其他第三方组件继续遵循各自的开源许可证。
 
 编译或分发 Chromium 时，必须同时保留 Chromium 源码和发行产物要求的 `LICENSE`、`LICENSES` 及组件通知。Prism Browser 的名称、标志和图标不因源码许可而自动授予商标使用权。
 
@@ -214,4 +176,4 @@ Prism Browser Community 自有代码以 MIT License 发布。Chromium、ungoogle
 
 ## Star 历史
 
-[![Prism Browser Community Star History](https://api.star-history.com/svg?repos=XRSec/Prism-Browser&type=Date)](https://www.star-history.com/#XRSec/Prism-Browser&Date)
+[![Prism Browser Star History](https://api.star-history.com/svg?repos=XRSec/Prism-Browser&type=Date)](https://www.star-history.com/#XRSec/Prism-Browser&Date)

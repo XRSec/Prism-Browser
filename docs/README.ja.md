@@ -1,10 +1,9 @@
-# Prism Browser Community
+# Prism Browser
 
 [English](../README.md) | [简体中文](README.zh-CN.md) | [繁體中文](README.zh-TW.md) | [Русский](README.ru.md) | [Tiếng Việt](README.vi.md) | [ไทย](README.th.md) | [Português (Brasil)](README.pt-BR.md)
 
 [Français](README.fr.md) | [Українська](README.uk.md) | [Español](README.es.md) | [Türkçe](README.tr.md) | **[日本語](README.ja.md)** | [हिन्दी](README.hi.md)
 
-作者：[DFarm](https://x.com/DFarm_club) · 公式サイト：[prismbrowser.app](https://prismbrowser.app/)
 
 Prism Browser は、カスタマイズした Chromium を基盤とするローカルのブラウザープロファイル管理ツールです。各プロファイルは Cookie、キャッシュ、拡張機能データ、プロキシ設定、フィンガープリント設定を個別に持ち、互いに分離されたブラウザーの識別情報を管理できます。
 
@@ -97,10 +96,10 @@ npm run dist:win
 
 有効化コード、プロキシのパスワード、Cookie、ウォレット情報、秘密鍵、個人情報を含む診断ファイルを公開 Issue に投稿しないでください。機密情報を取り除き、最小限の再現手順、バージョン、プラットフォーム、影響を記載してください。フィンガープリントのスコア変化は必ずしも脆弱性ではありません。検査サイト、日時、エンジンのバージョン、失敗した項目も添えてください。
 
-Prism Browser Community 独自のコードには [MIT License](LICENSE) が適用されます。Chromium、Electron などの第三者コンポーネントはそれぞれのライセンスに従います。Chromium の配布時は、必要な `LICENSE`、`LICENSES`、各種表記を保持してください。ソースコードのライセンスは Prism の名称、ロゴ、アイコンの商標権を自動的に許諾するものではありません。
+Prism Browser 独自のコードには [MIT License](LICENSE) が適用されます。Chromium、Electron などの第三者コンポーネントはそれぞれのライセンスに従います。Chromium の配布時は、必要な `LICENSE`、`LICENSES`、各種表記を保持してください。ソースコードのライセンスは Prism の名称、ロゴ、アイコンの商標権を自動的に許諾するものではありません。
 
 合法かつ許可されたブラウザーの分離、自動化テスト、プライバシー研究、アカウント管理にのみ利用し、対象サイトの規約と適用法を遵守してください。
 
 ## スターの推移
 
-[![Prism Browser Community Star History](https://api.star-history.com/svg?repos=XRSec/Prism-Browser&type=Date)](https://www.star-history.com/#XRSec/Prism-Browser&Date)
+[![Prism Browser Star History](https://api.star-history.com/svg?repos=XRSec/Prism-Browser&type=Date)](https://www.star-history.com/#XRSec/Prism-Browser&Date)

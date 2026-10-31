@@ -1,10 +1,9 @@
-# Prism Browser Community
+# Prism Browser
 
 [English](../README.md) | [简体中文](README.zh-CN.md) | [繁體中文](README.zh-TW.md) | [Русский](README.ru.md) | [Tiếng Việt](README.vi.md) | [ไทย](README.th.md) | [Português (Brasil)](README.pt-BR.md)
 
 [Français](README.fr.md) | **[Українська](README.uk.md)** | [Español](README.es.md) | [Türkçe](README.tr.md) | [日本語](README.ja.md) | [हिन्दी](README.hi.md)
 
-Автор: [DFarm](https://x.com/DFarm_club) · Офіційний сайт: [prismbrowser.app](https://prismbrowser.app/)
 
 Prism Browser — локальний менеджер профілів браузера на основі модифікованого Chromium із налаштуванням цифрових відбитків. Кожен профіль має окремі cookie, кеш, дані розширень, параметри проксі та відбитка, що дозволяє розділяти кілька браузерних ідентичностей.
 
@@ -97,10 +96,10 @@ npm run dist:win
 
 Не публікуйте в issues коди активації, паролі проксі, cookie, дані гаманців, приватні ключі чи діагностику з персональними даними. Надайте мінімальні кроки відтворення, версію, платформу та вплив, видаливши конфіденційні відомості. Зміна оцінки відбитка не обов’язково є вразливістю; зазначте сайт, час перевірки, версію рушія й проблемні поля.
 
-Власний код Prism Browser Community поширюється за [ліцензією MIT](LICENSE). Chromium, Electron та інші компоненти зберігають свої ліцензії. Під час поширення Chromium слід зберігати обов’язкові `LICENSE`, `LICENSES` і повідомлення. Ліцензія коду не надає автоматично прав на торговельні марки, назву, логотип чи піктограми Prism.
+Власний код Prism Browser поширюється за [ліцензією MIT](LICENSE). Chromium, Electron та інші компоненти зберігають свої ліцензії. Під час поширення Chromium слід зберігати обов’язкові `LICENSE`, `LICENSES` і повідомлення. Ліцензія коду не надає автоматично прав на торговельні марки, назву, логотип чи піктограми Prism.
 
 Використовуйте проєкт лише для законної та дозволеної ізоляції браузерів, автоматизованих тестів, досліджень приватності й керування обліковими записами з дотриманням умов сайтів і місцевих законів.
 
 ## Історія зірок
 
-[![Prism Browser Community Star History](https://api.star-history.com/svg?repos=XRSec/Prism-Browser&type=Date)](https://www.star-history.com/#XRSec/Prism-Browser&Date)
+[![Prism Browser Star History](https://api.star-history.com/svg?repos=XRSec/Prism-Browser&type=Date)](https://www.star-history.com/#XRSec/Prism-Browser&Date)

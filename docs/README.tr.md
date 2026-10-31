@@ -1,10 +1,9 @@
-# Prism Browser Community
+# Prism Browser
 
 [English](../README.md) | [简体中文](README.zh-CN.md) | [繁體中文](README.zh-TW.md) | [Русский](README.ru.md) | [Tiếng Việt](README.vi.md) | [ไทย](README.th.md) | [Português (Brasil)](README.pt-BR.md)
 
 [Français](README.fr.md) | [Українська](README.uk.md) | [Español](README.es.md) | **[Türkçe](README.tr.md)** | [日本語](README.ja.md) | [हिन्दी](README.hi.md)
 
-Geliştirici: [DFarm](https://x.com/DFarm_club) · Resmî site: [prismbrowser.app](https://prismbrowser.app/)
 
 Prism Browser, özelleştirilmiş Chromium üzerine kurulu, tarayıcı parmak izlerini yapılandırabilen yerel bir profil yöneticisidir. Her profilin çerezleri, önbelleği, uzantı verileri, proxy ayarları ve parmak izi yapılandırması bağımsızdır; böylece birbirinden yalıtılmış tarayıcı kimlikleri yönetilebilir.
 
@@ -97,10 +96,10 @@ Prism'in motor yönetiminden yerel derlemeyi içe aktarın: macOS'ta `Chromium.a
 
 Herkese açık issue'larda etkinleştirme kodu, proxy parolası, çerez, cüzdan bilgisi, özel anahtar veya kişisel veri içeren tanılama dosyaları paylaşmayın. Hassas bilgileri kaldırarak asgari yeniden üretme adımlarını, sürümü, platformu ve etkiyi belirtin. Parmak izi test puanındaki değişim mutlaka güvenlik açığı değildir; site, test zamanı, motor sürümü ve başarısız alanları ekleyin.
 
-Prism Browser Community'ye ait kod [MIT Lisansı](LICENSE) ile sunulur. Chromium, Electron ve diğer bileşenler kendi lisanslarına tabidir. Chromium dağıtımlarında gerekli `LICENSE`, `LICENSES` ve bildirimler korunmalıdır. Kod lisansı Prism adı, logosu veya simgeleri için otomatik marka hakkı vermez.
+Prism Browser'ye ait kod [MIT Lisansı](LICENSE) ile sunulur. Chromium, Electron ve diğer bileşenler kendi lisanslarına tabidir. Chromium dağıtımlarında gerekli `LICENSE`, `LICENSES` ve bildirimler korunmalıdır. Kod lisansı Prism adı, logosu veya simgeleri için otomatik marka hakkı vermez.
 
 Projeyi yalnızca yasal ve izinli tarayıcı yalıtımı, otomasyon testleri, gizlilik araştırması ve hesap yönetimi için, hedef sitelerin koşullarına ve yerel yasalara uyarak kullanın.
 
 ## Yıldız geçmişi
 
-[![Prism Browser Community Star History](https://api.star-history.com/svg?repos=XRSec/Prism-Browser&type=Date)](https://www.star-history.com/#XRSec/Prism-Browser&Date)
+[![Prism Browser Star History](https://api.star-history.com/svg?repos=XRSec/Prism-Browser&type=Date)](https://www.star-history.com/#XRSec/Prism-Browser&Date)

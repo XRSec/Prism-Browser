@@ -1,10 +1,9 @@
-# Prism Browser Community
+# Prism Browser
 
 [English](../README.md) | [简体中文](README.zh-CN.md) | [繁體中文](README.zh-TW.md) | **[Русский](README.ru.md)** | [Tiếng Việt](README.vi.md) | [ไทย](README.th.md) | [Português (Brasil)](README.pt-BR.md)
 
 [Français](README.fr.md) | [Українська](README.uk.md) | [Español](README.es.md) | [Türkçe](README.tr.md) | [日本語](README.ja.md) | [हिन्दी](README.hi.md)
 
-Автор: [DFarm](https://x.com/DFarm_club) · Официальный сайт: [prismbrowser.app](https://prismbrowser.app/)
 
 Prism Browser — локальный менеджер профилей браузера на базе модифицированного Chromium с настройкой цифровых отпечатков. У каждого профиля свои cookie, кэш, данные расширений, настройки прокси и отпечатка. Это позволяет разделять несколько браузерных идентичностей.
 
@@ -97,10 +96,10 @@ npm run dist:win
 
 Не публикуйте в issues коды активации, пароли прокси, cookie, сведения о кошельках, приватные ключи или диагностику с персональными данными. Укажите минимальные шаги воспроизведения, версию, платформу и влияние, удалив конфиденциальные сведения. Изменение оценки отпечатка не обязательно означает уязвимость; укажите сайт, время проверки, версию движка и проблемные поля.
 
-Собственный код Prism Browser Community распространяется по [лицензии MIT](LICENSE). Chromium, Electron и другие компоненты сохраняют свои лицензии. При распространении Chromium необходимо сохранять обязательные `LICENSE`, `LICENSES` и уведомления. Лицензия кода не предоставляет автоматически права на товарные знаки, название, логотип и значки Prism.
+Собственный код Prism Browser распространяется по [лицензии MIT](LICENSE). Chromium, Electron и другие компоненты сохраняют свои лицензии. При распространении Chromium необходимо сохранять обязательные `LICENSE`, `LICENSES` и уведомления. Лицензия кода не предоставляет автоматически права на товарные знаки, название, логотип и значки Prism.
 
 Используйте проект только для законной и разрешённой изоляции браузеров, автоматизированного тестирования, исследования приватности и управления аккаунтами, соблюдая условия сайтов и местное законодательство.
 
 ## История звёзд
 
-[![Prism Browser Community Star History](https://api.star-history.com/svg?repos=XRSec/Prism-Browser&type=Date)](https://www.star-history.com/#XRSec/Prism-Browser&Date)
+[![Prism Browser Star History](https://api.star-history.com/svg?repos=XRSec/Prism-Browser&type=Date)](https://www.star-history.com/#XRSec/Prism-Browser&Date)

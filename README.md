@@ -1,24 +1,12 @@
-# Prism Browser Community
+# Prism Browser
 
 **[English](README.md)** | [简体中文](docs/README.zh-CN.md) | [繁體中文](docs/README.zh-TW.md) | [Русский](docs/README.ru.md) | [Tiếng Việt](docs/README.vi.md) | [ไทย](docs/README.th.md) | [Português (Brasil)](docs/README.pt-BR.md)
 
 [Français](docs/README.fr.md) | [Українська](docs/README.uk.md) | [Español](docs/README.es.md) | [Türkçe](docs/README.tr.md) | [日本語](docs/README.ja.md) | [हिन्दी](docs/README.hi.md)
 
-Author: [DFarm](https://x.com/DFarm_club)
+Prism Browser is an open-source, local-first multi-profile fingerprint browser built on customized Chromium. Each profile has independent cookies, cache, extension data, proxy settings, and fingerprint configuration, making it suitable for managing multiple isolated browser identities with zero default-profile contamination.
 
-Official website: [https://prismbrowser.app/](https://prismbrowser.app/)
-
-Prism Browser is a local fingerprint-browser profile manager built on a customized Chromium. Each profile has independent cookies, cache, extension data, proxy settings, and fingerprint configuration, making it suitable for managing multiple isolated browser identities.
-
-Browser profiles, cookies, proxy credentials, and browsing history remain on the user's device by default. The Community edition is free to use and does not limit the number of local profiles.
-
-## Source Code Maintenance Notice
-
-This repository will remain publicly available for learning, review, and community builds. Starting with Prism Browser `v0.3.17`, product features, fixes, and later source-code changes will no longer be routinely synchronized to this repository. As the desktop app, fingerprint kernels, cross-platform packaging, Pro features, and multiple release branches have grown, maintaining separate public and product code lines has created a substantial development and testing burden.
-
-As a specific exception, this update ports the general localization support from 0.3.19 and translates the existing public interface. It does not include private Pro runtimes, licensing services, new Pro features, or private release configuration. This does not resume ongoing synchronization of product source code.
-
-The existing source code, commit history, and historical releases will remain available. For future features, fixes, and installers, please refer to the [official website](https://prismbrowser.app/) and this repository's [Releases](../../releases) page.
+Browser profiles, cookies, proxy credentials, and browsing history remain on the user's device by default. All features—including multi-profile management, local automation API, scheduler, and local AI (MCP) integration—are unlocked and available for local use.
 
 ## Interface Languages
 
@@ -172,41 +160,15 @@ Open the **Browser Kernels** page in Prism Browser and select **Import Local Bui
 
 Verify the kernel after importing it, then make it the active kernel. Existing profiles retain their data and settings.
 
-## Community and Pro
-
-Community includes the complete local browser-profile management experience and remains free to use. Prism Pro adds professional features for automation, recurring workflows, and local AI collaboration.
-
-| Feature | Community | Prism Pro |
-| --- | :---: | :---: |
-| Unlimited local browser profiles | ✓ | ✓ |
-| Fingerprint configuration, proxies, and WebRTC leak prevention | ✓ | ✓ |
-| Independent cookies, cache, extensions, and browser data | ✓ | ✓ |
-| Profile duplication, groups, bulk operations, and local migration | ✓ | ✓ |
-| Community fingerprint kernel distributed with the app | ✓ | ✓ |
-| Officially distributed newer kernels | — | ✓ |
-| Local automation API | — | ✓ |
-| Local scheduled tasks | — | ✓ |
-| Local AI control through MCP | — | ✓ |
-
-### Pro Features
-
-- **Official newer kernels**: use newer kernels distributed with Prism Browser releases without compiling them locally.
-- **Local automation API**: query, launch, and close selected browser profiles on the local machine using a temporary access token. The API is not exposed to the public internet.
-- **Local scheduled tasks**: automatically launch and close profiles once, daily, or weekly for recurring local workflows.
-- **Local AI through MCP**: grant an AI access only to selected profiles. It can visit pages, read page content, click elements, and fill forms; access can be stopped or revoked at any time.
-- **Local-first data**: both Community and Pro store profile data on the user's device. Upgrading does not upload browser profiles, cookies, extension data, or proxy credentials.
-
-Pro is licensed for one device for one year. One activation code can be bound to one device at a time. After deactivation, the remaining license term can be used on another device. Expiration or deactivation does not delete local profiles, and Community features remain available.
-
 ## Security Reports
 
-Do not post activation codes, proxy passwords, cookies, wallet information, complete browser profiles, private keys, or diagnostic files containing personal data in public issues. When reporting a security problem, provide minimal reproduction steps, affected versions, platform, and impact after removing sensitive data.
+Do not post proxy passwords, cookies, wallet information, complete browser profiles, private keys, or diagnostic files containing personal data in public issues. When reporting a security problem, provide minimal reproduction steps, affected versions, platform, and impact after removing sensitive data.
 
 A score change on a third-party fingerprint-testing site is not necessarily a security vulnerability. Include the site, test time, kernel version, operating system, and exact failed fields when reporting detection issues.
 
 ## License and Third-party Components
 
-Code owned by Prism Browser Community is released under the MIT License. Chromium, ungoogled-chromium, fingerprint-chromium, Electron, React, Ant Design, Vite, TypeScript, Vitest, proxy-chain, undici, zod, and other third-party components remain subject to their respective open-source licenses.
+Code owned by Prism Browser is released under the MIT License. Chromium, ungoogled-chromium, fingerprint-chromium, Electron, React, Ant Design, Vite, TypeScript, Vitest, proxy-chain, undici, zod, and other third-party components remain subject to their respective open-source licenses.
 
 Chromium builds and distributions must retain the `LICENSE`, `LICENSES`, and component notices required by Chromium's source tree and packaged artifacts. The Prism Browser name, logo, and icons are not automatically licensed as trademarks by the source-code license.
 
@@ -214,4 +176,4 @@ Use this project only for lawful and authorized browser isolation, automation te
 
 ## Star History
 
-[![Prism Browser Community Star History](https://api.star-history.com/svg?repos=XRSec/Prism-Browser&type=Date)](https://www.star-history.com/#XRSec/Prism-Browser&Date)
+[![Prism Browser Star History](https://api.star-history.com/svg?repos=XRSec/Prism-Browser&type=Date)](https://www.star-history.com/#XRSec/Prism-Browser&Date)

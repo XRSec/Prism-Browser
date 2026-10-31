@@ -1,10 +1,9 @@
-# Prism Browser Community
+# Prism Browser
 
 [English](../README.md) | [简体中文](README.zh-CN.md) | [繁體中文](README.zh-TW.md) | [Русский](README.ru.md) | [Tiếng Việt](README.vi.md) | [ไทย](README.th.md) | **[Português (Brasil)](README.pt-BR.md)**
 
 [Français](README.fr.md) | [Українська](README.uk.md) | [Español](README.es.md) | [Türkçe](README.tr.md) | [日本語](README.ja.md) | [हिन्दी](README.hi.md)
 
-Autor: [DFarm](https://x.com/DFarm_club) · Site oficial: [prismbrowser.app](https://prismbrowser.app/)
 
 O Prism Browser gerencia perfis locais de navegador com impressões digitais, usando um Chromium personalizado. Cada perfil tem cookies, cache, dados de extensões, proxy e configuração de impressão digital independentes, permitindo várias identidades de navegação isoladas.
 
@@ -97,10 +96,10 @@ Na gestão de motores do Prism, importe a compilação local: `Chromium.app` no 
 
 Não publique códigos de ativação, senhas de proxy, cookies, informações de carteiras, chaves privadas ou diagnósticos com dados pessoais em issues. Forneça passos mínimos para reprodução, versão, plataforma e impacto, removendo dados sensíveis. Mudanças em pontuações de testes de impressão digital não são necessariamente vulnerabilidades; informe site, data, versão do motor e campos que falharam.
 
-O código próprio do Prism Browser Community usa a [licença MIT](LICENSE). Chromium, Electron e outros componentes mantêm suas respectivas licenças. Distribuições Chromium devem preservar os arquivos `LICENSE`, `LICENSES` e avisos obrigatórios. A licença do código não concede automaticamente direitos de marca sobre o nome, logotipo ou ícones do Prism.
+O código próprio do Prism Browser usa a [licença MIT](LICENSE). Chromium, Electron e outros componentes mantêm suas respectivas licenças. Distribuições Chromium devem preservar os arquivos `LICENSE`, `LICENSES` e avisos obrigatórios. A licença do código não concede automaticamente direitos de marca sobre o nome, logotipo ou ícones do Prism.
 
 Use o projeto apenas para isolamento de navegadores, testes automatizados, pesquisa de privacidade e gestão de contas de forma legal e autorizada, respeitando os termos dos sites e as leis aplicáveis.
 
 ## Histórico de estrelas
 
-[![Prism Browser Community Star History](https://api.star-history.com/svg?repos=XRSec/Prism-Browser&type=Date)](https://www.star-history.com/#XRSec/Prism-Browser&Date)
+[![Prism Browser Star History](https://api.star-history.com/svg?repos=XRSec/Prism-Browser&type=Date)](https://www.star-history.com/#XRSec/Prism-Browser&Date)

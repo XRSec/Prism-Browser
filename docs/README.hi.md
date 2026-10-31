@@ -1,10 +1,9 @@
-# Prism Browser Community
+# Prism Browser
 
 [English](../README.md) | [简体中文](README.zh-CN.md) | [繁體中文](README.zh-TW.md) | [Русский](README.ru.md) | [Tiếng Việt](README.vi.md) | [ไทย](README.th.md) | [Português (Brasil)](README.pt-BR.md)
 
 [Français](README.fr.md) | [Українська](README.uk.md) | [Español](README.es.md) | [Türkçe](README.tr.md) | [日本語](README.ja.md) | **[हिन्दी](README.hi.md)**
 
-लेखक: [DFarm](https://x.com/DFarm_club) · आधिकारिक वेबसाइट: [prismbrowser.app](https://prismbrowser.app/)
 
 Prism Browser, अनुकूलित Chromium पर आधारित एक स्थानीय ब्राउज़र प्रोफ़ाइल प्रबंधक है, जिसमें ब्राउज़र फ़िंगरप्रिंट कॉन्फ़िगर किए जा सकते हैं। हर प्रोफ़ाइल की कुकी, कैश, एक्सटेंशन डेटा, प्रॉक्सी सेटिंग और फ़िंगरप्रिंट अलग होते हैं, ताकि कई ब्राउज़र पहचानें एक-दूसरे से अलग रखी जा सकें।
 
@@ -97,10 +96,10 @@ Prism के इंजन प्रबंधन से स्थानीय ब
 
 सार्वजनिक issue में सक्रियण कोड, प्रॉक्सी पासवर्ड, कुकी, वॉलेट जानकारी, निजी कुंजी या व्यक्तिगत डेटा वाली डायग्नोस्टिक फ़ाइल न डालें। संवेदनशील जानकारी हटाकर समस्या दोहराने के न्यूनतम चरण, संस्करण, प्लेटफ़ॉर्म और प्रभाव बताएँ। फ़िंगरप्रिंट टेस्ट का स्कोर बदलना आवश्यक रूप से सुरक्षा खामी नहीं है; साइट, जाँच का समय, इंजन संस्करण और असफल फ़ील्ड भी बताएँ।
 
-Prism Browser Community का अपना कोड [MIT License](LICENSE) के अंतर्गत है। Chromium, Electron और अन्य घटकों पर उनके अपने लाइसेंस लागू होते हैं। Chromium वितरित करते समय आवश्यक `LICENSE`, `LICENSES` और सूचनाएँ सुरक्षित रखें। कोड का लाइसेंस Prism के नाम, लोगो या आइकन के ट्रेडमार्क अधिकार अपने आप नहीं देता।
+Prism Browser का अपना कोड [MIT License](LICENSE) के अंतर्गत है। Chromium, Electron और अन्य घटकों पर उनके अपने लाइसेंस लागू होते हैं। Chromium वितरित करते समय आवश्यक `LICENSE`, `LICENSES` और सूचनाएँ सुरक्षित रखें। कोड का लाइसेंस Prism के नाम, लोगो या आइकन के ट्रेडमार्क अधिकार अपने आप नहीं देता।
 
 परियोजना का उपयोग केवल कानूनी और अधिकृत ब्राउज़र अलगाव, ऑटोमेशन परीक्षण, गोपनीयता शोध और खाता प्रबंधन के लिए करें तथा संबंधित साइटों की शर्तों और स्थानीय कानूनों का पालन करें।
 
 ## स्टार इतिहास
 
-[![Prism Browser Community Star History](https://api.star-history.com/svg?repos=XRSec/Prism-Browser&type=Date)](https://www.star-history.com/#XRSec/Prism-Browser&Date)
+[![Prism Browser Star History](https://api.star-history.com/svg?repos=XRSec/Prism-Browser&type=Date)](https://www.star-history.com/#XRSec/Prism-Browser&Date)
