@@ -128,14 +128,15 @@ export function MihomoAssistantModal({
 
     lines.push('')
     lines.push('# 2. 根据入站用户名 (IN-USER) 定向分流至指定节点')
+    lines.push('# 说明：单机独立运行默认出口为 DIRECT；若配合机场订阅使用，可将 DIRECT 替换为真实节点或策略组名称')
     lines.push('rules:')
     if (usersList.length > 0) {
-      lines.push(`  - IN-USER,${usersList[0]},🇺🇸 专线节点-美国-01`)
+      lines.push(`  - IN-USER,${usersList[0]},DIRECT`)
       if (usersList.length > 1) {
-        lines.push(`  - IN-USER,${usersList[1]},🇯🇵 专线节点-日本-02`)
+        lines.push(`  - IN-USER,${usersList[1]},DIRECT`)
       }
-      lines.push('  # 让特定环境分组（如带有 Pro 标签的环境）走高速出口')
-      lines.push('  - IN-USER,node-pro-*,🚀 Pro专线池')
+      lines.push('  # 示例: 让特定环境分组（如带有 Pro 标签的环境）走专用节点/策略组 (替换 DIRECT)')
+      lines.push('  # - IN-USER,node-pro-*,🚀 Pro专线池')
     }
     lines.push('  - MATCH,DIRECT')
 
@@ -145,7 +146,7 @@ export function MihomoAssistantModal({
   // 动态生成适合 Clash Verge / Flclash / Mihomo Party 的 JavaScript 扩展脚本
   const jsScriptConfig = useMemo(() => {
     const userList = usersList.map((u) => `    '${u}:${password}'`).join(',\n')
-    const ruleList = usersList.slice(0, 3).map((u, i) => `    'IN-USER,${u},节点名称-${i + 1}'`).join(',\n')
+    const ruleList = usersList.slice(0, 3).map((u, i) => `    'IN-USER,${u},DIRECT'`).join(',\n')
     return `// 适用于：Clash Verge Rev / Flclash / Mihomo Party 扩展脚本 (Script)
 function main(config) {
   // 1. 设置本地入站端口与外部控制器
@@ -159,9 +160,9 @@ function main(config) {
 ${userList || "    'node-0001:prism'"}
   ];
 
-  // 3. 注入 IN-USER 规则（插入至 rules 顶部优先匹配）
+  // 3. 注入 IN-USER 规则（插入至 rules 顶部优先匹配，请将 DIRECT 替换为机场节点名）
   const prismRules = [
-${ruleList || "    'IN-USER,node-0001,指定节点'"}
+${ruleList || "    'IN-USER,node-0001,DIRECT'"}
   ];
   config.rules = [...prismRules, ...(config.rules || [])];
 

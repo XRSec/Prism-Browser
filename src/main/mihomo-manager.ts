@@ -240,6 +240,10 @@ rules:
         const lines = text.split(/\r?\n/).filter(Boolean)
         for (const line of lines) {
           this.appendLog(line)
+          if (line.includes('level=fatal') || line.includes('level=error') || line.includes('Parse config error')) {
+            const match = line.match(/msg="([^"]+)"/)
+            this.lastError = match ? match[1] : line
+          }
         }
         this.notifyStatus()
       })
@@ -249,6 +253,10 @@ rules:
         const lines = text.split(/\r?\n/).filter(Boolean)
         for (const line of lines) {
           this.appendLog(`[STDERR] ${line}`)
+          if (line.includes('level=fatal') || line.includes('level=error') || line.includes('Parse config error')) {
+            const match = line.match(/msg="([^"]+)"/)
+            this.lastError = match ? match[1] : line
+          }
         }
         this.notifyStatus()
       })
@@ -264,7 +272,9 @@ rules:
       child.on('exit', (code, signal) => {
         this.appendLog(`[Prism] Mihomo 进程退出 (code: ${code}, signal: ${signal})`)
         if (code !== 0 && code !== null) {
-          this.lastError = `Mihomo 异常退出 (退出码: ${code})`
+          if (!this.lastError) {
+            this.lastError = `Mihomo 异常退出 (退出码: ${code})`
+          }
         }
         this.child = null
         this.startedAt = undefined
