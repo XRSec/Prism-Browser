@@ -73,6 +73,7 @@ interface Launcher {
   setBrowserWindowBounds(profileId: string, bounds: { left: number; top: number; width: number; height: number }): Promise<void>
   browserWindowBounds(profileId: string): Promise<{ left: number; top: number; width: number; height: number }>
   bringBrowserToFront(profileId: string): Promise<void>
+  minimizeBrowser(profileId: string): Promise<void>
   browserPageUrls(profileId: string): Promise<string[]>
   replaceBrowserTabs(profileId: string, urls: string[]): Promise<void>
   closeBrowserTabs(profileId: string, mode: CloseTabsMode): Promise<void>
@@ -426,6 +427,12 @@ export class WindowSyncManager {
     this.requirePro()
     const ids = this.runningIds(profileIds)
     for (const id of [...ids].reverse()) await this.launcher.bringBrowserToFront(id)
+  }
+
+  async minimize(profileIds: string[]): Promise<void> {
+    this.requirePro()
+    const ids = this.runningIds(profileIds)
+    await Promise.all(ids.map((id) => this.launcher.minimizeBrowser(id).catch(() => undefined)))
   }
 
   async sameTabs(mainProfileId: string, followerProfileIds: string[]): Promise<void> {

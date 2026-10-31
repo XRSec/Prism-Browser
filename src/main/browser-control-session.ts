@@ -1219,7 +1219,18 @@ export class BrowserControlSession {
   }
   async bringToFront() {
     await this.ensurePage();
+    try {
+      const result = await this.cdp.send("Browser.getWindowForTarget", { targetId: this.targetId });
+      await this.cdp.send("Browser.setWindowBounds", { windowId: result.windowId, bounds: { windowState: "normal" } });
+    } catch {
+      // ignore
+    }
     await this.cdp.send("Page.bringToFront", {}, this.sessionId);
+  }
+  async minimize() {
+    await this.ensurePage();
+    const result = await this.cdp.send("Browser.getWindowForTarget", { targetId: this.targetId });
+    await this.cdp.send("Browser.setWindowBounds", { windowId: result.windowId, bounds: { windowState: "minimized" } });
   }
   async pageUrls() {
     const targets = await this.cdp.send("Target.getTargets");

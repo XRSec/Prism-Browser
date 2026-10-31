@@ -4,6 +4,7 @@ import {
   CloseCircleOutlined,
   CloseOutlined,
   CopyOutlined,
+  EyeInvisibleOutlined,
   EyeOutlined,
   GlobalOutlined,
   PlayCircleOutlined,
@@ -314,6 +315,14 @@ export function WindowSyncModal({ open, profiles, status, proEnabled, onChanged,
                 onClick={() => void operation('front', () => window.browserApi.windowSync.bringToFront(selectedIds))}
               >
                 {t("显示窗口")}
+              </Button>
+              <Button
+                icon={<EyeInvisibleOutlined />}
+                loading={busy === 'minimize'}
+                disabled={!selectedIds.length}
+                onClick={() => void operation('minimize', () => window.browserApi.windowSync.minimize(selectedIds))}
+              >
+                {t("最小化窗口")}
               </Button>
             </div>
 

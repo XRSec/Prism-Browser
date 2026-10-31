@@ -518,6 +518,16 @@ export interface MihomoStartOptions {
   configPath?: string
 }
 
+export interface MihomoConfigSummary {
+  content: string
+  port: number
+  externalController: string
+  secret: string
+  userCount: number
+  prefix: string
+  password: string
+}
+
 export interface BrowserApi {
   uiLanguage: {
     get(): Promise<UiLocale>
@@ -662,6 +672,7 @@ export interface BrowserApi {
     tile: (profileIds: string[], layout: 'grid' | 'overlap', area: { x: number; y: number; width: number; height: number }, keepSize?: boolean) => Promise<void>
     uniformSize: (mainProfileId: string, followerProfileIds: string[]) => Promise<void>
     bringToFront: (profileIds: string[]) => Promise<void>
+    minimize: (profileIds: string[]) => Promise<void>
     sameTabs: (mainProfileId: string, followerProfileIds: string[]) => Promise<void>
     closeTabs: (profileIds: string[], mode: 'current' | 'others' | 'blank') => Promise<void>
     visit: (profileIds: string[], url: string, newTab: boolean) => Promise<void>
@@ -676,6 +687,7 @@ export interface BrowserApi {
     start: (options?: MihomoStartOptions) => Promise<MihomoStatus>
     stop: () => Promise<MihomoStatus>
     getLogs: () => Promise<string[]>
+    readConfig: (customPath?: string) => Promise<MihomoConfigSummary>
     saveConfig: (content: string, customPath?: string) => Promise<string>
     selectFile: (type: 'binary' | 'config') => Promise<string | null>
     onStatusChanged: (listener: (status: MihomoStatus) => void) => () => void

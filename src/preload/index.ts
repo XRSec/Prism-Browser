@@ -173,6 +173,7 @@ const api: BrowserApi = {
     tile: (profileIds, layout, area, keepSize) => ipcRenderer.invoke('window-sync:tile', profileIds, layout, area, keepSize),
     uniformSize: (mainProfileId, followerProfileIds) => ipcRenderer.invoke('window-sync:uniform-size', mainProfileId, followerProfileIds),
     bringToFront: (profileIds) => ipcRenderer.invoke('window-sync:bring-to-front', profileIds),
+    minimize: (profileIds) => ipcRenderer.invoke('window-sync:minimize', profileIds),
     sameTabs: (mainProfileId, followerProfileIds) => ipcRenderer.invoke('window-sync:same-tabs', mainProfileId, followerProfileIds),
     closeTabs: (profileIds, mode) => ipcRenderer.invoke('window-sync:close-tabs', profileIds, mode),
     visit: (profileIds, url, newTab) => ipcRenderer.invoke('window-sync:visit', profileIds, url, newTab),
@@ -191,6 +192,7 @@ const api: BrowserApi = {
     start: (options?: MihomoStartOptions) => ipcRenderer.invoke('mihomo:start', options),
     stop: () => ipcRenderer.invoke('mihomo:stop'),
     getLogs: () => ipcRenderer.invoke('mihomo:get-logs'),
+    readConfig: (customPath?: string) => ipcRenderer.invoke('mihomo:read-config', customPath),
     saveConfig: (content: string, customPath?: string) => ipcRenderer.invoke('mihomo:save-config', content, customPath),
     selectFile: (type: 'binary' | 'config') => ipcRenderer.invoke('mihomo:select-file', type),
     onStatusChanged: (listener: (status: MihomoStatus) => void) => {

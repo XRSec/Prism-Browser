@@ -72,18 +72,42 @@ export function MihomoAssistantModal({
   const [isStoppingMihomo, setIsStoppingMihomo] = useState(false)
   const [showLogs, setShowLogs] = useState(false)
   const [liveLogs, setLiveLogs] = useState<string[]>([])
+  const [isConfigLoaded, setIsConfigLoaded] = useState(false)
 
   useEffect(() => {
-    if (!open) return
+    if (!open) {
+      setIsConfigLoaded(false)
+      return
+    }
+
+    // 1. 获取运行状态并从配置文件回显所有参数
     window.browserApi.mihomo
       .getStatus()
-      .then((status) => {
+      .then(async (status) => {
         setMihomoStatus(status)
         if (status.binaryPath) setMihomoBinaryPath(status.binaryPath)
+        const configPathToUse = status.configPath || mihomoConfigPath
         if (status.configPath) setMihomoConfigPath(status.configPath)
         setLiveLogs(status.recentLogs || [])
+
+        // 2. 真实读取磁盘配置文件中的内容，回显用户的 externalController、port、users 等
+        try {
+          const parsed = await window.browserApi.mihomo.readConfig(configPathToUse)
+          if (parsed.externalController) setExternalController(parsed.externalController)
+          if (parsed.port) setPort(parsed.port)
+          if (parsed.secret !== undefined) setControllerSecret(parsed.secret)
+          if (parsed.userCount) setUserCount(parsed.userCount)
+          if (parsed.prefix) setPrefix(parsed.prefix)
+          if (parsed.password) setPassword(parsed.password)
+        } catch {
+          // ignore
+        } finally {
+          setIsConfigLoaded(true)
+        }
       })
-      .catch(() => undefined)
+      .catch(() => {
+        setIsConfigLoaded(true)
+      })
 
     const unsubscribe = window.browserApi.mihomo.onStatusChanged((status) => {
       setMihomoStatus(status)
@@ -170,8 +194,9 @@ ${ruleList || "    'IN-USER,node-0001,DIRECT'"}
   }, [usersList, password, port, host, normalizedControllerAddress])
 
   // 监听分流配置参数变化，当使用金库内置配置时，自动静默同步写入到 config.yaml
+  // 关键保护：必须在 isConfigLoaded 为 true 后才允许触发自动保存，避免组件初次挂载时用默认值冲掉磁盘！
   useEffect(() => {
-    if (!open) return
+    if (!open || !isConfigLoaded) return
     const isVaultConfig = !mihomoConfigPath || mihomoConfigPath.includes('vault/mihomo')
     if (isVaultConfig && yamlConfig) {
       const timer = setTimeout(() => {
@@ -179,7 +204,7 @@ ${ruleList || "    'IN-USER,node-0001,DIRECT'"}
       }, 400)
       return () => clearTimeout(timer)
     }
-  }, [open, yamlConfig, mihomoConfigPath])
+  }, [open, isConfigLoaded, yamlConfig, mihomoConfigPath])
 
   // 计算 Zashboard / Web UI 的完整访问 URL
   const dashboardUrl = useMemo(() => {
@@ -243,6 +268,17 @@ ${ruleList || "    'IN-USER,node-0001,DIRECT'"}
       const selected = await window.browserApi.mihomo.selectFile('config')
       if (selected) {
         setMihomoConfigPath(selected)
+        try {
+          const parsed = await window.browserApi.mihomo.readConfig(selected)
+          if (parsed.externalController) setExternalController(parsed.externalController)
+          if (parsed.port) setPort(parsed.port)
+          if (parsed.secret !== undefined) setControllerSecret(parsed.secret)
+          if (parsed.userCount) setUserCount(parsed.userCount)
+          if (parsed.prefix) setPrefix(parsed.prefix)
+          if (parsed.password) setPassword(parsed.password)
+        } catch {
+          // ignore
+        }
       }
     } catch (err) {
       message.error(String(err))

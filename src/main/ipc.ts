@@ -546,6 +546,7 @@ export function registerIpc({ profiles, settings, launcher, kernels, extensions,
   ipcMain.handle('window-sync:tile', (_event, profileIds, layout, area, keepSize) => windowSync.tile(profileIds, layout, area, keepSize))
   ipcMain.handle('window-sync:uniform-size', (_event, mainProfileId, followerProfileIds) => windowSync.uniformSize(mainProfileId, followerProfileIds))
   ipcMain.handle('window-sync:bring-to-front', (_event, profileIds) => windowSync.bringToFront(profileIds))
+  ipcMain.handle('window-sync:minimize', (_event, profileIds) => windowSync.minimize(profileIds))
   ipcMain.handle('window-sync:same-tabs', (_event, mainProfileId, followerProfileIds) => windowSync.sameTabs(mainProfileId, followerProfileIds))
   ipcMain.handle('window-sync:close-tabs', (_event, profileIds, mode) => windowSync.closeTabs(profileIds, mode))
   ipcMain.handle('window-sync:visit', (_event, profileIds, url, newTab) => windowSync.visit(profileIds, url, newTab))
@@ -610,6 +611,9 @@ export function registerIpc({ profiles, settings, launcher, kernels, extensions,
     return mihomo.stop()
   })
   ipcMain.handle('mihomo:get-logs', () => mihomo.getLogs())
+  ipcMain.handle('mihomo:read-config', async (_event, customPath?: string) => {
+    return mihomo.readConfig(customPath)
+  })
   ipcMain.handle('mihomo:save-config', async (_event, content: string, customPath?: string) => {
     return mihomo.saveConfigFile(content, customPath)
   })

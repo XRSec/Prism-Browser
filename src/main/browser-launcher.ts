@@ -586,6 +586,9 @@ export class BrowserLauncher {
   bringBrowserToFront(id) {
     return this.controlSession(id).bringToFront();
   }
+  minimizeBrowser(id) {
+    return this.controlSession(id).minimize();
+  }
   browserPageUrls(id) {
     return this.controlSession(id).pageUrls();
   }

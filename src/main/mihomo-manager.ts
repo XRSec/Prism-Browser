@@ -4,7 +4,7 @@ import { access, mkdir, readFile, stat, writeFile } from 'node:fs/promises'
 import { homedir, platform } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { BrowserWindow, dialog } from 'electron'
-import type { MihomoStartOptions, MihomoStatus } from '../shared/types'
+import type { MihomoConfigSummary, MihomoStartOptions, MihomoStatus } from '../shared/types'
 
 export function expandHome(filepath: string): string {
   if (!filepath) return ''
@@ -44,6 +44,41 @@ export async function findDefaultMihomoBinary(): Promise<string> {
   }
 
   return isWin ? 'mihomo.exe' : '/opt/homebrew/bin/mihomo'
+}
+
+export function parseMihomoConfigContent(content: string): MihomoConfigSummary {
+  const mixedPortMatch = content.match(/^mixed-port:\s*(\d+)/m)
+  const portMatch = content.match(/^port:\s*(\d+)/m)
+  const controllerMatch = content.match(/^external-controller:\s*["']?([^"'\r\n]+)["']?/m)
+  const secretMatch = content.match(/^secret:\s*["']?([^"'\r\n]*)["']?/m)
+
+  const userMatches = [...content.matchAll(/^\s*-\s*["']?([a-zA-Z0-9_\-]+:[^"'\r\n]+)["']?/gm)]
+    .map((m) => m[1])
+    .filter((u) => !u.startsWith('MATCH') && !u.startsWith('IN-USER'))
+
+  let prefix = 'node-'
+  let password = 'prism'
+  if (userMatches.length > 0) {
+    const first = userMatches[0]
+    const idx = first.indexOf(':')
+    if (idx !== -1) {
+      const u = first.slice(0, idx)
+      const p = first.slice(idx + 1)
+      if (p) password = p
+      const prefixMatch = u.match(/^([a-zA-Z_-]+)/)
+      if (prefixMatch) prefix = prefixMatch[1]
+    }
+  }
+
+  return {
+    content,
+    port: mixedPortMatch ? Number(mixedPortMatch[1]) : portMatch ? Number(portMatch[1]) : 17890,
+    externalController: controllerMatch ? controllerMatch[1].trim() : '127.0.0.1:9090',
+    secret: secretMatch ? secretMatch[1].trim() : '',
+    userCount: userMatches.length > 0 ? userMatches.length : 10,
+    prefix,
+    password
+  }
 }
 
 export class MihomoManager {
@@ -140,6 +175,17 @@ rules:
     this.appendLog(`[Prism] 已保存配置文件至: ${targetPath}`)
     this.notifyStatusImmediate()
     return targetPath
+  }
+
+  async readConfig(customPath?: string): Promise<MihomoConfigSummary> {
+    const targetPath = customPath ? expandHome(customPath) : expandHome(this.configPath)
+    try {
+      const content = await readFile(targetPath, 'utf8')
+      return parseMihomoConfigContent(content)
+    } catch {
+      const defaultContent = this.generateDefaultConfig()
+      return parseMihomoConfigContent(defaultContent)
+    }
   }
 
   getStatus(): MihomoStatus {

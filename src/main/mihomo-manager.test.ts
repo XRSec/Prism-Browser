@@ -48,6 +48,28 @@ describe('MihomoManager', () => {
     expect(reloaded.getStatus().configPath).toBe(savedPath)
   })
 
+  it('reads and parses existing config file correctly', async () => {
+    const manager = new MihomoManager(tempVault)
+    await manager.initialize()
+
+    const sample = `mixed-port: 17895
+external-controller: 127.0.0.1:9095
+secret: "my-secret-123"
+users:
+  - "custom-0001:my-pass"
+  - "custom-0002:my-pass"
+`
+    await manager.saveConfigFile(sample)
+
+    const parsed = await manager.readConfig()
+    expect(parsed.port).toBe(17895)
+    expect(parsed.externalController).toBe('127.0.0.1:9095')
+    expect(parsed.secret).toBe('my-secret-123')
+    expect(parsed.prefix).toBe('custom-')
+    expect(parsed.password).toBe('my-pass')
+    expect(parsed.userCount).toBe(2)
+  })
+
   it('refuses to start when binary does not exist', async () => {
     const manager = new MihomoManager(tempVault)
     await manager.initialize()
