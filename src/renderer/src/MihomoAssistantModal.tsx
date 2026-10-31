@@ -1,5 +1,5 @@
 import { t } from '../../shared/i18n'
-import { ApiOutlined, AppstoreOutlined, BookOutlined, CheckOutlined, CopyOutlined, DownloadOutlined, GlobalOutlined, InfoCircleOutlined, LinkOutlined, ReloadOutlined, ThunderboltOutlined } from '@ant-design/icons'
+import { ApiOutlined, AppstoreOutlined, BookOutlined, CheckOutlined, CopyOutlined, DownloadOutlined, FileTextOutlined, GlobalOutlined, InfoCircleOutlined, LinkOutlined, ReloadOutlined, ThunderboltOutlined } from '@ant-design/icons'
 import { Alert, Button, Card, Collapse, Form, Input, InputNumber, Modal, Radio, Select, Space, Table, Tabs, Tag, Typography, message } from 'antd'
 import { useMemo, useState } from 'react'
 import type { BrowserProfileView, ProfileDraft, ProxyProtocol } from '../../shared/types'
@@ -29,6 +29,10 @@ export function MihomoAssistantModal({
   const [namingMode, setNamingMode] = useState<'order' | 'serial'>('order')
   const [copiedSection, setCopiedSection] = useState<string>('')
   const [applying, setApplying] = useState(false)
+
+  // 简短的启动配置：二进制路径与配置文件路径
+  const [mihomoBinaryPath, setMihomoBinaryPath] = useState('/opt/homebrew/bin/mihomo')
+  const [mihomoConfigPath, setMihomoConfigPath] = useState('~/Library/Application Support/prism-browser/vault/mihomo/config.yaml')
 
   // Zashboard / Controller settings
   const [controllerHost, setControllerHost] = useState('127.0.0.1')
@@ -141,6 +145,19 @@ ${ruleList || "    'IN-USER,node-0001,指定节点'"}
     setTimeout(() => setCopiedSection(''), 2000)
   }
 
+  async function openLocalDoc(): Promise<void> {
+    try {
+      const res = await window.browserApi.docs.openPath('docs/mihomo-routing-guide.md')
+      if (res.success) {
+        message.success(t("已在默认程序中打开本地手册"))
+      } else {
+        message.info(t("文档位于: {0}", res.path))
+      }
+    } catch {
+      message.error(t("打开失败，请直接查看 docs/mihomo-routing-guide.md"))
+    }
+  }
+
   function openExternalDashboard(): void {
     window.open(dashboardUrl, '_blank')
   }
@@ -204,6 +221,20 @@ ${ruleList || "    'IN-USER,node-0001,指定节点'"}
       onCancel={onClose}
       destroyOnClose
     >
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+        <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+          {t("单核心多环境分流指南、轻量托管参数与可视化 Zashboard 面板")}
+        </Typography.Text>
+        <Space size={8}>
+          <Button size="small" type="primary" ghost icon={<FileTextOutlined />} onClick={() => void openLocalDoc()}>
+            {t("打开本地权威手册")}
+          </Button>
+          <Button size="small" icon={<CopyOutlined />} onClick={() => void copyText('docs/mihomo-routing-guide.md', 'docpath')}>
+            {copiedSection === 'docpath' ? t("已复制路径") : t("复制文档路径")}
+          </Button>
+        </Space>
+      </div>
+
       <Tabs
         activeKey={activeTab}
         onChange={(k) => setActiveTab(k as 'docs' | 'clients' | 'generator' | 'zashboard')}
@@ -303,6 +334,177 @@ rules:
             )
           },
           {
+            key: 'generator',
+            label: <Space><ThunderboltOutlined />{t("轻量启动与凭据配置")}</Space>,
+            children: (
+              <Space direction="vertical" style={{ width: '100%' }} size={14}>
+                <Card size="small" title={t("替用户省掉一个启动器：Mihomo 轻量托管参数")}>
+                  <Typography.Paragraph type="secondary" style={{ fontSize: 12, marginBottom: 8 }}>
+                    {t("日常只用 Shadowrocket 或直连的用户，无需安装复杂的客户端。在此指定核心路径与已有配置，由后台静默拉起子进程，浏览器关闭时自动退出：")}
+                  </Typography.Paragraph>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 8 }}>
+                    <div>
+                      <Typography.Text strong style={{ fontSize: 11 }}>{t("Mihomo 二进制文件路径")}</Typography.Text>
+                      <Input
+                        size="small"
+                        value={mihomoBinaryPath}
+                        onChange={(e) => setMihomoBinaryPath(e.target.value)}
+                        placeholder="/opt/homebrew/bin/mihomo"
+                        style={{ marginTop: 4 }}
+                      />
+                    </div>
+                    <div>
+                      <Typography.Text strong style={{ fontSize: 11 }}>{t("使用的配置文件路径 (或订阅)")}</Typography.Text>
+                      <Input
+                        size="small"
+                        value={mihomoConfigPath}
+                        onChange={(e) => setMihomoConfigPath(e.target.value)}
+                        placeholder="~/Downloads/config.yaml"
+                        style={{ marginTop: 4 }}
+                      />
+                    </div>
+                  </div>
+
+                  <div style={{ background: 'var(--surface-subtle)', padding: 8, borderRadius: 6, fontSize: 11, fontFamily: 'ui-monospace, Menlo, monospace' }}>
+                    <div style={{ color: 'var(--muted)' }}># 后台静默执行命令（自动绑定沙盒运行目录与覆写配置）：</div>
+                    <div>{mihomoBinaryPath} -d "~/Library/Application Support/prism-browser/vault/mihomo" -f "{mihomoConfigPath}"</div>
+                  </div>
+                </Card>
+
+                <Form layout="vertical" size="small">
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 16px' }}>
+                    <Form.Item label={t("目标环境范围")}>
+                      <Radio.Group value={scope} onChange={(e) => setScope(e.target.value)}>
+                        <Radio value="all">{t("全部环境 ({0} 个)", allProfiles.length)}</Radio>
+                        <Radio value="selected" disabled={selectedProfileIds.length === 0}>
+                          {t("当前选中 ({0} 个)", selectedProfileIds.length)}
+                        </Radio>
+                      </Radio.Group>
+                    </Form.Item>
+
+                    <Form.Item label={t("编号规则")}>
+                      <Radio.Group value={namingMode} onChange={(e) => setNamingMode(e.target.value)}>
+                        <Radio value="order">{t("顺序递增 (0001, 0002...)")}</Radio>
+                        <Radio value="serial">{t("匹配环境序号 (#01 -> 0001)")}</Radio>
+                      </Radio.Group>
+                    </Form.Item>
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0 12px' }}>
+                    <Form.Item label={t("本地监听主机")}>
+                      <Input value={host} onChange={(e) => setHost(e.target.value)} placeholder="127.0.0.1" />
+                    </Form.Item>
+
+                    <Form.Item label={t("Mihomo 端口")}>
+                      <InputNumber
+                        value={port}
+                        min={1024}
+                        max={65535}
+                        style={{ width: '100%' }}
+                        onChange={(val) => setPort(val || 17890)}
+                      />
+                    </Form.Item>
+
+                    <Form.Item label={t("代理协议")}>
+                      <Select
+                        value={protocol}
+                        options={[
+                          { value: 'socks5', label: 'SOCKS5' },
+                          { value: 'http', label: 'HTTP' }
+                        ]}
+                        onChange={setProtocol}
+                      />
+                    </Form.Item>
+
+                    <Form.Item label={t("账号前缀")}>
+                      <Input value={prefix} onChange={(e) => setPrefix(e.target.value)} placeholder="node-" />
+                    </Form.Item>
+                  </div>
+
+                  <Form.Item label={t("统一代理密码 (本地回环使用统一密码即可)")}>
+                    <Input value={password} onChange={(e) => setPassword(e.target.value)} placeholder="prism" />
+                  </Form.Item>
+                </Form>
+
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <Typography.Text strong>{t("Mihomo 配置补丁 (包含 Users 与规则模板)")}</Typography.Text>
+                  <Button
+                    type="primary"
+                    icon={copiedSection === 'yaml' ? <CheckOutlined /> : <CopyOutlined />}
+                    onClick={() => void copyText(yamlConfig, 'yaml')}
+                  >
+                    {copiedSection === 'yaml' ? t("已复制配置") : t("复制 Mihomo 配置")}
+                  </Button>
+                </div>
+                <Input.TextArea
+                  value={yamlConfig}
+                  readOnly
+                  autoSize={{ minRows: 4, maxRows: 7 }}
+                  style={{ fontFamily: 'ui-monospace, Menlo, monospace', fontSize: 11 }}
+                />
+
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 }}>
+                  <Typography.Text strong>{t("环境代理分配预览 ({0} 个环境)", assignments.length)}</Typography.Text>
+                  <Button
+                    type="primary"
+                    danger
+                    icon={<ThunderboltOutlined />}
+                    loading={applying}
+                    disabled={!assignments.length}
+                    onClick={() => void applyToProfiles()}
+                  >
+                    {t("一键批量应用代理到环境", assignments.length)}
+                  </Button>
+                </div>
+
+                <Table
+                  dataSource={assignments}
+                  rowKey={(item) => item.profile.id}
+                  size="small"
+                  pagination={{ pageSize: 5 }}
+                  columns={[
+                    {
+                      title: t("环境"),
+                      key: 'name',
+                      render: (_, item) => (
+                        <Space>
+                          <Tag>#{String(item.profile.serialNumber).padStart(2, '0')}</Tag>
+                          <span>{item.profile.name}</span>
+                        </Space>
+                      )
+                    },
+                    {
+                      title: t("分配账号 (分流标识)"),
+                      dataIndex: 'username',
+                      key: 'username',
+                      render: (username) => <Tag color="blue">{username}</Tag>
+                    },
+                    {
+                      title: t("统一密码"),
+                      key: 'password',
+                      render: () => <Typography.Text code>{password}</Typography.Text>
+                    },
+                    {
+                      title: t("本地端点"),
+                      key: 'endpoint',
+                      render: () => <span>{protocol}://{host}:{port}</span>
+                    },
+                    {
+                      title: t("状态"),
+                      key: 'status',
+                      render: (_, item) => item.canApply ? (
+                        <Tag color="green">{t("可更新")}</Tag>
+                      ) : (
+                        <Tag color="orange">{t("运行中需先关闭")}</Tag>
+                      )
+                    }
+                  ]}
+                />
+              </Space>
+            )
+          },
+          {
             key: 'clients',
             label: <Space><AppstoreOutlined />{t("客户端覆写模式教程 (Flclash / Verge)")}</Space>,
             children: (
@@ -396,148 +598,11 @@ rules:
                   </div>
                   <Input.TextArea
                     readOnly
-                    autoSize={{ minRows: 7, maxRows: 12 }}
+                    autoSize={{ minRows: 6, maxRows: 10 }}
                     style={{ fontFamily: 'ui-monospace, Menlo, monospace', fontSize: 11 }}
                     value={jsScriptConfig}
                   />
                 </Card>
-              </Space>
-            )
-          },
-          {
-            key: 'generator',
-            label: <Space><ThunderboltOutlined />{t("凭据生成与配置代码")}</Space>,
-            children: (
-              <Space direction="vertical" style={{ width: '100%' }} size={14}>
-                <Form layout="vertical" size="small">
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 16px' }}>
-                    <Form.Item label={t("目标环境范围")}>
-                      <Radio.Group value={scope} onChange={(e) => setScope(e.target.value)}>
-                        <Radio value="all">{t("全部环境 ({0} 个)", allProfiles.length)}</Radio>
-                        <Radio value="selected" disabled={selectedProfileIds.length === 0}>
-                          {t("当前选中 ({0} 个)", selectedProfileIds.length)}
-                        </Radio>
-                      </Radio.Group>
-                    </Form.Item>
-
-                    <Form.Item label={t("编号规则")}>
-                      <Radio.Group value={namingMode} onChange={(e) => setNamingMode(e.target.value)}>
-                        <Radio value="order">{t("顺序递增 (0001, 0002...)")}</Radio>
-                        <Radio value="serial">{t("匹配环境序号 (#01 -> 0001)")}</Radio>
-                      </Radio.Group>
-                    </Form.Item>
-                  </div>
-
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0 12px' }}>
-                    <Form.Item label={t("本地监听主机")}>
-                      <Input value={host} onChange={(e) => setHost(e.target.value)} placeholder="127.0.0.1" />
-                    </Form.Item>
-
-                    <Form.Item label={t("Mihomo 端口")}>
-                      <InputNumber
-                        value={port}
-                        min={1024}
-                        max={65535}
-                        style={{ width: '100%' }}
-                        onChange={(val) => setPort(val || 17890)}
-                      />
-                    </Form.Item>
-
-                    <Form.Item label={t("代理协议")}>
-                      <Select
-                        value={protocol}
-                        options={[
-                          { value: 'socks5', label: 'SOCKS5' },
-                          { value: 'http', label: 'HTTP' }
-                        ]}
-                        onChange={setProtocol}
-                      />
-                    </Form.Item>
-
-                    <Form.Item label={t("账号前缀")}>
-                      <Input value={prefix} onChange={(e) => setPrefix(e.target.value)} placeholder="node-" />
-                    </Form.Item>
-                  </div>
-
-                  <Form.Item label={t("统一代理密码")}>
-                    <Input value={password} onChange={(e) => setPassword(e.target.value)} placeholder="prism" />
-                  </Form.Item>
-                </Form>
-
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <Typography.Text strong>{t("Mihomo 配置补丁 (包含 Users 与规则模板)")}</Typography.Text>
-                  <Button
-                    type="primary"
-                    icon={copiedSection === 'yaml' ? <CheckOutlined /> : <CopyOutlined />}
-                    onClick={() => void copyText(yamlConfig, 'yaml')}
-                  >
-                    {copiedSection === 'yaml' ? t("已复制配置") : t("复制 Mihomo 配置")}
-                  </Button>
-                </div>
-                <Input.TextArea
-                  value={yamlConfig}
-                  readOnly
-                  autoSize={{ minRows: 5, maxRows: 8 }}
-                  style={{ fontFamily: 'ui-monospace, Menlo, monospace', fontSize: 11 }}
-                />
-
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 }}>
-                  <Typography.Text strong>{t("环境代理分配预览 ({0} 个环境)", assignments.length)}</Typography.Text>
-                  <Button
-                    type="primary"
-                    danger
-                    icon={<ThunderboltOutlined />}
-                    loading={applying}
-                    disabled={!assignments.length}
-                    onClick={() => void applyToProfiles()}
-                  >
-                    {t("一键批量应用代理到环境", assignments.length)}
-                  </Button>
-                </div>
-
-                <Table
-                  dataSource={assignments}
-                  rowKey={(item) => item.profile.id}
-                  size="small"
-                  pagination={{ pageSize: 5 }}
-                  columns={[
-                    {
-                      title: t("环境"),
-                      key: 'name',
-                      render: (_, item) => (
-                        <Space>
-                          <Tag>#{String(item.profile.serialNumber).padStart(2, '0')}</Tag>
-                          <span>{item.profile.name}</span>
-                        </Space>
-                      )
-                    },
-                    {
-                      title: t("分配账号 (分流标识)"),
-                      dataIndex: 'username',
-                      key: 'username',
-                      render: (username) => <Tag color="blue">{username}</Tag>
-                    },
-                    {
-                      title: t("统一密码"),
-                      key: 'password',
-                      render: () => <Typography.Text code>{password}</Typography.Text>
-                    },
-                    {
-                      title: t("本地端点"),
-                      key: 'endpoint',
-                      render: () => <span>{protocol}://{host}:{port}</span>
-                    },
-                    {
-                      title: t("状态"),
-                      key: 'status',
-                      render: (_, item) => item.canApply ? (
-                        <Tag color="green">{t("可更新")}</Tag>
-                      ) : (
-                        <Tag color="orange">{t("运行中需先关闭")}</Tag>
-                      )
-                    }
-                  ]}
-                />
               </Space>
             )
           },

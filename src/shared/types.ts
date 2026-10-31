@@ -652,4 +652,7 @@ export interface BrowserApi {
     visit: (profileIds: string[], url: string, newTab: boolean) => Promise<void>
     onChanged: (listener: (status: WindowSyncStatus) => void) => () => void
   }
+  docs: {
+    openPath: (relativePath: string) => Promise<{ success: boolean; path: string }>
+  }
 }

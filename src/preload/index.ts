@@ -181,6 +181,9 @@ const api: BrowserApi = {
       ipcRenderer.on('window-sync:changed', handler)
       return () => ipcRenderer.removeListener('window-sync:changed', handler)
     }
+  },
+  docs: {
+    openPath: (relativePath: string) => ipcRenderer.invoke('docs:open-path', relativePath)
   }
 }
 

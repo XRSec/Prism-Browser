@@ -1,7 +1,8 @@
 import { t } from '../shared/i18n'
 import { app, BrowserWindow, dialog, ipcMain, net, shell } from 'electron'
+import { existsSync } from 'node:fs'
 import { lstat, readFile, stat, writeFile } from 'node:fs/promises'
-import { join } from 'node:path'
+import { join, resolve } from 'node:path'
 import { ProxyAgent, fetch as undiciFetch } from 'undici'
 import type { ExtensionDataSharingConfig, ExtensionDownloadNetwork, ProfileDraft } from '../shared/types'
 import type { KernelManager } from './kernel-manager'
@@ -546,4 +547,21 @@ export function registerIpc({ profiles, settings, launcher, kernels, extensions,
   ipcMain.handle('window-sync:same-tabs', (_event, mainProfileId, followerProfileIds) => windowSync.sameTabs(mainProfileId, followerProfileIds))
   ipcMain.handle('window-sync:close-tabs', (_event, profileIds, mode) => windowSync.closeTabs(profileIds, mode))
   ipcMain.handle('window-sync:visit', (_event, profileIds, url, newTab) => windowSync.visit(profileIds, url, newTab))
+  ipcMain.handle('docs:open-path', async (_event, relativePath: string) => {
+    const candidates = [
+      resolve(app.getAppPath(), relativePath),
+      resolve(process.resourcesPath, relativePath),
+      resolve(process.resourcesPath, '..', relativePath),
+      resolve(import.meta.dirname, '../../', relativePath)
+    ]
+    for (const candidate of candidates) {
+      try {
+        if (existsSync(candidate)) {
+          const err = await shell.openPath(candidate)
+          if (!err) return { success: true, path: candidate }
+        }
+      } catch {}
+    }
+    return { success: false, path: candidates[0] }
+  })
 }
