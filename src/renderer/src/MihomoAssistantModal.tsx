@@ -183,14 +183,15 @@ ${ruleList || "    'IN-USER,node-0001,DIRECT'"}
 
   // 计算 Zashboard / Web UI 的完整访问 URL
   const dashboardUrl = useMemo(() => {
-    const secretParam = controllerSecret ? `&secret=${encodeURIComponent(controllerSecret)}` : ''
-    if (dashboardSource === 'local') {
-      return `http://${controllerHost}:${controllerPort}/ui/?host=${controllerHost}&port=${controllerPort}${secretParam}#/proxies`
+    const secretParam = controllerSecret ? "&secret=" + encodeURIComponent(controllerSecret) : ""
+    const query = `hostname=${controllerHost}&host=${controllerHost}&port=${controllerPort}&protocol=http${secretParam}`
+    if (dashboardSource === "local") {
+      return `http://${controllerHost}:${controllerPort}/ui/#/setup?${query}`
     }
-    if (dashboardSource === 'zash_online') {
-      return `https://board.zash.run/?host=${controllerHost}&port=${controllerPort}${secretParam}#/proxies`
+    if (dashboardSource === "zash_online") {
+      return `https://board.zash.run.place/#/setup?${query}`
     }
-    return `https://metacubex.github.io/metacubexd/?host=${controllerHost}&port=${controllerPort}${secretParam}#/proxies`
+    return `https://metacubex.github.io/metacubexd/#/setup?${query}`
   }, [dashboardSource, controllerHost, controllerPort, controllerSecret])
 
   async function copyText(text: string, id: string): Promise<void> {
@@ -782,7 +783,7 @@ ${ruleList || "    'IN-USER,node-0001,DIRECT'"}
                       onChange={setDashboardSource}
                       options={[
                         { value: 'local', label: `本地内置 UI (${normalizedControllerAddress}/ui)` },
-                        { value: 'zash_online', label: 'Zashboard 官方在线托管 (board.zash.run)' },
+                        { value: 'zash_online', label: 'Zashboard 官方在线托管 (board.zash.run.place)' },
                         { value: 'metacubexd', label: 'MetaCubeXD 官方在线托管' }
                       ]}
                       style={{ width: 280 }}
