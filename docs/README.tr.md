@@ -1,6 +1,6 @@
 # Prism Browser Community
 
-[English](README.md) | [简体中文](README.zh-CN.md) | [繁體中文](README.zh-TW.md) | [Русский](README.ru.md) | [Tiếng Việt](README.vi.md) | [ไทย](README.th.md) | [Português (Brasil)](README.pt-BR.md)
+[English](../README.md) | [简体中文](README.zh-CN.md) | [繁體中文](README.zh-TW.md) | [Русский](README.ru.md) | [Tiếng Việt](README.vi.md) | [ไทย](README.th.md) | [Português (Brasil)](README.pt-BR.md)
 
 [Français](README.fr.md) | [Українська](README.uk.md) | [Español](README.es.md) | **[Türkçe](README.tr.md)** | [日本語](README.ja.md) | [हिन्दी](README.hi.md)
 
@@ -25,7 +25,7 @@ Arayüz ve README **13 dilde** sunulur: Basitleştirilmiş Çince, Geleneksel Ç
 - Başlangıçta sistemin birincil görüntüleme dili kullanılır; dil desteklenmiyorsa veya okunamıyorsa İngilizce seçilir.
 - Sağ üstteki seçici dili anında değiştirir. Elle yapılan seçim yerel olarak kaydedilir ve sonraki açılışlarda önceliklidir.
 - Arayüz dili, profilin parmak izi dilinden ve saat diliminden bağımsızdır. Adlar, notlar, etiketler ve kaydedilmemiş düzenlemeler korunur.
-- Çeviriler uygulamayla birlikte gelir; çevrimiçi çeviri hizmeti kullanılmaz. Katkıda bulunmak için [Çince ve İngilizce yerelleştirme kılavuzuna](docs/localization.md) bakın.
+- Çeviriler uygulamayla birlikte gelir; çevrimiçi çeviri hizmeti kullanılmaz. Katkıda bulunmak için [Çince ve İngilizce yerelleştirme kılavuzuna](localization.md) bakın.
 
 ## İndirme ve ilk kullanım
 
@@ -103,4 +103,4 @@ Projeyi yalnızca yasal ve izinli tarayıcı yalıtımı, otomasyon testleri, gi
 
 ## Yıldız geçmişi
 
-[![Prism Browser Community Star History](https://api.star-history.com/svg?repos=DFarm6/Prism-Browser-Community&type=Date)](https://www.star-history.com/#DFarm6/Prism-Browser-Community&Date)
+[![Prism Browser Community Star History](https://api.star-history.com/svg?repos=XRSec/Prism-Browser&type=Date)](https://www.star-history.com/#XRSec/Prism-Browser&Date)

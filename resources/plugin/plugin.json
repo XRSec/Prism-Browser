@@ -1,0 +1,25 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "prism-browser",
+  "version": "1.0.0",
+  "description": "Prism Browser fingerprint profile automation, session management, and anti-detect browsing",
+  "author": {
+    "name": "DFarm"
+  },
+  "homepage": "https://github.com/XRSec/Prism-Browser",
+  "repository": "https://github.com/XRSec/Prism-Browser",
+  "license": "MIT",
+  "keywords": [
+    "browser",
+    "automation",
+    "fingerprint",
+    "profile-management",
+    "mcp"
+  ],
+  "skills": [
+    "./skills"
+  ],
+  "prompts": [
+    "./prompts"
+  ]
+}

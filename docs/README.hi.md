@@ -1,6 +1,6 @@
 # Prism Browser Community
 
-[English](README.md) | [简体中文](README.zh-CN.md) | [繁體中文](README.zh-TW.md) | [Русский](README.ru.md) | [Tiếng Việt](README.vi.md) | [ไทย](README.th.md) | [Português (Brasil)](README.pt-BR.md)
+[English](../README.md) | [简体中文](README.zh-CN.md) | [繁體中文](README.zh-TW.md) | [Русский](README.ru.md) | [Tiếng Việt](README.vi.md) | [ไทย](README.th.md) | [Português (Brasil)](README.pt-BR.md)
 
 [Français](README.fr.md) | [Українська](README.uk.md) | [Español](README.es.md) | [Türkçe](README.tr.md) | [日本語](README.ja.md) | **[हिन्दी](README.hi.md)**
 
@@ -25,7 +25,7 @@ Prism Browser, अनुकूलित Chromium पर आधारित ए�
 - शुरू होने पर ऐप सिस्टम की प्राथमिक डिस्प्ले भाषा चुनता है। भाषा उपलब्ध न होने या समर्थित न होने पर अंग्रेज़ी इस्तेमाल होती है।
 - ऊपर दाईं ओर का चयनकर्ता तुरंत भाषा बदलता है। हाथ से किया गया चयन स्थानीय रूप से सहेजा जाता है और अगली बार उसी को प्राथमिकता मिलती है।
 - इंटरफ़ेस की भाषा, प्रोफ़ाइल के फ़िंगरप्रिंट की भाषा और समय क्षेत्र से स्वतंत्र है। नाम, नोट, टैग और बिना सहेजे बदलाव सुरक्षित रहते हैं।
-- अनुवाद ऐप के साथ आते हैं; ऑनलाइन अनुवाद सेवा की आवश्यकता नहीं है। योगदान के लिए [चीनी और अंग्रेज़ी में स्थानीयकरण मार्गदर्शिका](docs/localization.md) देखें।
+- अनुवाद ऐप के साथ आते हैं; ऑनलाइन अनुवाद सेवा की आवश्यकता नहीं है। योगदान के लिए [चीनी और अंग्रेज़ी में स्थानीयकरण मार्गदर्शिका](localization.md) देखें।
 
 ## डाउनलोड और शुरुआत
 
@@ -103,4 +103,4 @@ Prism Browser Community का अपना कोड [MIT License](LICENSE) क
 
 ## स्टार इतिहास
 
-[![Prism Browser Community Star History](https://api.star-history.com/svg?repos=DFarm6/Prism-Browser-Community&type=Date)](https://www.star-history.com/#DFarm6/Prism-Browser-Community&Date)
+[![Prism Browser Community Star History](https://api.star-history.com/svg?repos=XRSec/Prism-Browser&type=Date)](https://www.star-history.com/#XRSec/Prism-Browser&Date)

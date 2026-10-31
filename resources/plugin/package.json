@@ -1,0 +1,26 @@
+{
+  "name": "@prism-browser/plugin",
+  "version": "1.0.0",
+  "description": "Universal Prism Browser automation skill and prompt plugin for Claude Code, Pi, and Antigravity",
+  "type": "module",
+  "keywords": [
+    "pi-package",
+    "claude-plugin",
+    "agent-plugin",
+    "antigravity-plugin",
+    "prism-browser",
+    "automation",
+    "fingerprint"
+  ],
+  "pi": {
+    "skills": [
+      "./skills"
+    ],
+    "prompts": [
+      "./prompts"
+    ]
+  },
+  "author": "DFarm",
+  "license": "MIT",
+  "homepage": "https://github.com/XRSec/Prism-Browser"
+}

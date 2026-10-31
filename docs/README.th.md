@@ -1,6 +1,6 @@
 # Prism Browser Community
 
-[English](README.md) | [简体中文](README.zh-CN.md) | [繁體中文](README.zh-TW.md) | [Русский](README.ru.md) | [Tiếng Việt](README.vi.md) | **[ไทย](README.th.md)** | [Português (Brasil)](README.pt-BR.md)
+[English](../README.md) | [简体中文](README.zh-CN.md) | [繁體中文](README.zh-TW.md) | [Русский](README.ru.md) | [Tiếng Việt](README.vi.md) | **[ไทย](README.th.md)** | [Português (Brasil)](README.pt-BR.md)
 
 [Français](README.fr.md) | [Українська](README.uk.md) | [Español](README.es.md) | [Türkçe](README.tr.md) | [日本語](README.ja.md) | [हिन्दी](README.hi.md)
 
@@ -25,7 +25,7 @@ Prism Browser เป็นโปรแกรมจัดการโปรไฟ
 - เมื่อเปิดแอป จะเลือกภาษาที่ใช้แสดงผลหลักของระบบ หากอ่านไม่ได้หรือไม่รองรับ จะใช้ภาษาอังกฤษ
 - ตัวเลือกมุมขวาบนเปลี่ยนภาษาได้ทันที การเลือกด้วยตนเองจะบันทึกในเครื่องและมีลำดับความสำคัญสูงกว่าในการเปิดครั้งต่อไป
 - ภาษาของแอปแยกจากภาษาและเขตเวลาของลายนิ้วมือโปรไฟล์ ชื่อ หมายเหตุ แท็ก และการแก้ไขที่ยังไม่บันทึกจะคงเดิม
-- คำแปลมาพร้อมแอป ไม่ต้องใช้บริการแปลออนไลน์ ดู[คู่มือการแปลภาษาจีนและอังกฤษ](docs/localization.md) หากต้องการมีส่วนร่วม
+- คำแปลมาพร้อมแอป ไม่ต้องใช้บริการแปลออนไลน์ ดู[คู่มือการแปลภาษาจีนและอังกฤษ](localization.md) หากต้องการมีส่วนร่วม
 
 ## ดาวน์โหลดและเริ่มใช้งาน
 
@@ -103,4 +103,4 @@ npm run dist:win
 
 ## ประวัติจำนวนดาว
 
-[![Prism Browser Community Star History](https://api.star-history.com/svg?repos=DFarm6/Prism-Browser-Community&type=Date)](https://www.star-history.com/#DFarm6/Prism-Browser-Community&Date)
+[![Prism Browser Community Star History](https://api.star-history.com/svg?repos=XRSec/Prism-Browser&type=Date)](https://www.star-history.com/#XRSec/Prism-Browser&Date)

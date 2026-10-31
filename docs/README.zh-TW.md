@@ -1,6 +1,6 @@
 # Prism Browser Community
 
-[English](README.md) | [简体中文](README.zh-CN.md) | **[繁體中文](README.zh-TW.md)** | [Русский](README.ru.md) | [Tiếng Việt](README.vi.md) | [ไทย](README.th.md) | [Português (Brasil)](README.pt-BR.md)
+[English](../README.md) | [简体中文](README.zh-CN.md) | **[繁體中文](README.zh-TW.md)** | [Русский](README.ru.md) | [Tiếng Việt](README.vi.md) | [ไทย](README.th.md) | [Português (Brasil)](README.pt-BR.md)
 
 [Français](README.fr.md) | [Українська](README.uk.md) | [Español](README.es.md) | [Türkçe](README.tr.md) | [日本語](README.ja.md) | [हिन्दी](README.hi.md)
 
@@ -25,7 +25,7 @@ Prism Browser 是以自訂 Chromium 為基礎的本機指紋瀏覽器環境管�
 - 首次啟動依系統首選顯示語言匹配；不支援或無法讀取時使用英語。
 - 可用右上角選單即時切換；手動選擇儲存在本機，之後啟動會優先採用。
 - 介面語言與環境指紋語言、時區彼此獨立；切換不會清除名稱、備註、標籤或尚未儲存的編輯內容。
-- 翻譯詞庫隨程式提供，無須線上翻譯。貢獻方式請參閱[多語言開發說明（中文／英文）](docs/localization.md)。
+- 翻譯詞庫隨程式提供，無須線上翻譯。貢獻方式請參閱[多語言開發說明（中文／英文）](localization.md)。
 
 ## 下載與開始使用
 
@@ -103,4 +103,4 @@ Prism Browser Community 自有程式碼採用 [MIT License](LICENSE)。Chromium�
 
 ## Star 歷史
 
-[![Prism Browser Community Star History](https://api.star-history.com/svg?repos=DFarm6/Prism-Browser-Community&type=Date)](https://www.star-history.com/#DFarm6/Prism-Browser-Community&Date)
+[![Prism Browser Community Star History](https://api.star-history.com/svg?repos=XRSec/Prism-Browser&type=Date)](https://www.star-history.com/#XRSec/Prism-Browser&Date)

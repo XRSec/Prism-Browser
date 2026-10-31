@@ -1,6 +1,6 @@
 # Prism Browser Community
 
-[English](README.md) | [简体中文](README.zh-CN.md) | [繁體中文](README.zh-TW.md) | [Русский](README.ru.md) | **[Tiếng Việt](README.vi.md)** | [ไทย](README.th.md) | [Português (Brasil)](README.pt-BR.md)
+[English](../README.md) | [简体中文](README.zh-CN.md) | [繁體中文](README.zh-TW.md) | [Русский](README.ru.md) | **[Tiếng Việt](README.vi.md)** | [ไทย](README.th.md) | [Português (Brasil)](README.pt-BR.md)
 
 [Français](README.fr.md) | [Українська](README.uk.md) | [Español](README.es.md) | [Türkçe](README.tr.md) | [日本語](README.ja.md) | [हिन्दी](README.hi.md)
 
@@ -25,7 +25,7 @@ Giao diện và README có **13 ngôn ngữ**: tiếng Trung giản thể, Trung
 - Khi khởi động, ứng dụng chọn ngôn ngữ hiển thị chính của hệ thống; nếu không đọc được hoặc chưa hỗ trợ thì dùng tiếng Anh.
 - Bộ chọn ở góc trên bên phải đổi ngôn ngữ ngay lập tức. Lựa chọn thủ công được lưu cục bộ và được ưu tiên trong các lần mở sau.
 - Ngôn ngữ giao diện độc lập với ngôn ngữ dấu vân tay và múi giờ của hồ sơ. Tên, ghi chú, thẻ và nội dung chưa lưu được giữ nguyên.
-- Bản dịch được tích hợp sẵn, không cần dịch trực tuyến. Xem [hướng dẫn bản địa hóa bằng tiếng Trung và tiếng Anh](docs/localization.md) để đóng góp.
+- Bản dịch được tích hợp sẵn, không cần dịch trực tuyến. Xem [hướng dẫn bản địa hóa bằng tiếng Trung và tiếng Anh](localization.md) để đóng góp.
 
 ## Tải xuống và bắt đầu
 
@@ -103,4 +103,4 @@ Chỉ sử dụng cho việc tách biệt trình duyệt, kiểm thử tự đ�
 
 ## Lịch sử số sao
 
-[![Prism Browser Community Star History](https://api.star-history.com/svg?repos=DFarm6/Prism-Browser-Community&type=Date)](https://www.star-history.com/#DFarm6/Prism-Browser-Community&Date)
+[![Prism Browser Community Star History](https://api.star-history.com/svg?repos=XRSec/Prism-Browser&type=Date)](https://www.star-history.com/#XRSec/Prism-Browser&Date)

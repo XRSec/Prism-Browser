@@ -1,0 +1,12 @@
+{
+  "name": "prism-browser",
+  "version": "1.0.0",
+  "description": "Prism Browser fingerprint profile automation, session management, and anti-detect browsing",
+  "author": {
+    "name": "DFarm"
+  },
+  "homepage": "https://github.com/XRSec/Prism-Browser",
+  "skills": [
+    "./skills"
+  ]
+}

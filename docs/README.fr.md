@@ -1,6 +1,6 @@
 # Prism Browser Community
 
-[English](README.md) | [简体中文](README.zh-CN.md) | [繁體中文](README.zh-TW.md) | [Русский](README.ru.md) | [Tiếng Việt](README.vi.md) | [ไทย](README.th.md) | [Português (Brasil)](README.pt-BR.md)
+[English](../README.md) | [简体中文](README.zh-CN.md) | [繁體中文](README.zh-TW.md) | [Русский](README.ru.md) | [Tiếng Việt](README.vi.md) | [ไทย](README.th.md) | [Português (Brasil)](README.pt-BR.md)
 
 **[Français](README.fr.md)** | [Українська](README.uk.md) | [Español](README.es.md) | [Türkçe](README.tr.md) | [日本語](README.ja.md) | [हिन्दी](README.hi.md)
 
@@ -25,7 +25,7 @@ L’interface et le README sont disponibles en **13 langues** : chinois simplifi
 - Au démarrage, la langue d’affichage principale du système est utilisée ; l’anglais sert de repli si elle est indisponible ou non prise en charge.
 - Le sélecteur en haut à droite permet un changement immédiat. Le choix manuel est enregistré localement et reste prioritaire aux démarrages suivants.
 - La langue de l’interface est indépendante de la langue et du fuseau horaire de l’empreinte du profil. Noms, notes, étiquettes et modifications non enregistrées sont conservés.
-- Les traductions sont intégrées à l’application, sans service de traduction en ligne. Pour contribuer, consultez le [guide de localisation en chinois et anglais](docs/localization.md).
+- Les traductions sont intégrées à l’application, sans service de traduction en ligne. Pour contribuer, consultez le [guide de localisation en chinois et anglais](localization.md).
 
 ## Télécharger et démarrer
 
@@ -103,4 +103,4 @@ Utilisez ce projet uniquement pour l’isolation de navigateurs, les tests autom
 
 ## Historique des étoiles
 
-[![Prism Browser Community Star History](https://api.star-history.com/svg?repos=DFarm6/Prism-Browser-Community&type=Date)](https://www.star-history.com/#DFarm6/Prism-Browser-Community&Date)
+[![Prism Browser Community Star History](https://api.star-history.com/svg?repos=XRSec/Prism-Browser&type=Date)](https://www.star-history.com/#XRSec/Prism-Browser&Date)

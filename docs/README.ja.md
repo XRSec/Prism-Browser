@@ -1,6 +1,6 @@
 # Prism Browser Community
 
-[English](README.md) | [简体中文](README.zh-CN.md) | [繁體中文](README.zh-TW.md) | [Русский](README.ru.md) | [Tiếng Việt](README.vi.md) | [ไทย](README.th.md) | [Português (Brasil)](README.pt-BR.md)
+[English](../README.md) | [简体中文](README.zh-CN.md) | [繁體中文](README.zh-TW.md) | [Русский](README.ru.md) | [Tiếng Việt](README.vi.md) | [ไทย](README.th.md) | [Português (Brasil)](README.pt-BR.md)
 
 [Français](README.fr.md) | [Українська](README.uk.md) | [Español](README.es.md) | [Türkçe](README.tr.md) | **[日本語](README.ja.md)** | [हिन्दी](README.hi.md)
 
@@ -25,7 +25,7 @@ Prism Browser は、カスタマイズした Chromium を基盤とするロー�
 - 起動時はシステムの優先表示言語に合わせます。未対応、または取得できない場合は英語を使用します。
 - 右上の選択欄で即座に切り替えられます。手動で選んだ言語は端末に保存され、次回以降も優先されます。
 - アプリの表示言語は、プロファイルのフィンガープリント言語やタイムゾーンとは独立しています。名前、メモ、タグ、未保存の編集内容は維持されます。
-- 翻訳データはアプリに同梱され、オンライン翻訳は不要です。貢献方法は[多言語開発ガイド（中国語・英語）](docs/localization.md)をご覧ください。
+- 翻訳データはアプリに同梱され、オンライン翻訳は不要です。貢献方法は[多言語開発ガイド（中国語・英語）](localization.md)をご覧ください。
 
 ## ダウンロードと使い方
 
@@ -103,4 +103,4 @@ Prism Browser Community 独自のコードには [MIT License](LICENSE) が適�
 
 ## スターの推移
 
-[![Prism Browser Community Star History](https://api.star-history.com/svg?repos=DFarm6/Prism-Browser-Community&type=Date)](https://www.star-history.com/#DFarm6/Prism-Browser-Community&Date)
+[![Prism Browser Community Star History](https://api.star-history.com/svg?repos=XRSec/Prism-Browser&type=Date)](https://www.star-history.com/#XRSec/Prism-Browser&Date)

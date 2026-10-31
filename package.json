@@ -7,6 +7,23 @@
     "url": "https://x.com/DFarm_club"
   },
   "description": "Open-source local-first multi-profile fingerprint browser",
+  "keywords": [
+    "pi-package",
+    "claude-plugin",
+    "agent-plugin",
+    "antigravity-plugin",
+    "fingerprint-browser",
+    "automation",
+    "mcp"
+  ],
+  "pi": {
+    "skills": [
+      "./resources/skills"
+    ],
+    "prompts": [
+      "./resources/prompts"
+    ]
+  },
   "main": "out/main/index.js",
   "type": "module",
   "scripts": {
@@ -85,6 +102,14 @@
         "to": "pro-agent"
       },
       {
+        "from": "resources/plugin",
+        "to": "plugin"
+      },
+      {
+        "from": "resources/skills",
+        "to": "skills"
+      },
+      {
         "from": "resources/license-config.json",
         "to": "license-config.json"
       },
@@ -133,10 +158,10 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/DFarm6/Prism-Browser-Community.git"
+    "url": "https://github.com/XRSec/Prism-Browser.git"
   },
-  "homepage": "https://github.com/DFarm6/Prism-Browser-Community#readme",
+  "homepage": "https://github.com/XRSec/Prism-Browser#readme",
   "bugs": {
-    "url": "https://github.com/DFarm6/Prism-Browser-Community/issues"
+    "url": "https://github.com/XRSec/Prism-Browser/issues"
   }
 }

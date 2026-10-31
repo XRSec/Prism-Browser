@@ -1,6 +1,6 @@
 # Prism Browser Community
 
-[English](README.md) | [简体中文](README.zh-CN.md) | [繁體中文](README.zh-TW.md) | [Русский](README.ru.md) | [Tiếng Việt](README.vi.md) | [ไทย](README.th.md) | [Português (Brasil)](README.pt-BR.md)
+[English](../README.md) | [简体中文](README.zh-CN.md) | [繁體中文](README.zh-TW.md) | [Русский](README.ru.md) | [Tiếng Việt](README.vi.md) | [ไทย](README.th.md) | [Português (Brasil)](README.pt-BR.md)
 
 [Français](README.fr.md) | [Українська](README.uk.md) | **[Español](README.es.md)** | [Türkçe](README.tr.md) | [日本語](README.ja.md) | [हिन्दी](README.hi.md)
 
@@ -25,7 +25,7 @@ La interfaz y el README están disponibles en **13 idiomas**: chino simplificado
 - Al iniciar, se utiliza el idioma de visualización principal del sistema; si no está disponible o no se admite, se usa inglés.
 - El selector de la esquina superior derecha permite cambiar al instante. La elección manual se guarda localmente y tiene prioridad en futuros inicios.
 - El idioma de la interfaz es independiente del idioma y la zona horaria de la huella del perfil. Se conservan nombres, notas, etiquetas y cambios sin guardar.
-- Las traducciones están incluidas en la aplicación, sin servicios de traducción en línea. Para contribuir, consulta la [guía de localización en chino e inglés](docs/localization.md).
+- Las traducciones están incluidas en la aplicación, sin servicios de traducción en línea. Para contribuir, consulta la [guía de localización en chino e inglés](localization.md).
 
 ## Descargar y empezar
 
@@ -103,4 +103,4 @@ Utiliza el proyecto únicamente para aislamiento de navegadores, pruebas automat
 
 ## Historial de estrellas
 
-[![Prism Browser Community Star History](https://api.star-history.com/svg?repos=DFarm6/Prism-Browser-Community&type=Date)](https://www.star-history.com/#DFarm6/Prism-Browser-Community&Date)
+[![Prism Browser Community Star History](https://api.star-history.com/svg?repos=XRSec/Prism-Browser&type=Date)](https://www.star-history.com/#XRSec/Prism-Browser&Date)

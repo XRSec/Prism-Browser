@@ -1,6 +1,6 @@
 import { t, translateMessage as mt } from '../../shared/i18n'
-import { CopyOutlined, LockOutlined, RobotOutlined, SafetyCertificateOutlined, StopOutlined } from '@ant-design/icons'
-import { Alert, Button, Input, Modal, Popconfirm, Select, Space, Switch, Tag, Typography } from 'antd'
+import { CheckOutlined, CodeOutlined, CopyOutlined, LockOutlined, RobotOutlined, SafetyCertificateOutlined, StopOutlined } from '@ant-design/icons'
+import { Alert, Button, Input, Modal, Popconfirm, Select, Space, Switch, Tabs, Tag, Typography } from 'antd'
 import { useEffect, useMemo, useState } from 'react'
 import type { BrowserProfileView, McpConnection, McpPolicy, McpProfilePermission, McpStatus } from '../../shared/types'
 
@@ -28,7 +28,14 @@ export function McpModal({ open, status, permissions, profiles, proEnabled, onSt
   const [error, setError] = useState('')
   const [configuration, setConfiguration] = useState('')
   const [copied, setCopied] = useState(false)
+  const [copiedCmd, setCopiedCmd] = useState('')
   const [search, setSearch] = useState('')
+
+  async function copyText(text: string): Promise<void> {
+    await navigator.clipboard.writeText(text)
+    setCopiedCmd(text)
+    setTimeout(() => setCopiedCmd(''), 2000)
+  }
 
   const policy: McpPolicy = status?.policy ?? { enabled: true, defaultAccess: 'deny', allowProfileCreation: false }
   const overrides = useMemo(() => new Map(permissions.map((p) => [p.profileId, p.enabled])), [permissions])
@@ -310,6 +317,108 @@ export function McpModal({ open, status, permissions, profiles, proEnabled, onSt
             <Alert type="info" showIcon title={t("首次添加后请按 AI 客户端提示重启")} description={t("之后无需重新复制；AI 使用时会自动连接或启动 Prism 本地服务。")} />
           </section>
         )}
+
+        <section className="mcp-configuration">
+          <div className="mcp-section-heading">
+            <div>
+              <strong><CodeOutlined /> {t("AI Agent 技能与插件 (Skill & Plugin)")}</strong>
+              <span>{t("支持 Pi、Claude Code、Antigravity，装入后随 App 自动演进，默认主动沉默（按需激活）")}</span>
+            </div>
+          </div>
+          <Tabs
+            size="small"
+            items={[
+              {
+                key: 'pi',
+                label: 'Pi / Antigravity',
+                children: (
+                  <Space orientation="vertical" style={{ width: '100%' }} size={10}>
+                    <div>
+                      <Typography.Text strong style={{ fontSize: 12, display: 'block', marginBottom: 4 }}>
+                        {t("从本地 App 安装 (推荐，随软件自动更新)")}
+                      </Typography.Text>
+                      <Input
+                        readOnly
+                        value={'pi install "/Applications/Prism Browser.app/Contents/Resources/plugin"'}
+                        addonAfter={
+                          <Button
+                            type="link"
+                            size="small"
+                            icon={copiedCmd === 'pi-local' ? <CheckOutlined /> : <CopyOutlined />}
+                            onClick={() => void copyText('pi install "/Applications/Prism Browser.app/Contents/Resources/plugin"')}
+                          >
+                            {copiedCmd === 'pi install "/Applications/Prism Browser.app/Contents/Resources/plugin"' ? t("已复制") : t("复制")}
+                          </Button>
+                        }
+                      />
+                    </div>
+                    <div>
+                      <Typography.Text strong style={{ fontSize: 12, display: 'block', marginBottom: 4 }}>
+                        {t("从 GitHub 远程安装")}
+                      </Typography.Text>
+                      <Input
+                        readOnly
+                        value={'pi install git:github.com/XRSec/Prism-Browser'}
+                        addonAfter={
+                          <Button
+                            type="link"
+                            size="small"
+                            onClick={() => void copyText('pi install git:github.com/XRSec/Prism-Browser')}
+                          >
+                            {copiedCmd === 'pi install git:github.com/XRSec/Prism-Browser' ? t("已复制") : t("复制")}
+                          </Button>
+                        }
+                      />
+                    </div>
+                  </Space>
+                )
+              },
+              {
+                key: 'claude',
+                label: 'Claude Code',
+                children: (
+                  <Space orientation="vertical" style={{ width: '100%' }} size={10}>
+                    <div>
+                      <Typography.Text strong style={{ fontSize: 12, display: 'block', marginBottom: 4 }}>
+                        {t("Claude Code 插件安装命令")}
+                      </Typography.Text>
+                      <Input
+                        readOnly
+                        value={'claude plugin install "/Applications/Prism Browser.app/Contents/Resources/plugin"'}
+                        addonAfter={
+                          <Button
+                            type="link"
+                            size="small"
+                            onClick={() => void copyText('claude plugin install "/Applications/Prism Browser.app/Contents/Resources/plugin"')}
+                          >
+                            {copiedCmd === 'claude plugin install "/Applications/Prism Browser.app/Contents/Resources/plugin"' ? t("已复制") : t("复制")}
+                          </Button>
+                        }
+                      />
+                    </div>
+                  </Space>
+                )
+              },
+              {
+                key: 'usage',
+                label: t("说明与唤醒"),
+                children: (
+                  <Alert
+                    type="info"
+                    showIcon
+                    title={t("主动沉默机制 (Silent-by-Default)")}
+                    description={
+                      <div>
+                        <p style={{ margin: '4px 0' }}>{t("内置技能声明了 disable-model-invocation: true，日常对话中 AI 绝对不会预读该技能，避免浪费 Token。")}</p>
+                        <p style={{ margin: '4px 0' }}>{t("仅当用户在指令中指明使用 Prism 或输入 /skill:prism-browser 时按需激活。")}</p>
+                      </div>
+                    }
+                  />
+                )
+              }
+            ]}
+          />
+        </section>
       </Space>
     </Modal>
   )

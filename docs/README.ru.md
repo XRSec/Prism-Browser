@@ -1,6 +1,6 @@
 # Prism Browser Community
 
-[English](README.md) | [简体中文](README.zh-CN.md) | [繁體中文](README.zh-TW.md) | **[Русский](README.ru.md)** | [Tiếng Việt](README.vi.md) | [ไทย](README.th.md) | [Português (Brasil)](README.pt-BR.md)
+[English](../README.md) | [简体中文](README.zh-CN.md) | [繁體中文](README.zh-TW.md) | **[Русский](README.ru.md)** | [Tiếng Việt](README.vi.md) | [ไทย](README.th.md) | [Português (Brasil)](README.pt-BR.md)
 
 [Français](README.fr.md) | [Українська](README.uk.md) | [Español](README.es.md) | [Türkçe](README.tr.md) | [日本語](README.ja.md) | [हिन्दी](README.hi.md)
 
@@ -25,7 +25,7 @@ Prism Browser — локальный менеджер профилей брау�
 - При запуске используется основной язык интерфейса системы. Если он недоступен или не поддерживается, выбирается английский.
 - Переключатель справа вверху меняет язык сразу. Ручной выбор сохраняется локально и имеет приоритет при следующих запусках.
 - Язык приложения не меняет язык отпечатка и часовой пояс профиля. Имена, заметки, метки и несохранённые изменения остаются прежними.
-- Переводы встроены в приложение, онлайн-перевод не используется. Для участия см. [руководство по локализации на китайском и английском](docs/localization.md).
+- Переводы встроены в приложение, онлайн-перевод не используется. Для участия см. [руководство по локализации на китайском и английском](localization.md).
 
 ## Установка и начало работы
 
@@ -103,4 +103,4 @@ npm run dist:win
 
 ## История звёзд
 
-[![Prism Browser Community Star History](https://api.star-history.com/svg?repos=DFarm6/Prism-Browser-Community&type=Date)](https://www.star-history.com/#DFarm6/Prism-Browser-Community&Date)
+[![Prism Browser Community Star History](https://api.star-history.com/svg?repos=XRSec/Prism-Browser&type=Date)](https://www.star-history.com/#XRSec/Prism-Browser&Date)

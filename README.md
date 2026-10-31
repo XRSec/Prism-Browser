@@ -1,8 +1,8 @@
 # Prism Browser Community
 
-**[English](README.md)** | [简体中文](README.zh-CN.md) | [繁體中文](README.zh-TW.md) | [Русский](README.ru.md) | [Tiếng Việt](README.vi.md) | [ไทย](README.th.md) | [Português (Brasil)](README.pt-BR.md)
+**[English](README.md)** | [简体中文](docs/README.zh-CN.md) | [繁體中文](docs/README.zh-TW.md) | [Русский](docs/README.ru.md) | [Tiếng Việt](docs/README.vi.md) | [ไทย](docs/README.th.md) | [Português (Brasil)](docs/README.pt-BR.md)
 
-[Français](README.fr.md) | [Українська](README.uk.md) | [Español](README.es.md) | [Türkçe](README.tr.md) | [日本語](README.ja.md) | [हिन्दी](README.hi.md)
+[Français](docs/README.fr.md) | [Українська](docs/README.uk.md) | [Español](docs/README.es.md) | [Türkçe](docs/README.tr.md) | [日本語](docs/README.ja.md) | [हिन्दी](docs/README.hi.md)
 
 Author: [DFarm](https://x.com/DFarm_club)
 
@@ -214,4 +214,4 @@ Use this project only for lawful and authorized browser isolation, automation te
 
 ## Star History
 
-[![Prism Browser Community Star History](https://api.star-history.com/svg?repos=DFarm6/Prism-Browser-Community&type=Date)](https://www.star-history.com/#DFarm6/Prism-Browser-Community&Date)
+[![Prism Browser Community Star History](https://api.star-history.com/svg?repos=XRSec/Prism-Browser&type=Date)](https://www.star-history.com/#XRSec/Prism-Browser&Date)

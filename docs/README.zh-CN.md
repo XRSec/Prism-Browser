@@ -1,6 +1,6 @@
 # Prism Browser Community
 
-[English](README.md) | **[简体中文](README.zh-CN.md)** | [繁體中文](README.zh-TW.md) | [Русский](README.ru.md) | [Tiếng Việt](README.vi.md) | [ไทย](README.th.md) | [Português (Brasil)](README.pt-BR.md)
+[English](../README.md) | **[简体中文](README.zh-CN.md)** | [繁體中文](README.zh-TW.md) | [Русский](README.ru.md) | [Tiếng Việt](README.vi.md) | [ไทย](README.th.md) | [Português (Brasil)](README.pt-BR.md)
 
 [Français](README.fr.md) | [Українська](README.uk.md) | [Español](README.es.md) | [Türkçe](README.tr.md) | [日本語](README.ja.md) | [हिन्दी](README.hi.md)
 
@@ -28,7 +28,7 @@ Prism Browser 是一个基于定制 Chromium 的本地指纹浏览器环境管�
 - 右上角语言选择器可即时切换。手动选择仅保存在本机，后续启动优先使用该选择。
 - 菜单、常用对话框、表单、日期和排序随界面语言调整。翻译词库随应用提供，无需联网翻译。
 - 界面语言与环境指纹语言、时区独立；切换时保留环境名称、备注、标签和未保存的编辑内容。
-- README 同样提供上述 13 种语言，可通过页首链接切换阅读。翻译贡献方式见 [多语言开发说明](docs/localization.md)。
+- README 同样提供上述 13 种语言，可通过页首链接切换阅读。翻译贡献方式见 [多语言开发说明](localization.md)。
 
 ## 快速下载和使用
 
@@ -214,4 +214,4 @@ Prism Browser Community 自有代码以 MIT License 发布。Chromium、ungoogle
 
 ## Star 历史
 
-[![Prism Browser Community Star History](https://api.star-history.com/svg?repos=DFarm6/Prism-Browser-Community&type=Date)](https://www.star-history.com/#DFarm6/Prism-Browser-Community&Date)
+[![Prism Browser Community Star History](https://api.star-history.com/svg?repos=XRSec/Prism-Browser&type=Date)](https://www.star-history.com/#XRSec/Prism-Browser&Date)

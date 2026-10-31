@@ -1,0 +1,204 @@
+name: Release
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      action_type:
+        description: "发布模式"
+        required: true
+        type: choice
+        default: "auto-check"
+        options:
+          - "auto-check"     # 自动比对代码与线上版本（版本号未递增或已存在则跳过）
+          - "force-release"  # 强制对当前代码版本发布
+          - "custom-version" # 手动指定版本号发布
+      custom_version:
+        description: "指定自定义版本号（仅当选择 custom-version 时生效，如 0.3.23）"
+        required: false
+        type: string
+      draft:
+        description: "是否作为草稿发布（不公开）"
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+jobs:
+  version-gate:
+    name: Determine Target Version
+    runs-on: ubuntu-latest
+    outputs:
+      need_release: ${{ steps.eval.outputs.need_release }}
+      target_version: ${{ steps.eval.outputs.target_version }}
+      tag_name: ${{ steps.eval.outputs.tag_name }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Evaluate version diff
+        id: eval
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CUSTOM_VERSION: ${{ inputs.custom_version }}
+          ACTION_TYPE: ${{ inputs.action_type }}
+        run: |
+          set -euo pipefail
+
+          # 1. 提取当前代码中的版本号
+          LOCAL_VER=$(jq -r '.version // empty' package.json)
+          echo "Code Version detected: $LOCAL_VER"
+
+          # 2. 如果是通过 Git Tag 推送触发的
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            TAG_REF="${GITHUB_REF#refs/tags/}"
+            VER_REF="${TAG_REF#v}"
+            echo "🚀 Triggered via git tag: $TAG_REF"
+            echo "need_release=true" >> "$GITHUB_OUTPUT"
+            echo "target_version=$VER_REF" >> "$GITHUB_OUTPUT"
+            echo "tag_name=$TAG_REF" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          # 3. 检查 GitHub 上该版本号对应的 Release 是否已存在
+          CHECK_TAG="v${LOCAL_VER}"
+          TAG_EXISTS="false"
+          if gh release view "$CHECK_TAG" >/dev/null 2>&1; then
+            TAG_EXISTS="true"
+          fi
+
+          # 获取线上最新的 Release 版本
+          ONLINE_TAG=$(gh release view --json tagName --jq '.tagName // empty' 2>/dev/null || echo "")
+          ONLINE_VER="${ONLINE_TAG#v}"
+          [ -z "$ONLINE_VER" ] && ONLINE_VER="0.0.0"
+
+          echo "Online latest release: $ONLINE_VER"
+          echo "Online release exists for $CHECK_TAG: $TAG_EXISTS"
+
+          ACTION="${ACTION_TYPE:-auto-check}"
+          TARGET_VER=""
+          NEED_RELEASE="false"
+
+          if [ "$ACTION" = "auto-check" ]; then
+            if [ "$TAG_EXISTS" = "true" ]; then
+              echo "ℹ️ 版本 $CHECK_TAG 线上已存在，跳过本次构建。"
+              NEED_RELEASE="false"
+            else
+              echo "🚀 检测到新版本 $CHECK_TAG（线上最新为 $ONLINE_VER），触发构建发布。"
+              TARGET_VER="$LOCAL_VER"
+              NEED_RELEASE="true"
+            fi
+          elif [ "$ACTION" = "force-release" ]; then
+            echo "⚠️ 强制重新构建并发布当前版本: $LOCAL_VER"
+            TARGET_VER="$LOCAL_VER"
+            NEED_RELEASE="true"
+          elif [ "$ACTION" = "custom-version" ]; then
+            if [ -z "$CUSTOM_VERSION" ]; then
+              echo "❌ 错误: 选择了 custom-version 模式但未提供 custom_version 输入。" >&2
+              exit 1
+            fi
+            TARGET_VER="$CUSTOM_VERSION"
+            echo "⚠️ 手动发布指定版本: $TARGET_VER"
+            NEED_RELEASE="true"
+          fi
+
+          TARGET_VER="${TARGET_VER//$'\n'/}"
+          echo "need_release=$NEED_RELEASE" >> "$GITHUB_OUTPUT"
+          echo "target_version=$TARGET_VER" >> "$GITHUB_OUTPUT"
+          echo "tag_name=v${TARGET_VER}" >> "$GITHUB_OUTPUT"
+
+  build-and-release:
+    name: Build (${{ matrix.os }} - ${{ matrix.arch }})
+    needs: [version-gate]
+    if: needs.version-gate.outputs.need_release == 'true'
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # macOS Apple Silicon (arm64)
+          - os: "macos-latest"
+            arch: "arm64"
+            target: "mac"
+            build_cmd: "npm run dist:mac"
+
+          # Windows x64
+          - os: "windows-latest"
+            arch: "x64"
+            target: "win"
+            build_cmd: "npm run dist:win"
+
+    runs-on: ${{ matrix.os }}
+    env:
+      CSC_IDENTITY_AUTO_DISCOVERY: false
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Build Electron App
+        run: ${{ matrix.build_cmd }}
+
+      - name: Ensure GitHub Release Exists
+        shell: bash
+        run: |
+          TAG="${{ needs.version-gate.outputs.tag_name }}"
+          if ! gh release view "$TAG" >/dev/null 2>&1; then
+            gh release create "$TAG" \
+              --title "Prism Browser $TAG" \
+              --notes "Prism Browser 跨平台版本发布（内置 AI Agent 插件、多环境指纹隔离与 CDP 隐身自动化）。" \
+              --draft
+          fi
+
+      - name: Upload Release Artifacts
+        shell: bash
+        run: |
+          TAG="${{ needs.version-gate.outputs.tag_name }}"
+          echo "==> Uploading artifacts from release/ to release $TAG..."
+          # 仅上传安装包产物 (dmg, zip, msi, exe)，跳过 builder 临时元数据文件
+          find release -maxdepth 1 -type f \( -name "*.dmg" -o -name "*.zip" -o -name "*.msi" -o -name "*.exe" \) | while read -r file; do
+            echo "Uploading $file..."
+            gh release upload "$TAG" "$file" --clobber
+          done
+
+  publish:
+    name: Publish Release
+    needs: [version-gate, build-and-release]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    if: ${{ !(github.event.inputs.draft == true || github.event.inputs.draft == 'true') }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Publish Release to Public
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG_NAME: ${{ needs.version-gate.outputs.tag_name }}
+        run: |
+          TAG="$TAG_NAME"
+          echo "==> Publishing Release $TAG to public..."
+          gh release edit "$TAG" --draft=false --latest
+          echo "==> Release published successfully!"
