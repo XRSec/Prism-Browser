@@ -64,6 +64,7 @@ import { LaunchDiagnosticsModal } from './LaunchDiagnosticsModal'
 import { CrashHistoryModal } from './CrashHistoryModal'
 import { BatchResultModal, type BatchOperationResult } from './BatchResultModal'
 import { ClearDataModal } from './ClearDataModal'
+import { MihomoAssistantModal } from './MihomoAssistantModal'
 import { UpdateModal } from './UpdateModal'
 import { PlanModal } from './PlanModal'
 import { WorkspaceMigrationModal } from './WorkspaceMigrationModal'
@@ -183,6 +184,8 @@ export default function App({ colorMode = 'light', onColorModeChange = () => {} 
   const [batchClassificationOpen, setBatchClassificationOpen] = useState(false)
   const [clearDataModalOpen, setClearDataModalOpen] = useState(false)
   const [clearDataTargetIds, setClearDataTargetIds] = useState<string[]>([])
+  const [mihomoModalOpen, setMihomoModalOpen] = useState(false)
+  const [mihomoTargetIds, setMihomoTargetIds] = useState<string[]>([])
   const [batchGroupEnabled, setBatchGroupEnabled] = useState(false)
   const [batchGroup, setBatchGroup] = useState('')
   const [batchTagsEnabled, setBatchTagsEnabled] = useState(false)
@@ -1177,6 +1180,7 @@ export default function App({ colorMode = 'light', onColorModeChange = () => {} 
                     >{t("批量打开")}</Button>
                     <Button size="small" icon={<PoweroffOutlined />} loading={batchBusy} onClick={() => void runBatch('close')}>{t("批量关闭")}</Button>
                     <Button size="small" icon={<ApiOutlined />} loading={batchBusy} onClick={() => void runProxyChecks(selectedIds)}>{t("检测代理")}</Button>
+                    <Button size="small" icon={<ApiOutlined />} disabled={batchBusy} onClick={() => { setMihomoTargetIds(selectedIds); setMihomoModalOpen(true); }}>{t("Mihomo 分流")}</Button>
                     <Button size="small" icon={<ClearOutlined />} disabled={batchBusy} onClick={() => { setClearDataTargetIds(selectedIds); setClearDataModalOpen(true); }}>{t("清理数据")}</Button>
                     <Button size="small" icon={<TagsOutlined />} disabled={batchBusy} onClick={() => setBatchClassificationOpen(true)}>{t("分组/标签")}</Button>
                     <Button size="small" danger icon={<DeleteOutlined />} disabled={batchBusy} onClick={confirmBatchRemove}>{t("移入回收站")}</Button>
@@ -1185,6 +1189,7 @@ export default function App({ colorMode = 'light', onColorModeChange = () => {} 
               </div>
               <Space>
                 <Button icon={<ClearOutlined />} onClick={() => { setClearDataTargetIds(selectedIds); setClearDataModalOpen(true); }}>{t("清理数据")}</Button>
+                <Button icon={<ApiOutlined />} onClick={() => { setMihomoTargetIds(selectedIds); setMihomoModalOpen(true); }}>{t("Mihomo 分流")}</Button>
                 <Button type={favoritesOnly ? 'primary' : 'default'} icon={favoritesOnly ? <StarFilled /> : <StarOutlined />} onClick={() => setFavoritesOnly((value) => !value)}>{t("收藏")}</Button>
                 <Select
                   value={selectedGroup}
@@ -1391,6 +1396,13 @@ export default function App({ colorMode = 'light', onColorModeChange = () => {} 
           setBatchResult(result)
           void refreshStorageOverview()
         }}
+      />
+      <MihomoAssistantModal
+        open={mihomoModalOpen}
+        selectedProfileIds={mihomoTargetIds}
+        allProfiles={profiles}
+        onClose={() => setMihomoModalOpen(false)}
+        onProfileUpdated={(updated) => upsert(updated)}
       />
       <Modal
         open={batchClassificationOpen}
