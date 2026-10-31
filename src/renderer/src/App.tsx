@@ -763,68 +763,6 @@ export default function App({ colorMode = 'light', onColorModeChange = () => {} 
     }
   }
 
-  async function clearSingleProfileCache(profile: BrowserProfileView): Promise<void> {
-    await withBusy(profile.id, async () => {
-      const before = await window.browserApi.profiles.storageInfo(profile.id)
-      const after = await window.browserApi.profiles.clearCache(profile.id)
-      const freed = Math.max(0, before.cacheBytes - after.cacheBytes)
-      void refreshStorageOverview()
-      messageApi.success(t("已清理 {0} 缓存", formatBytes(freed)))
-    })
-  }
-
-  async function runBatchClearCache(ids: string[]): Promise<void> {
-    const candidates = profiles.filter((profile) => ids.includes(profile.id))
-    if (!candidates.length) return
-    setBatchBusy(true)
-    setBusyIds((current) => new Set([...current, ...candidates.map((profile) => profile.id)]))
-    let freedBytes = 0
-    const errors: string[] = []
-    try {
-      for (let index = 0; index < candidates.length; index += 5) {
-        await Promise.all(candidates.slice(index, index + 5).map(async (profile) => {
-          try {
-            const before = await window.browserApi.profiles.storageInfo(profile.id)
-            const after = await window.browserApi.profiles.clearCache(profile.id)
-            freedBytes += Math.max(0, before.cacheBytes - after.cacheBytes)
-          } catch (error) {
-            errors.push(`${profile.name}：${humanError(error)}`)
-          }
-        }))
-      }
-      void refreshStorageOverview()
-      if (errors.length) {
-        setBatchResult({
-          operation: '清理缓存',
-          total: candidates.length,
-          succeeded: candidates.length - errors.length,
-          errors
-        })
-        messageApi.warning(t("完成 {0} 个，失败 {1} 个", candidates.length - errors.length, errors.length))
-      } else {
-        messageApi.success(t("已清理 {0} 缓存", formatBytes(freedBytes)))
-      }
-      setSelectedIds([])
-    } finally {
-      const targetIds = new Set(candidates.map((profile) => profile.id))
-      setBusyIds((current) => new Set([...current].filter((id) => !targetIds.has(id))))
-      setBatchBusy(false)
-    }
-  }
-
-  function confirmBatchClearCache(): void {
-    const ids = [...selectedIds]
-    if (!ids.length) return
-    Modal.confirm({
-      title: t("清理缓存"),
-      content: t("只清理缓存，Cookie、网站数据、书签和扩展不会被删除。"),
-      okText: t("清理缓存"),
-      okButtonProps: { danger: true },
-      cancelText: t("取消"),
-      onOk: () => runBatchClearCache(ids)
-    })
-  }
-
   function confirmBatchRemove(): void {
     const ids = [...selectedIds]
     Modal.confirm({
@@ -870,7 +808,6 @@ export default function App({ colorMode = 'light', onColorModeChange = () => {} 
       onClick: ({ key }) => {
         if (key === 'edit') openEditor(profile)
         if (key === 'data') setDataProfile(profile)
-        if (key === 'clear-cache') void clearSingleProfileCache(profile)
         if (key === 'clear-data') {
           setClearDataTargetIds([profile.id])
           setClearDataModalOpen(true)
@@ -1240,15 +1177,14 @@ export default function App({ colorMode = 'light', onColorModeChange = () => {} 
                     >{t("批量打开")}</Button>
                     <Button size="small" icon={<PoweroffOutlined />} loading={batchBusy} onClick={() => void runBatch('close')}>{t("批量关闭")}</Button>
                     <Button size="small" icon={<ApiOutlined />} loading={batchBusy} onClick={() => void runProxyChecks(selectedIds)}>{t("检测代理")}</Button>
-                    <Button size="small" icon={<ClearOutlined />} loading={batchBusy} onClick={confirmBatchClearCache}>{t("清理缓存")}</Button>
-                    <Button size="small" icon={<ClearOutlined />} disabled={batchBusy} onClick={() => { setClearDataTargetIds(selectedIds); setClearDataModalOpen(true); }}>{t("清除数据")}</Button>
+                    <Button size="small" icon={<ClearOutlined />} disabled={batchBusy} onClick={() => { setClearDataTargetIds(selectedIds); setClearDataModalOpen(true); }}>{t("清理数据")}</Button>
                     <Button size="small" icon={<TagsOutlined />} disabled={batchBusy} onClick={() => setBatchClassificationOpen(true)}>{t("分组/标签")}</Button>
                     <Button size="small" danger icon={<DeleteOutlined />} disabled={batchBusy} onClick={confirmBatchRemove}>{t("移入回收站")}</Button>
                   </Space>
                 )}
               </div>
               <Space>
-                <Button icon={<ClearOutlined />} onClick={() => { setClearDataTargetIds(selectedIds); setClearDataModalOpen(true); }}>{t("清除数据")}</Button>
+                <Button icon={<ClearOutlined />} onClick={() => { setClearDataTargetIds(selectedIds); setClearDataModalOpen(true); }}>{t("清理数据")}</Button>
                 <Button type={favoritesOnly ? 'primary' : 'default'} icon={favoritesOnly ? <StarFilled /> : <StarOutlined />} onClick={() => setFavoritesOnly((value) => !value)}>{t("收藏")}</Button>
                 <Select
                   value={selectedGroup}

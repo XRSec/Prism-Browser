@@ -73,7 +73,7 @@ export function ClearDataModal({ open, selectedProfileIds, allProfiles, onClose,
     setBusy(false)
     onClose()
     onCompleted({
-      operation: '清除数据',
+      operation: '清理数据',
       total: targetProfiles.length,
       succeeded: successCount,
       errors: failures.map((f) => `${f.name}: ${f.error}`)
@@ -83,8 +83,8 @@ export function ClearDataModal({ open, selectedProfileIds, allProfiles, onClose,
   return (
     <Modal
       open={open}
-      title={<Space><ClearOutlined />{t("清除浏览数据")}</Space>}
-      okText={t("立即清除")}
+      title={<Space><ClearOutlined />{t("清理数据")}</Space>}
+      okText={t("立即清理")}
       cancelText={t("取消")}
       okButtonProps={{ danger: true, disabled: !hasAnySelected || !targetProfiles.length, loading: busy }}
       cancelButtonProps={{ disabled: busy }}
