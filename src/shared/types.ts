@@ -357,6 +357,16 @@ export interface ProfileStorageInfo {
   cacheBytes: number
 }
 
+export interface ClearProfileDataOptions {
+  cache?: boolean
+  history?: boolean
+  downloads?: boolean
+  cookies?: boolean
+  autofill?: boolean
+  siteSettings?: boolean
+  hostedAppData?: boolean
+}
+
 export interface StorageOverview {
   profilesBytes: number
   cacheBytes: number
@@ -513,6 +523,7 @@ export interface BrowserApi {
     storageOverview: () => Promise<StorageOverview>
     openDataFolder: (id: string) => Promise<void>
     clearCache: (id: string) => Promise<ProfileStorageInfo>
+    clearData: (id: string, options: ClearProfileDataOptions) => Promise<ProfileStorageInfo>
     exportBackup: (id: string) => Promise<ProfileBackupResult | null>
     importBackup: () => Promise<{ profile: BrowserProfileView; result: ProfileBackupResult } | null>
     exportWorkspace: (password: string) => Promise<WorkspaceMigrationResult | null>

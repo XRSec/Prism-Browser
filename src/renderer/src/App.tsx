@@ -63,6 +63,7 @@ import { ExtensionManagerModal } from './ExtensionManagerModal'
 import { LaunchDiagnosticsModal } from './LaunchDiagnosticsModal'
 import { CrashHistoryModal } from './CrashHistoryModal'
 import { BatchResultModal, type BatchOperationResult } from './BatchResultModal'
+import { ClearDataModal } from './ClearDataModal'
 import { UpdateModal } from './UpdateModal'
 import { PlanModal } from './PlanModal'
 import { WorkspaceMigrationModal } from './WorkspaceMigrationModal'
@@ -180,6 +181,8 @@ export default function App({ colorMode = 'light', onColorModeChange = () => {} 
   const [crashRecords, setCrashRecords] = useState<BrowserCrashRecord[]>([])
   const [crashHistoryLoading, setCrashHistoryLoading] = useState(false)
   const [batchClassificationOpen, setBatchClassificationOpen] = useState(false)
+  const [clearDataModalOpen, setClearDataModalOpen] = useState(false)
+  const [clearDataTargetIds, setClearDataTargetIds] = useState<string[]>([])
   const [batchGroupEnabled, setBatchGroupEnabled] = useState(false)
   const [batchGroup, setBatchGroup] = useState('')
   const [batchTagsEnabled, setBatchTagsEnabled] = useState(false)
@@ -855,6 +858,7 @@ export default function App({ colorMode = 'light', onColorModeChange = () => {} 
         { key: 'edit', icon: <EditOutlined />, label: t("编辑"), disabled: !editable },
         { key: 'data', icon: <DatabaseOutlined />, label: t("环境数据") },
         { key: 'clear-cache', icon: <ClearOutlined />, label: t("清理缓存"), disabled: !editable },
+        { key: 'clear-data', icon: <ClearOutlined />, label: t("清除浏览数据"), disabled: !editable },
         { key: 'diagnose', icon: <SafetyCertificateOutlined />, label: t("启动诊断") },
         { key: 'crashes', icon: <WarningFilled />, label: t("异常与恢复") },
         { key: 'proxy-check', icon: <ApiOutlined />, label: t("检测代理") },
@@ -867,6 +871,10 @@ export default function App({ colorMode = 'light', onColorModeChange = () => {} 
         if (key === 'edit') openEditor(profile)
         if (key === 'data') setDataProfile(profile)
         if (key === 'clear-cache') void clearSingleProfileCache(profile)
+        if (key === 'clear-data') {
+          setClearDataTargetIds([profile.id])
+          setClearDataModalOpen(true)
+        }
         if (key === 'diagnose') void runDiagnostics(profile)
         if (key === 'crashes') void openCrashHistory(profile)
         if (key === 'proxy-check') void runProxyChecks([profile.id])
@@ -1233,12 +1241,14 @@ export default function App({ colorMode = 'light', onColorModeChange = () => {} 
                     <Button size="small" icon={<PoweroffOutlined />} loading={batchBusy} onClick={() => void runBatch('close')}>{t("批量关闭")}</Button>
                     <Button size="small" icon={<ApiOutlined />} loading={batchBusy} onClick={() => void runProxyChecks(selectedIds)}>{t("检测代理")}</Button>
                     <Button size="small" icon={<ClearOutlined />} loading={batchBusy} onClick={confirmBatchClearCache}>{t("清理缓存")}</Button>
+                    <Button size="small" icon={<ClearOutlined />} disabled={batchBusy} onClick={() => { setClearDataTargetIds(selectedIds); setClearDataModalOpen(true); }}>{t("清除数据")}</Button>
                     <Button size="small" icon={<TagsOutlined />} disabled={batchBusy} onClick={() => setBatchClassificationOpen(true)}>{t("分组/标签")}</Button>
                     <Button size="small" danger icon={<DeleteOutlined />} disabled={batchBusy} onClick={confirmBatchRemove}>{t("移入回收站")}</Button>
                   </Space>
                 )}
               </div>
               <Space>
+                <Button icon={<ClearOutlined />} onClick={() => { setClearDataTargetIds(selectedIds); setClearDataModalOpen(true); }}>{t("清除数据")}</Button>
                 <Button type={favoritesOnly ? 'primary' : 'default'} icon={favoritesOnly ? <StarFilled /> : <StarOutlined />} onClick={() => setFavoritesOnly((value) => !value)}>{t("收藏")}</Button>
                 <Select
                   value={selectedGroup}
@@ -1436,6 +1446,16 @@ export default function App({ colorMode = 'light', onColorModeChange = () => {} 
         }}
       />
       <BatchResultModal result={batchResult} onClose={() => setBatchResult(undefined)} />
+      <ClearDataModal
+        open={clearDataModalOpen}
+        selectedProfileIds={clearDataTargetIds}
+        allProfiles={profiles}
+        onClose={() => setClearDataModalOpen(false)}
+        onCompleted={(result) => {
+          setBatchResult(result)
+          void refreshStorageOverview()
+        }}
+      />
       <Modal
         open={batchClassificationOpen}
         title={t("批量修改 {0} 个环境", selectedIds.length)}

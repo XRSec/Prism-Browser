@@ -15,7 +15,7 @@ import { closeProxyBridge, openProxyBridge } from './proxy-bridge'
 import { validateProxyConfig } from '../shared/validation'
 import type { AppLogger } from './app-logger'
 import { parseProfileConfig, safeProfileFileName, serializeProfileConfig } from './profile-transfer'
-import { clearProfileCache, profileStorageInfo, storageOverview } from './profile-data'
+import { clearProfileCache, clearProfileData, profileStorageInfo, storageOverview } from './profile-data'
 import type { ExtensionStore } from './extension-store'
 import type { CookieManager } from './cookie-manager'
 import { parseCookieFile, serializeCookieFile } from './cookie-file'
@@ -160,6 +160,17 @@ export function registerIpc({ profiles, settings, launcher, kernels, extensions,
     await profiles.assertProfileDataIdentity(id)
     const result = await clearProfileCache(profiles.profileDataPath(id))
     logger.info('浏览器环境缓存已清理', { profileId: id })
+    return result
+  })
+  ipcMain.handle('profiles:clear-data', async (_event, id: string, options) => {
+    const profile = profiles.get(id)
+    if (launcher.isRunning(id) || (profile.status !== 'closed' && profile.status !== 'error')) {
+      throw new Error('请先关闭浏览器环境再清理数据')
+    }
+    if (cookies.isBusy(id)) throw new Error('该环境正在执行 Cookie 操作')
+    await profiles.assertProfileDataIdentity(id)
+    const result = await clearProfileData(profiles.profileDataPath(id), options || {})
+    logger.info('浏览器环境数据已清理', { profileId: id, options })
     return result
   })
   ipcMain.handle('profiles:export-backup', async (_event, id: string) => {

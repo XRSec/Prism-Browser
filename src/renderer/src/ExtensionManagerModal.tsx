@@ -175,63 +175,71 @@ export function ExtensionManagerModal({ open, extensions, profiles, onClose, onC
           dataSource={extensions}
           locale={{ emptyText: t("尚未导入浏览器扩展") }}
           renderItem={(extension) => (
-            <List.Item actions={[
-              <Button
-                key="share"
-                type="text"
-                icon={<ShareAltOutlined />}
-                onClick={() => openDataSharingModal(extension)}
-              >{t("数据共享")}</Button>,
-              <Button
-                key="edit"
-                type="text"
-                icon={<EditOutlined />}
-                loading={opening === extension.id}
-                onClick={() => void openSourceFolder(extension)}
-              >{t("编辑")}</Button>,
-              <Popconfirm
-                key="remove"
-                title={t("移除扩展“{0}”？", extension.name)}
-                description={t("仍被环境或回收站引用时将拒绝移除。")}
-                okText={t("移除")}
-                cancelText={t("取消")}
-                onConfirm={() => remove(extension)}
-              >
-                <Button danger type="text" icon={<DeleteOutlined />} loading={removing === extension.id}>{t("移除")}</Button>
-              </Popconfirm>,
-              <Space key="global-enabled" size={6}>
-                <Typography.Text type="secondary">{t("全局启用")}</Typography.Text>
-                <Switch
-                  size="small"
-                  checked={extension.globalEnabled}
-                  loading={toggling === extension.id}
-                  onChange={(enabled) => void setGlobalEnabled(extension, enabled)}
-                />
-              </Space>
-            ]}>
-              <List.Item.Meta
-                title={
-                  <Space>
-                    <span>{extension.name}</span>
-                    <Tag>v{extension.version}</Tag>
-                    {extension.source === 'chrome-web-store' && (
-                      <Tag color="blue" icon={<SafetyCertificateOutlined />}>{t("Chrome 商店")}</Tag>
-                    )}
-                    {extension.dataSharing?.enabled && (
-                      <Tag color="green">{t("数据共享中")}</Tag>
-                    )}
+            <List.Item key={extension.id} style={{ display: 'block', padding: '12px 0' }}>
+              <div style={{ marginBottom: 6 }}>
+                <Space wrap>
+                  <Typography.Text strong style={{ fontSize: 13 }}>{extension.name}</Typography.Text>
+                  <Tag>v{extension.version}</Tag>
+                  {extension.source === 'chrome-web-store' && (
+                    <Tag color="blue" icon={<SafetyCertificateOutlined />}>{t("Chrome 商店")}</Tag>
+                  )}
+                  {extension.dataSharing?.enabled && (
+                    <Tag color="green">{t("数据共享中")}</Tag>
+                  )}
+                </Space>
+              </div>
+
+              <div>
+                <div style={{ float: 'right', marginLeft: 16, marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                  <Button
+                    size="small"
+                    key="share"
+                    type="text"
+                    icon={<ShareAltOutlined />}
+                    onClick={() => openDataSharingModal(extension)}
+                  >{t("数据共享")}</Button>
+                  <Button
+                    size="small"
+                    key="edit"
+                    type="text"
+                    icon={<EditOutlined />}
+                    loading={opening === extension.id}
+                    onClick={() => void openSourceFolder(extension)}
+                  >{t("编辑")}</Button>
+                  <Popconfirm
+                    key="remove"
+                    title={t("移除扩展“{0}”？", extension.name)}
+                    description={t("仍被环境或回收站引用时将拒绝移除。")}
+                    okText={t("移除")}
+                    cancelText={t("取消")}
+                    onConfirm={() => remove(extension)}
+                  >
+                    <Button size="small" danger type="text" icon={<DeleteOutlined />} loading={removing === extension.id}>{t("移除")}</Button>
+                  </Popconfirm>
+                  <Space key="global-enabled" size={4}>
+                    <Typography.Text type="secondary" style={{ fontSize: 12 }}>{t("全局启用")}</Typography.Text>
+                    <Switch
+                      size="small"
+                      checked={extension.globalEnabled}
+                      loading={toggling === extension.id}
+                      onChange={(enabled) => void setGlobalEnabled(extension, enabled)}
+                    />
                   </Space>
-                }
-                description={
-                  <div>
-                    <div>{extension.description || t("无描述")}</div>
-                    {extension.storeId && (
-                      <Typography.Text type="secondary">{t("扩展 ID：{0}", extension.storeId)}</Typography.Text>
-                    )}
-                    <Typography.Text type="secondary" className="extension-path" copyable={{ text: extension.path }}>{extension.path}</Typography.Text>
-                  </div>
-                }
-              />
+                </div>
+
+                <div style={{ color: 'var(--muted)', fontSize: 12, lineHeight: 1.6 }}>
+                  {extension.description || t("无描述")}
+                </div>
+
+                <div style={{ clear: 'both', paddingTop: 6 }}>
+                  {extension.storeId && (
+                    <div>
+                      <Typography.Text type="secondary" style={{ fontSize: 11 }}>{t("扩展 ID：{0}", extension.storeId)}</Typography.Text>
+                    </div>
+                  )}
+                  <Typography.Text type="secondary" className="extension-path" copyable={{ text: extension.path }}>{extension.path}</Typography.Text>
+                </div>
+              </div>
             </List.Item>
           )}
         />

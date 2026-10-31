@@ -21,6 +21,7 @@ const api: BrowserApi = {
     storageOverview: () => ipcRenderer.invoke('profiles:storage-overview'),
     openDataFolder: (id: string) => ipcRenderer.invoke('profiles:open-data-folder', id),
     clearCache: (id: string) => ipcRenderer.invoke('profiles:clear-cache', id),
+    clearData: (id: string, options) => ipcRenderer.invoke('profiles:clear-data', id, options),
     exportBackup: (id: string) => ipcRenderer.invoke('profiles:export-backup', id),
     importBackup: () => ipcRenderer.invoke('profiles:import-backup'),
     exportWorkspace: (password) => ipcRenderer.invoke('profiles:export-workspace', password),
