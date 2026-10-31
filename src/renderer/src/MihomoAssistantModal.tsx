@@ -50,18 +50,21 @@ export function MihomoAssistantModal({
   const [dashboardSource, setDashboardSource] = useState<'local' | 'zash_online' | 'metacubexd'>('local')
   const [iframeKey, setIframeKey] = useState(1)
 
-  const { controllerHost, controllerPort } = useMemo(() => {
+  const { controllerHost, controllerPort, normalizedControllerAddress } = useMemo(() => {
     const raw = externalController.trim() || '127.0.0.1:9090'
     if (/^\d+$/.test(raw)) {
-      return { controllerHost: '127.0.0.1', controllerPort: Number(raw) }
+      return { controllerHost: '127.0.0.1', controllerPort: Number(raw), normalizedControllerAddress: `127.0.0.1:${raw}` }
+    }
+    if (raw.startsWith(':')) {
+      return { controllerHost: '127.0.0.1', controllerPort: Number(raw.slice(1)) || 9090, normalizedControllerAddress: `127.0.0.1${raw}` }
     }
     const idx = raw.lastIndexOf(':')
     if (idx !== -1) {
       const h = raw.slice(0, idx).trim() || '127.0.0.1'
       const p = Number(raw.slice(idx + 1).trim()) || 9090
-      return { controllerHost: h, controllerPort: p }
+      return { controllerHost: h, controllerPort: p, normalizedControllerAddress: `${h}:${p}` }
     }
-    return { controllerHost: raw, controllerPort: 9090 }
+    return { controllerHost: raw, controllerPort: 9090, normalizedControllerAddress: `${raw}:9090` }
   }, [externalController])
 
   // Mihomo 后台轻量托管进程控制状态
@@ -111,7 +114,7 @@ export function MihomoAssistantModal({
       `mixed-port: ${port}`,
       'allow-lan: false',
       `bind-address: ${host}`,
-      `external-controller: ${externalController.trim() || '127.0.0.1:9090'}`,
+      `external-controller: ${normalizedControllerAddress}`,
       'external-ui: ui',
       'external-ui-url: "https://github.com/Zephyruso/zashboard/releases/latest/download/dist-cdn-fonts.zip"',
       ...(controllerSecret ? [`secret: "${controllerSecret}"`] : []),
@@ -137,7 +140,7 @@ export function MihomoAssistantModal({
     lines.push('  - MATCH,DIRECT')
 
     return lines.join('\n')
-  }, [port, host, externalController, controllerSecret, password, usersList])
+  }, [port, host, normalizedControllerAddress, controllerSecret, password, usersList])
 
   // 动态生成适合 Clash Verge / Flclash / Mihomo Party 的 JavaScript 扩展脚本
   const jsScriptConfig = useMemo(() => {
@@ -149,7 +152,7 @@ function main(config) {
   config['mixed-port'] = ${port};
   config['allow-lan'] = false;
   config['bind-address'] = '${host}';
-  config['external-controller'] = '${externalController.trim() || '127.0.0.1:9090'}';
+  config['external-controller'] = '${normalizedControllerAddress}';
 
   // 2. 注入 Prism 环境 User 认证池 (环境路由标签)
   config['users'] = [
@@ -164,7 +167,19 @@ ${ruleList || "    'IN-USER,node-0001,指定节点'"}
 
   return config;
 }`
-  }, [usersList, password, port, host, externalController])
+  }, [usersList, password, port, host, normalizedControllerAddress])
+
+  // 监听分流配置参数变化，当使用金库内置配置时，自动静默同步写入到 config.yaml
+  useEffect(() => {
+    if (!open) return
+    const isVaultConfig = !mihomoConfigPath || mihomoConfigPath.includes('vault/mihomo')
+    if (isVaultConfig && yamlConfig) {
+      const timer = setTimeout(() => {
+        window.browserApi.mihomo.saveConfig(yamlConfig, mihomoConfigPath).catch(() => undefined)
+      }, 400)
+      return () => clearTimeout(timer)
+    }
+  }, [open, yamlConfig, mihomoConfigPath])
 
   // 计算 Zashboard / Web UI 的完整访问 URL
   const dashboardUrl = useMemo(() => {
@@ -236,12 +251,43 @@ ${ruleList || "    'IN-USER,node-0001,指定节点'"}
   const handleStartMihomo = async () => {
     setIsStartingMihomo(true)
     try {
+      // 启动前确保最新分流配置已同步写入配置文件
+      const isVaultConfig = !mihomoConfigPath || mihomoConfigPath.includes('vault/mihomo')
+      let targetPath = mihomoConfigPath
+      if (isVaultConfig) {
+        targetPath = await window.browserApi.mihomo.saveConfig(yamlConfig, mihomoConfigPath)
+        setMihomoConfigPath(targetPath)
+      }
       const status = await window.browserApi.mihomo.start({
         binaryPath: mihomoBinaryPath,
-        configPath: mihomoConfigPath
+        configPath: targetPath
       })
       setMihomoStatus(status)
       message.success('Mihomo 进程启动成功')
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error)
+      message.error(msg)
+    } finally {
+      setIsStartingMihomo(false)
+    }
+  }
+
+  const handleRestartMihomo = async () => {
+    setIsStartingMihomo(true)
+    try {
+      // 保存最新配置并平滑重启核心
+      const isVaultConfig = !mihomoConfigPath || mihomoConfigPath.includes('vault/mihomo')
+      let targetPath = mihomoConfigPath
+      if (isVaultConfig) {
+        targetPath = await window.browserApi.mihomo.saveConfig(yamlConfig, mihomoConfigPath)
+        setMihomoConfigPath(targetPath)
+      }
+      const status = await window.browserApi.mihomo.start({
+        binaryPath: mihomoBinaryPath,
+        configPath: targetPath
+      })
+      setMihomoStatus(status)
+      message.success('已应用最新端口与分流配置并重启 Mihomo')
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error)
       message.error(msg)
@@ -373,6 +419,15 @@ ${ruleList || "    'IN-USER,node-0001,指定节点'"}
                       <Space wrap size={6}>
                         {mihomoStatus?.running ? (
                           <>
+                            <Button
+                              size="small"
+                              type="primary"
+                              icon={<ReloadOutlined />}
+                              loading={isStartingMihomo}
+                              onClick={handleRestartMihomo}
+                            >
+                              重启并应用配置
+                            </Button>
                             <Button
                               size="small"
                               danger
