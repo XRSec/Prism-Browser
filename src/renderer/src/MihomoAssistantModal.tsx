@@ -35,7 +35,7 @@ export function MihomoAssistantModal({
   onClose,
   onProfileUpdated
 }: MihomoAssistantModalProps) {
-  const [activeTab, setActiveTab] = useState<'docs' | 'clients' | 'generator' | 'zashboard'>('docs')
+  const [activeTab, setActiveTab] = useState<"generator" | "clients" | "zashboard" | "docs">("generator")
   const [scope, setScope] = useState<'all' | 'selected'>(selectedProfileIds.length ? 'selected' : 'all')
   const [host, setHost] = useState('127.0.0.1')
   const [port, setPort] = useState<number>(17890)
@@ -330,13 +330,22 @@ ${ruleList || "    'IN-USER,node-0001,指定节点'"}
   return (
     <Modal
       open={open}
-      title={<Space><ApiOutlined />{"Mihomo 本地分流方案与助手"}</Space>}
+      title={<Space><ThunderboltOutlined />{"Mihomo 代理分流与轻量托管"}</Space>}
       footer={null}
-      width={900}
+      width={960}
       style={{ top: 20 }}
       onCancel={onClose}
       destroyOnClose
     >
+      <Alert
+        type={mihomoStatus?.running ? 'success' : 'info'}
+        showIcon
+        icon={<ThunderboltOutlined />}
+        title={mihomoStatus?.running ? `Mihomo 运行中 (PID: ${mihomoStatus.pid}) · 混合代理监听 ${host}:${port}` : "Mihomo 轻量托管 · 单核心多环境分流"}
+        description="无需安装外部客户端，Prism 可在后台静默托管拉起 Mihomo 核心，依据环境账号 (IN-USER 规则) 定向分流至不同物理出口节点。"
+        style={{ marginBottom: 12 }}
+      />
+
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
         <Typography.Text type="secondary" style={{ fontSize: 12 }}>
           {"单核心多环境分流指南、轻量托管参数与可视化 Zashboard 面板"}
@@ -355,100 +364,6 @@ ${ruleList || "    'IN-USER,node-0001,指定节点'"}
         activeKey={activeTab}
         onChange={(k) => setActiveTab(k as 'docs' | 'clients' | 'generator' | 'zashboard')}
         items={[
-          {
-            key: 'docs',
-            label: <Space><BookOutlined />{"技术原理解析与分流指南"}</Space>,
-            children: (
-              <Space direction="vertical" style={{ width: '100%' }} size={14}>
-                <Alert
-                  type="info"
-                  showIcon
-                  icon={<InfoCircleOutlined />}
-                  title={"为什么需要单核心本地分流？"}
-                  description={
-                    <div style={{ fontSize: 12, lineHeight: 1.6 }}>
-                      <p style={{ margin: '4px 0' }}>
-                        {"指纹浏览器多账号防关联的核心是“不同环境必须有不同的出口 IP”。传统做法要么购买大量昂贵的独立静态代理，要么为每个节点开启单独的代理软件，导致内存占用过大且极易混淆。"}
-                      </p>
-                      <p style={{ margin: '4px 0' }}>
-                        {"Mihomo (Clash.Meta) 原生支持在单一后台进程中，通过用户认证信息进行分流（IN-USER 规则），实现让 Profile A 走节点 1、Profile B (或 Pro 组) 走节点 2，极度节省系统资源。"}
-                      </p>
-                    </div>
-                  }
-                />
-
-                <Card size="small" title={"核心原理解析：Listen Users 本质是“分流路由标签”"}>
-                  <Typography.Paragraph style={{ fontSize: 12, lineHeight: 1.6, marginBottom: 8 }}>
-                    {"在 127.0.0.1 本地回环网络中，不需要复杂的密码防破解。我们可以把用户名（Username）直接作为该环境的唯一“路由身份标签”，密码统一填写（如 prism）："}
-                  </Typography.Paragraph>
-
-                  <div style={{ background: 'var(--surface-subtle)', padding: 10, borderRadius: 6, fontSize: 11, fontFamily: 'ui-monospace, Menlo, monospace' }}>
-                    <div><strong>Profile 代理配置:</strong> socks5://node-0001:prism@127.0.0.1:17890</div>
-                    <div style={{ color: 'var(--muted)', marginTop: 4 }}>
-                      流量带着 [node-0001] 标签进入 Mihomo 17890 端口 $\rightarrow$ 触发 IN-USER 规则 $\rightarrow$ 精准由对应的物理出口节点送出。
-                    </div>
-                  </div>
-                </Card>
-
-                <Card size="small" title={"典型分流场景实战：Pro 环境组走指定节点"}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                    <Typography.Text type="secondary" style={{ fontSize: 11 }}>
-                      {"将以下规则片段添加到你的 Mihomo / Clash 配置文件中："}
-                    </Typography.Text>
-                    <Button
-                      size="small"
-                      type="link"
-                      icon={copiedSection === 'rules' ? <CheckOutlined /> : <CopyOutlined />}
-                      onClick={() => void copyText(
-`mixed-port: 17890
-allow-lan: false
-bind-address: 127.0.0.1
-
-users:
-  - "node-0001:prism"
-  - "node-0002:prism"
-  - "pro-vps1:prism"
-
-rules:
-  # 1. 单独指定环境走特定出口
-  - IN-USER,node-0001,🇺🇸 专线节点-美国-01
-  - IN-USER,node-0002,🇯🇵 专线节点-日本-02
-  # 2. 让特定 Pro 分组或业务环境走专用高纯净节点池
-  - IN-USER,pro-*,🚀 Pro专线自动选择
-  # 3. 兜底
-  - MATCH,DIRECT`, 'rules')}
-                    >
-                      {copiedSection === 'rules' ? "已复制示例" : "复制示例 YAML"}
-                    </Button>
-                  </div>
-                  <Input.TextArea
-                    readOnly
-                    autoSize={{ minRows: 7, maxRows: 10 }}
-                    style={{ fontFamily: 'ui-monospace, Menlo, monospace', fontSize: 11 }}
-                    value={
-`mixed-port: 17890
-allow-lan: false
-bind-address: 127.0.0.1
-
-users:
-  - "node-0001:prism"
-  - "node-0002:prism"
-  - "pro-vps1:prism"
-
-rules:
-  # 1. 单独指定环境走特定出口
-  - IN-USER,node-0001,🇺🇸 专线节点-美国-01
-  - IN-USER,node-0002,🇯🇵 专线节点-日本-02
-  # 2. 让特定 Pro 分组或业务环境走专用高纯净节点池
-  - IN-USER,pro-*,🚀 Pro专线自动选择
-  # 3. 兜底
-  - MATCH,DIRECT`
-                    }
-                  />
-                </Card>
-              </Space>
-            )
-          },
           {
             key: 'generator',
             label: <Space><ThunderboltOutlined />{"轻量启动与凭据配置"}</Space>,
@@ -916,6 +831,100 @@ rules:
                     {"下载离线面板 (dist-cdn-fonts.zip)"}
                   </Button>
                 </div>
+              </Space>
+            )
+          },
+          {
+            key: 'docs',
+            label: <Space><BookOutlined />{"技术原理解析与分流指南"}</Space>,
+            children: (
+              <Space direction="vertical" style={{ width: '100%' }} size={14}>
+                <Alert
+                  type="info"
+                  showIcon
+                  icon={<InfoCircleOutlined />}
+                  title={"为什么需要单核心本地分流？"}
+                  description={
+                    <div style={{ fontSize: 12, lineHeight: 1.6 }}>
+                      <p style={{ margin: '4px 0' }}>
+                        {"指纹浏览器多账号防关联的核心是“不同环境必须有不同的出口 IP”。传统做法要么购买大量昂贵的独立静态代理，要么为每个节点开启单独的代理软件，导致内存占用过大且极易混淆。"}
+                      </p>
+                      <p style={{ margin: '4px 0' }}>
+                        {"Mihomo (Clash.Meta) 原生支持在单一后台进程中，通过用户认证信息进行分流（IN-USER 规则），实现让 Profile A 走节点 1、Profile B (或 Pro 组) 走节点 2，极度节省系统资源。"}
+                      </p>
+                    </div>
+                  }
+                />
+
+                <Card size="small" title={"核心原理解析：Listen Users 本质是“分流路由标签”"}>
+                  <Typography.Paragraph style={{ fontSize: 12, lineHeight: 1.6, marginBottom: 8 }}>
+                    {"在 127.0.0.1 本地回环网络中，不需要复杂的密码防破解。我们可以把用户名（Username）直接作为该环境的唯一“路由身份标签”，密码统一填写（如 prism）："}
+                  </Typography.Paragraph>
+
+                  <div style={{ background: 'var(--surface-subtle)', padding: 10, borderRadius: 6, fontSize: 11, fontFamily: 'ui-monospace, Menlo, monospace' }}>
+                    <div><strong>Profile 代理配置:</strong> socks5://node-0001:prism@127.0.0.1:17890</div>
+                    <div style={{ color: 'var(--muted)', marginTop: 4 }}>
+                      流量带着 [node-0001] 标签进入 Mihomo 17890 端口 $\rightarrow$ 触发 IN-USER 规则 $\rightarrow$ 精准由对应的物理出口节点送出。
+                    </div>
+                  </div>
+                </Card>
+
+                <Card size="small" title={"典型分流场景实战：Pro 环境组走指定节点"}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                    <Typography.Text type="secondary" style={{ fontSize: 11 }}>
+                      {"将以下规则片段添加到你的 Mihomo / Clash 配置文件中："}
+                    </Typography.Text>
+                    <Button
+                      size="small"
+                      type="link"
+                      icon={copiedSection === 'rules' ? <CheckOutlined /> : <CopyOutlined />}
+                      onClick={() => void copyText(
+`mixed-port: 17890
+allow-lan: false
+bind-address: 127.0.0.1
+
+users:
+  - "node-0001:prism"
+  - "node-0002:prism"
+  - "pro-vps1:prism"
+
+rules:
+  # 1. 单独指定环境走特定出口
+  - IN-USER,node-0001,🇺🇸 专线节点-美国-01
+  - IN-USER,node-0002,🇯🇵 专线节点-日本-02
+  # 2. 让特定 Pro 分组或业务环境走专用高纯净节点池
+  - IN-USER,pro-*,🚀 Pro专线自动选择
+  # 3. 兜底
+  - MATCH,DIRECT`, 'rules')}
+                    >
+                      {copiedSection === 'rules' ? "已复制示例" : "复制示例 YAML"}
+                    </Button>
+                  </div>
+                  <Input.TextArea
+                    readOnly
+                    autoSize={{ minRows: 7, maxRows: 10 }}
+                    style={{ fontFamily: 'ui-monospace, Menlo, monospace', fontSize: 11 }}
+                    value={
+`mixed-port: 17890
+allow-lan: false
+bind-address: 127.0.0.1
+
+users:
+  - "node-0001:prism"
+  - "node-0002:prism"
+  - "pro-vps1:prism"
+
+rules:
+  # 1. 单独指定环境走特定出口
+  - IN-USER,node-0001,🇺🇸 专线节点-美国-01
+  - IN-USER,node-0002,🇯🇵 专线节点-日本-02
+  # 2. 让特定 Pro 分组或业务环境走专用高纯净节点池
+  - IN-USER,pro-*,🚀 Pro专线自动选择
+  # 3. 兜底
+  - MATCH,DIRECT`
+                    }
+                  />
+                </Card>
               </Space>
             )
           }

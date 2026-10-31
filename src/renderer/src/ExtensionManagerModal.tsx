@@ -36,8 +36,21 @@ export function ExtensionManagerModal({ open, extensions, profiles, onClose, onC
   function openDataSharingModal(extension: BrowserExtension): void {
     setSharingModalExtension(extension)
     setSharingEnabled(Boolean(extension.dataSharing?.enabled))
-    setSharingSourceProfileId(extension.dataSharing?.sourceProfileId || profiles[0]?.id)
-    setSharingTargetProfileIds(extension.dataSharing?.targetProfileIds || profiles.map((p) => p.id))
+    const validProfileIds = new Set(profiles.map((p) => p.id))
+
+    // 过滤掉已删除的环境 ID，避免全选状态失真或显示残留失效标签
+    const rawTargetIds = extension.dataSharing?.targetProfileIds
+    const filteredTargetIds = rawTargetIds?.filter((id) => validProfileIds.has(id))
+    const targetIds = filteredTargetIds !== undefined
+      ? filteredTargetIds
+      : profiles.map((p) => p.id)
+    setSharingTargetProfileIds(targetIds)
+
+    const rawSourceId = extension.dataSharing?.sourceProfileId
+    const sourceId = rawSourceId && validProfileIds.has(rawSourceId)
+      ? rawSourceId
+      : profiles[0]?.id
+    setSharingSourceProfileId(sourceId)
   }
 
   async function saveDataSharing(): Promise<void> {
@@ -330,19 +343,23 @@ export function ExtensionManagerModal({ open, extensions, profiles, onClose, onC
                   size="small"
                   type="link"
                   onClick={() => {
-                    if (sharingTargetProfileIds.length === profiles.length) {
+                    const validProfileIds = new Set(profiles.map((p) => p.id))
+                    const activeCount = sharingTargetProfileIds.filter((id) => validProfileIds.has(id)).length
+                    if (activeCount === profiles.length && profiles.length > 0) {
                       setSharingTargetProfileIds([])
                     } else {
                       setSharingTargetProfileIds(profiles.map((p) => p.id))
                     }
                   }}
                 >
-                  {sharingTargetProfileIds.length === profiles.length ? t("取消全选") : t("全选所有环境")}
+                  {sharingTargetProfileIds.filter((id) => profiles.some((p) => p.id === id)).length === profiles.length && profiles.length > 0
+                    ? t("取消全选")
+                    : t("全选所有环境")}
                 </Button>
               </div>
               <Select
                 mode="multiple"
-                value={sharingTargetProfileIds}
+                value={sharingTargetProfileIds.filter((id) => profiles.some((p) => p.id === id))}
                 style={{ width: '100%' }}
                 placeholder={t("请勾选接入共享数据的环境")}
                 maxTagCount="responsive"

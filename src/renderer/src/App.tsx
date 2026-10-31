@@ -30,6 +30,7 @@ import {
   SunOutlined,
   SyncOutlined,
   TagsOutlined,
+  ThunderboltOutlined,
   UploadOutlined,
   WarningFilled
 } from '@ant-design/icons'
@@ -54,7 +55,7 @@ import {
   type TableColumnsType
 } from 'antd'
 import { useEffect, useMemo, useState, useSyncExternalStore } from 'react'
-import type { AnnouncementStatus, AppRecoveryStatus, AppUpdateStatus, AutomationStatus, BrowserCrashRecord, BrowserExtension, BrowserProfileView, EngineStatus, KernelRelease, LaunchDiagnosticReport, LicenseStatus, McpProfilePermission, McpStatus, ProfileDraft, ProfileStoreHealth, ScheduledTask, StorageOverview, WindowSyncStatus } from '../../shared/types'
+import type { AnnouncementStatus, AppRecoveryStatus, AppUpdateStatus, AutomationStatus, BrowserCrashRecord, BrowserExtension, BrowserProfileView, EngineStatus, KernelRelease, LaunchDiagnosticReport, LicenseStatus, McpProfilePermission, McpStatus, MihomoStatus, ProfileDraft, ProfileStoreHealth, ScheduledTask, StorageOverview, WindowSyncStatus } from '../../shared/types'
 import { ProfileEditor } from './ProfileEditor'
 import { KernelManagerModal } from './KernelManagerModal'
 import { ProfileDataModal } from './ProfileDataModal'
@@ -186,6 +187,7 @@ export default function App({ colorMode = 'light', onColorModeChange = () => {} 
   const [clearDataTargetIds, setClearDataTargetIds] = useState<string[]>([])
   const [mihomoModalOpen, setMihomoModalOpen] = useState(false)
   const [mihomoTargetIds, setMihomoTargetIds] = useState<string[]>([])
+  const [mihomoStatus, setMihomoStatus] = useState<MihomoStatus | null>(null)
   const [batchGroupEnabled, setBatchGroupEnabled] = useState(false)
   const [batchGroup, setBatchGroup] = useState('')
   const [batchTagsEnabled, setBatchTagsEnabled] = useState(false)
@@ -266,6 +268,7 @@ export default function App({ colorMode = 'light', onColorModeChange = () => {} 
     void refreshStorageOverview()
     void window.browserApi.announcements.check().then(setAnnouncementStatus).catch(() => undefined)
     void window.browserApi.licensing.sync().then((status) => applyLicenseStatus(status)).catch(() => undefined)
+    void window.browserApi.mihomo.getStatus().then(setMihomoStatus).catch(() => undefined)
 
     const removeProfileListener = window.browserApi.profiles.onChanged((changed) => {
       setProfiles((current) => current.map((profile) => profile.id === changed.id ? changed : profile))
@@ -278,6 +281,7 @@ export default function App({ colorMode = 'light', onColorModeChange = () => {} 
     const removeSchedulerListener = window.browserApi.scheduler.onChanged(setScheduledTasks)
     const removeMcpListener = window.browserApi.mcp.onChanged(setMcpStatus)
     const removeWindowSyncListener = window.browserApi.windowSync.onChanged(setWindowSyncStatus)
+    const removeMihomoListener = window.browserApi.mihomo.onStatusChanged(setMihomoStatus)
     return () => {
       removeProfileListener()
       removeUpdateListener()
@@ -286,6 +290,7 @@ export default function App({ colorMode = 'light', onColorModeChange = () => {} 
       removeSchedulerListener()
       removeMcpListener()
       removeWindowSyncListener()
+      removeMihomoListener()
     }
   }, [messageApi])
 
@@ -997,6 +1002,9 @@ export default function App({ colorMode = 'light', onColorModeChange = () => {} 
         <button className="nav-item sidebar-action" onClick={() => setSchedulerOpen(true)}>
           <ClockCircleOutlined /><span>{t("计划任务")}</span><b>{scheduledTasks.filter((task) => task.enabled).length || '—'}</b>
         </button>
+        <button className="nav-item sidebar-action" onClick={() => { setMihomoTargetIds([]); setMihomoModalOpen(true); }}>
+          <ThunderboltOutlined /><span>Mihomo 分流</span><b>{mihomoStatus?.running ? 'ON' : '—'}</b>
+        </button>
         <button className="nav-item sidebar-action" onClick={() => setMcpOpen(true)}>
           <RobotOutlined /><span>{t("本地 AI · MCP")}</span><b>{mcpStatus?.state === 'running' ? 'ON' : '—'}</b>
         </button>
@@ -1180,7 +1188,6 @@ export default function App({ colorMode = 'light', onColorModeChange = () => {} 
                     >{t("批量打开")}</Button>
                     <Button size="small" icon={<PoweroffOutlined />} loading={batchBusy} onClick={() => void runBatch('close')}>{t("批量关闭")}</Button>
                     <Button size="small" icon={<ApiOutlined />} loading={batchBusy} onClick={() => void runProxyChecks(selectedIds)}>{t("检测代理")}</Button>
-                    <Button size="small" icon={<ApiOutlined />} disabled={batchBusy} onClick={() => { setMihomoTargetIds(selectedIds); setMihomoModalOpen(true); }}>{t("Mihomo 分流")}</Button>
                     <Button size="small" icon={<ClearOutlined />} disabled={batchBusy} onClick={() => { setClearDataTargetIds(selectedIds); setClearDataModalOpen(true); }}>{t("清理数据")}</Button>
                     <Button size="small" icon={<TagsOutlined />} disabled={batchBusy} onClick={() => setBatchClassificationOpen(true)}>{t("分组/标签")}</Button>
                     <Button size="small" danger icon={<DeleteOutlined />} disabled={batchBusy} onClick={confirmBatchRemove}>{t("移入回收站")}</Button>
@@ -1189,7 +1196,6 @@ export default function App({ colorMode = 'light', onColorModeChange = () => {} 
               </div>
               <Space>
                 <Button icon={<ClearOutlined />} onClick={() => { setClearDataTargetIds(selectedIds); setClearDataModalOpen(true); }}>{t("清理数据")}</Button>
-                <Button icon={<ApiOutlined />} onClick={() => { setMihomoTargetIds(selectedIds); setMihomoModalOpen(true); }}>{t("Mihomo 分流")}</Button>
                 <Button type={favoritesOnly ? 'primary' : 'default'} icon={favoritesOnly ? <StarFilled /> : <StarOutlined />} onClick={() => setFavoritesOnly((value) => !value)}>{t("收藏")}</Button>
                 <Select
                   value={selectedGroup}
