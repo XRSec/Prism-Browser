@@ -1,5 +1,5 @@
 import { t } from '../../shared/i18n'
-import { ApiOutlined, CheckOutlined, CopyOutlined, GlobalOutlined, LinkOutlined, ReloadOutlined, ThunderboltOutlined } from '@ant-design/icons'
+import { ApiOutlined, CheckOutlined, CopyOutlined, DownloadOutlined, GlobalOutlined, LinkOutlined, ReloadOutlined, ThunderboltOutlined } from '@ant-design/icons'
 import { Alert, Button, Form, Input, InputNumber, Modal, Radio, Select, Space, Table, Tabs, Tag, Typography, message } from 'antd'
 import { useMemo, useState } from 'react'
 import type { BrowserProfileView, ProfileDraft, ProxyProtocol } from '../../shared/types'
@@ -34,7 +34,7 @@ export function MihomoAssistantModal({
   const [controllerHost, setControllerHost] = useState('127.0.0.1')
   const [controllerPort, setControllerPort] = useState<number>(9090)
   const [controllerSecret, setControllerSecret] = useState('')
-  const [dashboardSource, setDashboardSource] = useState<'local' | 'zash_online' | 'metacubexd'>('local')
+  const [dashboardSource, setDashboardSource] = useState<'jsdelivr' | 'local' | 'zash_online' | 'metacubexd'>('jsdelivr')
   const [iframeKey, setIframeKey] = useState(1)
 
   const targetProfiles = useMemo(() => {
@@ -65,6 +65,8 @@ export function MihomoAssistantModal({
       'allow-lan: false',
       `bind-address: ${host}`,
       `external-controller: ${controllerHost}:${controllerPort}`,
+      'external-ui: ui',
+      'external-ui-url: "https://github.com/Zephyruso/zashboard/releases/latest/download/dist-cdn-fonts.zip"',
       ...(controllerSecret ? [`secret: "${controllerSecret}"`] : []),
       'users:'
     ]
@@ -77,6 +79,9 @@ export function MihomoAssistantModal({
   // 计算 Zashboard / Web UI 的完整访问 URL
   const dashboardUrl = useMemo(() => {
     const secretParam = controllerSecret ? `&secret=${encodeURIComponent(controllerSecret)}` : ''
+    if (dashboardSource === 'jsdelivr') {
+      return `https://cdn.jsdelivr.net/gh/Zephyruso/zashboard@gh-pages/?host=${controllerHost}&port=${controllerPort}${secretParam}#/proxies`
+    }
     if (dashboardSource === 'local') {
       return `http://${controllerHost}:${controllerPort}/ui/?host=${controllerHost}&port=${controllerPort}${secretParam}#/proxies`
     }
@@ -320,11 +325,12 @@ export function MihomoAssistantModal({
                       value={dashboardSource}
                       onChange={setDashboardSource}
                       options={[
+                        { value: 'jsdelivr', label: 'Zashboard (jsDelivr CDN 直连推荐)' },
                         { value: 'local', label: t("内置 UI (127.0.0.1:9090/ui)") },
-                        { value: 'zash_online', label: 'Zashboard 托管版 (board.zash.run)' },
-                        { value: 'metacubexd', label: 'MetaCubeXD 托管版' }
+                        { value: 'zash_online', label: 'Zashboard 官方托管 (board.zash.run)' },
+                        { value: 'metacubexd', label: 'MetaCubeXD 官方托管' }
                       ]}
-                      style={{ width: 220 }}
+                      style={{ width: 240 }}
                     />
                     <Input
                       size="small"
@@ -369,9 +375,20 @@ export function MihomoAssistantModal({
                     title="Mihomo Web Dashboard"
                   />
                 </div>
-                <Typography.Text type="secondary" style={{ fontSize: 11 }}>
-                  {t("提示：需确保本地 Mihomo 开启了 external-controller (如 external-controller: 127.0.0.1:9090)。如果 iframe 提示拒绝连接，可点击右上角“新窗口打开”。")}
-                </Typography.Text>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 6 }}>
+                  <Typography.Text type="secondary" style={{ fontSize: 11 }}>
+                    {t("提示：需确保本地 Mihomo 开启了 external-controller。若想本地离线运行面板，可下载发行包解压至 Mihomo 的 ui 目录。")}
+                  </Typography.Text>
+                  <Button
+                    size="small"
+                    type="link"
+                    icon={<DownloadOutlined />}
+                    href="https://github.com/Zephyruso/zashboard/releases/latest/download/dist-cdn-fonts.zip"
+                    target="_blank"
+                  >
+                    {t("下载离线面板 (dist-cdn-fonts.zip)")}
+                  </Button>
+                </div>
               </Space>
             )
           }
