@@ -1,10 +1,9 @@
 import { t, translateMessage as mt } from '../../shared/i18n'
 import {
   AppstoreOutlined,
-  BorderOutlined,
-  CheckSquareOutlined,
   CloseCircleOutlined,
   CloseOutlined,
+  CopyOutlined,
   EyeOutlined,
   GlobalOutlined,
   PlayCircleOutlined,
@@ -49,6 +48,7 @@ export function WindowSyncModal({ open, profiles, status, proEnabled, onChanged,
   const [newTab, setNewTab] = useState(false)
   const [busy, setBusy] = useState('')
   const [error, setError] = useState('')
+  const [uniformSize, setUniformSize] = useState(true)
 
   const active = status?.state === 'running' || status?.state === 'starting'
 
@@ -281,17 +281,9 @@ export function WindowSyncModal({ open, profiles, status, proEnabled, onChanged,
                 icon={<AppstoreOutlined />}
                 loading={busy === 'grid'}
                 disabled={selectedIds.length < 2}
-                onClick={() => void operation('grid', () => window.browserApi.windowSync.tile(selectedIds, 'grid', { x: 0, y: 0, width: window.screen.availWidth, height: window.screen.availHeight }, false))}
+                onClick={() => void operation('grid', () => window.browserApi.windowSync.tile(selectedIds, 'grid', { x: 0, y: 0, width: window.screen.availWidth, height: window.screen.availHeight }, !uniformSize))}
               >
                 {t("网格平铺")}
-              </Button>
-              <Button
-                icon={<AppstoreOutlined />}
-                loading={busy === 'grid-keep'}
-                disabled={selectedIds.length < 2}
-                onClick={() => void operation('grid-keep', () => window.browserApi.windowSync.tile(selectedIds, 'grid', { x: 0, y: 0, width: window.screen.availWidth, height: window.screen.availHeight }, true))}
-              >
-                {t("保持大小平铺")}
               </Button>
               <Button
                 icon={<AppstoreOutlined />}
@@ -301,14 +293,20 @@ export function WindowSyncModal({ open, profiles, status, proEnabled, onChanged,
               >
                 {t("重叠排列")}
               </Button>
-              <Button
-                icon={<BorderOutlined />}
-                loading={busy === 'size'}
+              <Checkbox
+                checked={uniformSize}
                 disabled={!mainId || followerIds.length < 1}
-                onClick={() => void operation('size', () => window.browserApi.windowSync.uniformSize(mainId, followerIds))}
+                onChange={(e) => {
+                  const checked = e.target.checked
+                  setUniformSize(checked)
+                  if (checked && mainId && followerIds.length >= 1) {
+                    void operation('size', () => window.browserApi.windowSync.uniformSize(mainId, followerIds))
+                  }
+                }}
+                style={{ marginLeft: 6, marginRight: 6, userSelect: 'none' }}
               >
                 {t("统一大小")}
-              </Button>
+              </Checkbox>
               <Button
                 icon={<EyeOutlined />}
                 loading={busy === 'front'}
@@ -321,7 +319,7 @@ export function WindowSyncModal({ open, profiles, status, proEnabled, onChanged,
 
             <div className="window-sync-cluster">
               <Button
-                icon={<CheckSquareOutlined />}
+                icon={<CopyOutlined />}
                 loading={busy === 'tabs'}
                 disabled={!mainId || followerIds.length < 1}
                 onClick={() => void operation('tabs', () => window.browserApi.windowSync.sameTabs(mainId, followerIds))}
