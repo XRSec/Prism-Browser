@@ -45,11 +45,24 @@ export function MihomoAssistantModal({
   const [mihomoConfigPath, setMihomoConfigPath] = useState('~/Library/Application Support/prism-browser/vault/mihomo/config.yaml')
 
   // Zashboard / Controller settings
-  const [controllerHost, setControllerHost] = useState('127.0.0.1')
-  const [controllerPort, setControllerPort] = useState<number>(9090)
+  const [externalController, setExternalController] = useState('127.0.0.1:9090')
   const [controllerSecret, setControllerSecret] = useState('')
   const [dashboardSource, setDashboardSource] = useState<'local' | 'zash_online' | 'metacubexd'>('local')
   const [iframeKey, setIframeKey] = useState(1)
+
+  const { controllerHost, controllerPort } = useMemo(() => {
+    const raw = externalController.trim() || '127.0.0.1:9090'
+    if (/^\d+$/.test(raw)) {
+      return { controllerHost: '127.0.0.1', controllerPort: Number(raw) }
+    }
+    const idx = raw.lastIndexOf(':')
+    if (idx !== -1) {
+      const h = raw.slice(0, idx).trim() || '127.0.0.1'
+      const p = Number(raw.slice(idx + 1).trim()) || 9090
+      return { controllerHost: h, controllerPort: p }
+    }
+    return { controllerHost: raw, controllerPort: 9090 }
+  }, [externalController])
 
   // Mihomo 后台轻量托管进程控制状态
   const [mihomoStatus, setMihomoStatus] = useState<MihomoStatus | null>(null)
@@ -98,7 +111,7 @@ export function MihomoAssistantModal({
       `mixed-port: ${port}`,
       'allow-lan: false',
       `bind-address: ${host}`,
-      `external-controller: ${controllerHost}:${controllerPort}`,
+      `external-controller: ${externalController.trim() || '127.0.0.1:9090'}`,
       'external-ui: ui',
       'external-ui-url: "https://github.com/Zephyruso/zashboard/releases/latest/download/dist-cdn-fonts.zip"',
       ...(controllerSecret ? [`secret: "${controllerSecret}"`] : []),
@@ -124,7 +137,7 @@ export function MihomoAssistantModal({
     lines.push('  - MATCH,DIRECT')
 
     return lines.join('\n')
-  }, [port, host, controllerHost, controllerPort, controllerSecret, password, usersList])
+  }, [port, host, externalController, controllerSecret, password, usersList])
 
   // 动态生成适合 Clash Verge / Flclash / Mihomo Party 的 JavaScript 扩展脚本
   const jsScriptConfig = useMemo(() => {
@@ -132,10 +145,11 @@ export function MihomoAssistantModal({
     const ruleList = usersList.slice(0, 3).map((u, i) => `    'IN-USER,${u},节点名称-${i + 1}'`).join(',\n')
     return `// 适用于：Clash Verge Rev / Flclash / Mihomo Party 扩展脚本 (Script)
 function main(config) {
-  // 1. 设置本地入站端口与绑定地址
+  // 1. 设置本地入站端口与外部控制器
   config['mixed-port'] = ${port};
   config['allow-lan'] = false;
   config['bind-address'] = '${host}';
+  config['external-controller'] = '${externalController.trim() || '127.0.0.1:9090'}';
 
   // 2. 注入 Prism 环境 User 认证池 (环境路由标签)
   config['users'] = [
@@ -150,7 +164,7 @@ ${ruleList || "    'IN-USER,node-0001,指定节点'"}
 
   return config;
 }`
-  }, [usersList, password, port, host])
+  }, [usersList, password, port, host, externalController])
 
   // 计算 Zashboard / Web UI 的完整访问 URL
   const dashboardUrl = useMemo(() => {
@@ -303,7 +317,7 @@ ${ruleList || "    'IN-USER,node-0001,指定节点'"}
         icon={<ThunderboltOutlined />}
         title={
           mihomoStatus?.running
-            ? `Mihomo 运行中 (PID: ${mihomoStatus.pid}) · 混合代理端口 ${host}:${port} · 控制台 127.0.0.1:${controllerPort}`
+            ? `Mihomo 运行中 (PID: ${mihomoStatus.pid}) · 混合代理端口 ${host}:${port} · 控制台 ${externalController}`
             : 'Mihomo 轻量托管 · 单核心多环境分流'
         }
         description="无需安装外部臃肿客户端，Prism 可在后台静默托管拉起 Mihomo 核心，依据环境账号 (IN-USER 规则) 定向分流至不同物理出口节点。"
@@ -500,7 +514,7 @@ ${ruleList || "    'IN-USER,node-0001,指定节点'"}
                     在本地回环网络 (127.0.0.1) 中，Mihomo 通过入站用户名 (IN-USER 规则) 定向匹配出口节点。在此自定义参数，生成配置补丁或扩展脚本：
                   </Typography.Paragraph>
 
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 12 }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 12, marginBottom: 12 }}>
                     <div>
                       <Typography.Text strong style={{ fontSize: 11 }}>生成 User 数量</Typography.Text>
                       <InputNumber
@@ -540,6 +554,16 @@ ${ruleList || "    'IN-USER,node-0001,指定节点'"}
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
                         placeholder="prism"
+                        style={{ marginTop: 4 }}
+                      />
+                    </div>
+                    <div>
+                      <Typography.Text strong style={{ fontSize: 11 }}>external-controller</Typography.Text>
+                      <Input
+                        size="small"
+                        value={externalController}
+                        onChange={(e) => setExternalController(e.target.value)}
+                        placeholder="127.0.0.1:9090"
                         style={{ marginTop: 4 }}
                       />
                     </div>
@@ -710,24 +734,18 @@ ${ruleList || "    'IN-USER,node-0001,指定节点'"}
                     />
                     <Input
                       size="small"
-                      addonBefore="Host"
-                      value={controllerHost}
-                      onChange={(e) => setControllerHost(e.target.value)}
-                      style={{ width: 140 }}
-                    />
-                    <InputNumber
-                      size="small"
-                      addonBefore="Port"
-                      value={controllerPort}
-                      onChange={(v) => setControllerPort(v || 9090)}
-                      style={{ width: 120 }}
+                      addonBefore="Controller"
+                      value={externalController}
+                      onChange={(e) => setExternalController(e.target.value)}
+                      style={{ width: 220 }}
+                      placeholder="127.0.0.1:9090"
                     />
                     <Input
                       size="small"
                       placeholder="Secret (选填)"
                       value={controllerSecret}
                       onChange={(e) => setControllerSecret(e.target.value)}
-                      style={{ width: 120 }}
+                      style={{ width: 130 }}
                     />
                   </Space>
 
