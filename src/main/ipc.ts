@@ -1,8 +1,8 @@
 import { t } from '../shared/i18n'
 import { app, BrowserWindow, dialog, ipcMain, net, shell } from 'electron'
 import { existsSync } from 'node:fs'
-import { lstat, readFile, stat, writeFile } from 'node:fs/promises'
-import { join, resolve } from 'node:path'
+import { lstat, mkdir, readFile, stat, writeFile } from 'node:fs/promises'
+import { dirname, join, resolve } from 'node:path'
 import { ProxyAgent, fetch as undiciFetch } from 'undici'
 import type { ExtensionDataSharingConfig, ExtensionDownloadNetwork, ProfileDraft } from '../shared/types'
 import type { KernelManager } from './kernel-manager'
@@ -551,16 +551,52 @@ export function registerIpc({ profiles, settings, launcher, kernels, extensions,
   ipcMain.handle('window-sync:visit', (_event, profileIds, url, newTab) => windowSync.visit(profileIds, url, newTab))
   ipcMain.handle('docs:open-path', async (_event, relativePath: string) => {
     const candidates = [
-      resolve(app.getAppPath(), relativePath),
       resolve(process.resourcesPath, relativePath),
       resolve(process.resourcesPath, '..', relativePath),
+      resolve(app.getAppPath(), relativePath),
       resolve(import.meta.dirname, '../../', relativePath)
     ]
     for (const candidate of candidates) {
       try {
         if (existsSync(candidate)) {
-          const err = await shell.openPath(candidate)
-          if (!err) return { success: true, path: candidate }
+          let openTarget = candidate
+          if (candidate.includes('.asar')) {
+            const userDataTarget = resolve(app.getPath('userData'), relativePath)
+            await mkdir(dirname(userDataTarget), { recursive: true })
+            const content = await readFile(candidate, 'utf8')
+            await writeFile(userDataTarget, content, 'utf8')
+            openTarget = userDataTarget
+          }
+          const err = await shell.openPath(openTarget)
+          if (!err) return { success: true, path: openTarget }
+          // If default markdown viewer not associated, reveal in Finder as fallback
+          shell.showItemInFolder(openTarget)
+          return { success: true, path: openTarget }
+        }
+      } catch {}
+    }
+    return { success: false, path: candidates[0] }
+  })
+  ipcMain.handle('docs:show-in-folder', async (_event, relativePath: string) => {
+    const candidates = [
+      resolve(process.resourcesPath, relativePath),
+      resolve(process.resourcesPath, '..', relativePath),
+      resolve(app.getAppPath(), relativePath),
+      resolve(import.meta.dirname, '../../', relativePath)
+    ]
+    for (const candidate of candidates) {
+      try {
+        if (existsSync(candidate)) {
+          let target = candidate
+          if (candidate.includes('.asar')) {
+            const userDataTarget = resolve(app.getPath('userData'), relativePath)
+            await mkdir(dirname(userDataTarget), { recursive: true })
+            const content = await readFile(candidate, 'utf8')
+            await writeFile(userDataTarget, content, 'utf8')
+            target = userDataTarget
+          }
+          shell.showItemInFolder(target)
+          return { success: true, path: target }
         }
       } catch {}
     }

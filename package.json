@@ -116,6 +116,10 @@
       {
         "from": "resources/window-sync",
         "to": "window-sync"
+      },
+      {
+        "from": "docs",
+        "to": "docs"
       }
     ],
     "mac": {

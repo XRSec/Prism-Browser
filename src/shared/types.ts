@@ -669,6 +669,7 @@ export interface BrowserApi {
   }
   docs: {
     openPath: (relativePath: string) => Promise<{ success: boolean; path: string }>
+    showInFolder: (relativePath: string) => Promise<{ success: boolean; path: string }>
   }
   mihomo: {
     getStatus: () => Promise<MihomoStatus>

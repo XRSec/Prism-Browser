@@ -48,7 +48,7 @@ describe('MihomoManager', () => {
     expect(reloaded.getStatus().configPath).toBe(savedPath)
   })
 
-  it('refuses to start when binary or config does not exist', async () => {
+  it('refuses to start when binary does not exist', async () => {
     const manager = new MihomoManager(tempVault)
     await manager.initialize()
 

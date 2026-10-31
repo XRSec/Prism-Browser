@@ -183,7 +183,8 @@ const api: BrowserApi = {
     }
   },
   docs: {
-    openPath: (relativePath: string) => ipcRenderer.invoke('docs:open-path', relativePath)
+    openPath: (relativePath: string) => ipcRenderer.invoke('docs:open-path', relativePath),
+    showInFolder: (relativePath: string) => ipcRenderer.invoke('docs:show-in-folder', relativePath)
   },
   mihomo: {
     getStatus: () => ipcRenderer.invoke('mihomo:get-status'),

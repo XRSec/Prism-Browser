@@ -85,6 +85,36 @@ export class MihomoManager {
     if (!this.configPath) {
       this.configPath = join(this.workDir, 'config.yaml')
     }
+
+    const defaultConfigFile = join(this.workDir, 'config.yaml')
+    try {
+      await stat(defaultConfigFile)
+    } catch {
+      // 预先自动创建初始默认配置，杜绝首次启动报错“文件不存在”
+      await writeFile(defaultConfigFile, this.generateDefaultConfig(), 'utf8')
+    }
+  }
+
+  generateDefaultConfig(): string {
+    return `# === Prism Browser Mihomo 本地多环境分流配置 ===
+mixed-port: 17890
+allow-lan: false
+bind-address: 127.0.0.1
+external-controller: 127.0.0.1:9090
+external-ui: ui
+external-ui-url: "https://github.com/Zephyruso/zashboard/releases/latest/download/dist-cdn-fonts.zip"
+
+# 1. 本地入站凭据池 (环境分流标签)
+users:
+  - "node-0001:prism"
+  - "node-0002:prism"
+  - "node-0003:prism"
+
+# 2. 定向分流规则 (IN-USER 规则)
+rules:
+  # 示例: - IN-USER,node-0001,指定节点名称
+  - MATCH,DIRECT
+`
   }
 
   private async saveServiceConfig(): Promise<void> {
@@ -185,11 +215,10 @@ export class MihomoManager {
     try {
       await stat(resolvedConfig)
     } catch {
-      const err = `配置文件不存在: ${resolvedConfig}。请选择已有配置，或点击“保存当前配置为金库配置”。`
-      this.lastError = err
-      this.appendLog(`[Prism 错误] ${err}`)
-      this.notifyStatusImmediate()
-      throw new Error(err)
+      // 若配置文件不存在，自动为其创建初始配置模版，避免启动中断
+      await mkdir(dirname(resolvedConfig), { recursive: true })
+      await writeFile(resolvedConfig, this.generateDefaultConfig(), 'utf8')
+      this.appendLog(`[Prism] 配置文件不存在，已自动创建初始模版: ${resolvedConfig}`)
     }
 
     await mkdir(this.workDir, { recursive: true })
