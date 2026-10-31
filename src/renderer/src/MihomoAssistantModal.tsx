@@ -1,6 +1,6 @@
 import { t } from '../../shared/i18n'
-import { ApiOutlined, CheckOutlined, CopyOutlined, DownloadOutlined, GlobalOutlined, LinkOutlined, ReloadOutlined, ThunderboltOutlined } from '@ant-design/icons'
-import { Alert, Button, Form, Input, InputNumber, Modal, Radio, Select, Space, Table, Tabs, Tag, Typography, message } from 'antd'
+import { ApiOutlined, BookOutlined, CheckOutlined, CopyOutlined, DownloadOutlined, GlobalOutlined, InfoCircleOutlined, LinkOutlined, ReloadOutlined, ThunderboltOutlined } from '@ant-design/icons'
+import { Alert, Button, Card, Form, Input, InputNumber, Modal, Radio, Select, Space, Table, Tabs, Tag, Typography, message } from 'antd'
 import { useMemo, useState } from 'react'
 import type { BrowserProfileView, ProfileDraft, ProxyProtocol } from '../../shared/types'
 
@@ -19,7 +19,7 @@ export function MihomoAssistantModal({
   onClose,
   onProfileUpdated
 }: MihomoAssistantModalProps) {
-  const [activeTab, setActiveTab] = useState<'assign' | 'zashboard'>('assign')
+  const [activeTab, setActiveTab] = useState<'docs' | 'generator' | 'zashboard'>('docs')
   const [scope, setScope] = useState<'all' | 'selected'>(selectedProfileIds.length ? 'selected' : 'all')
   const [host, setHost] = useState('127.0.0.1')
   const [port, setPort] = useState<number>(17890)
@@ -27,7 +27,7 @@ export function MihomoAssistantModal({
   const [prefix, setPrefix] = useState('node-')
   const [password, setPassword] = useState('prism')
   const [namingMode, setNamingMode] = useState<'order' | 'serial'>('order')
-  const [copied, setCopied] = useState(false)
+  const [copiedSection, setCopiedSection] = useState<string>('')
   const [applying, setApplying] = useState(false)
 
   // Zashboard / Controller settings
@@ -57,10 +57,10 @@ export function MihomoAssistantModal({
     })
   }, [targetProfiles, namingMode, prefix, password, protocol, host, port])
 
-  // 生成标准的 Mihomo / Clash 配置文件补丁
+  // 生成标准的 Mihomo / Clash 配置文件补丁 (包含 users 与 IN-USER 规则示例)
   const yamlConfig = useMemo(() => {
     const lines = [
-      '# === Prism Browser Mihomo 本地分流配置补丁 ===',
+      '# === Prism Browser Mihomo 本地多环境分流配置补丁 ===',
       `mixed-port: ${port}`,
       'allow-lan: false',
       `bind-address: ${host}`,
@@ -68,11 +68,27 @@ export function MihomoAssistantModal({
       'external-ui: ui',
       'external-ui-url: "https://github.com/Zephyruso/zashboard/releases/latest/download/dist-cdn-fonts.zip"',
       ...(controllerSecret ? [`secret: "${controllerSecret}"`] : []),
+      '',
+      '# 1. 本地入站用户名凭据池 (作为环境路由标签)',
       'users:'
     ]
     assignments.forEach(({ username }) => {
       lines.push(`  - "${username}:${password}"`)
     })
+
+    lines.push('')
+    lines.push('# 2. 根据入站用户名 (IN-USER) 定向分流至指定节点')
+    lines.push('rules:')
+    if (assignments.length > 0) {
+      lines.push(`  - IN-USER,${assignments[0].username},🇺🇸 专线节点-01`)
+      if (assignments.length > 1) {
+        lines.push(`  - IN-USER,${assignments[1].username},🇯🇵 专线节点-02`)
+      }
+      lines.push('  # 让特定环境分组（如带有 Pro 标签的环境）走高速出口')
+      lines.push('  - IN-USER,node-pro-*,🚀 Pro专线池')
+    }
+    lines.push('  - MATCH,DIRECT')
+
     return lines.join('\n')
   }, [port, host, controllerHost, controllerPort, controllerSecret, password, assignments])
 
@@ -91,16 +107,11 @@ export function MihomoAssistantModal({
     return `https://metacubex.github.io/metacubexd/?host=${controllerHost}&port=${controllerPort}${secretParam}#/proxies`
   }, [dashboardSource, controllerHost, controllerPort, controllerSecret])
 
-  async function copyYaml(): Promise<void> {
-    await navigator.clipboard.writeText(yamlConfig)
-    setCopied(true)
-    message.success(t("Mihomo 配置已复制到剪贴板"))
-    setTimeout(() => setCopied(false), 2000)
-  }
-
-  async function copyDashboardUrl(): Promise<void> {
-    await navigator.clipboard.writeText(dashboardUrl)
-    message.success(t("Dashboard 地址已复制"))
+  async function copyText(text: string, id: string): Promise<void> {
+    await navigator.clipboard.writeText(text)
+    setCopiedSection(id)
+    message.success(t("已复制到剪贴板"))
+    setTimeout(() => setCopiedSection(''), 2000)
   }
 
   function openExternalDashboard(): void {
@@ -159,28 +170,116 @@ export function MihomoAssistantModal({
   return (
     <Modal
       open={open}
-      title={<Space><ApiOutlined />{t("Mihomo 代理分流助手")}</Space>}
+      title={<Space><ApiOutlined />{t("Mihomo 本地分流方案与助手")}</Space>}
       footer={null}
-      width={860}
+      width={880}
       style={{ top: 20 }}
       onCancel={onClose}
       destroyOnClose
     >
       <Tabs
         activeKey={activeTab}
-        onChange={(k) => setActiveTab(k as 'assign' | 'zashboard')}
+        onChange={(k) => setActiveTab(k as 'docs' | 'generator' | 'zashboard')}
         items={[
           {
-            key: 'assign',
-            label: <Space><ThunderboltOutlined />{t("凭据池与批量分配")}</Space>,
+            key: 'docs',
+            label: <Space><BookOutlined />{t("技术原理解析与分流指南")}</Space>,
             children: (
-              <Space direction="vertical" style={{ width: '100%' }} size={14}>
+              <Space direction="vertical" style={{ width: '100%' }} size={16}>
                 <Alert
                   type="info"
                   showIcon
-                  description={t("根据环境自动生成统一端口、独立用户名（分流标签）与通用密码的本地凭据。将下方配置复制至本地 Mihomo / Clash 即可生效。")}
+                  icon={<InfoCircleOutlined />}
+                  title={t("为什么需要单核心本地分流？")}
+                  description={
+                    <div style={{ fontSize: 12, lineHeight: 1.6 }}>
+                      <p style={{ margin: '4px 0' }}>
+                        {t("指纹浏览器多账号防关联的核心是“不同环境必须有不同的出口 IP”。传统做法要么购买大量昂贵的独立静态代理，要么为每个节点开启单独的代理软件，导致内存占用过大且极易混淆。")}
+                      </p>
+                      <p style={{ margin: '4px 0' }}>
+                        {t("Mihomo (Clash.Meta) 原生支持在单一后台进程中，通过用户认证信息进行分流（IN-USER 规则），实现让 Profile A 走节点 1、Profile B (或 Pro 组) 走节点 2，极度节省系统资源。")}
+                      </p>
+                    </div>
+                  }
                 />
 
+                <Card size="small" title={t("核心原理解析：Listen Users 本质是“分流路由标签”")}>
+                  <Typography.Paragraph style={{ fontSize: 12, lineHeight: 1.6, marginBottom: 8 }}>
+                    {t("在 127.0.0.1 本地回环网络中，不需要复杂的密码防破解。我们可以把用户名（Username）直接作为该环境的唯一“路由身份标签”，密码统一填写（如 prism）：")}
+                  </Typography.Paragraph>
+
+                  <div style={{ background: 'var(--surface-subtle)', padding: 10, borderRadius: 6, fontSize: 11, fontFamily: 'ui-monospace, Menlo, monospace' }}>
+                    <div><strong>Profile 代理配置:</strong> socks5://node-0001:prism@127.0.0.1:17890</div>
+                    <div style={{ color: 'var(--muted)', marginTop: 4 }}>
+                      流量带着 [node-0001] 标记进入 Mihomo 17890 端口 $\rightarrow$ 触发 IN-USER 规则 $\rightarrow$ 精准从指定的出口节点送达目标网站。
+                    </div>
+                  </div>
+                </Card>
+
+                <Card size="small" title={t("典型分流场景实战：Pro 环境组走指定节点")}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                    <Typography.Text type="secondary" style={{ fontSize: 11 }}>
+                      {t("将以下规则片段添加到你的 Mihomo / Clash 配置文件中：")}
+                    </Typography.Text>
+                    <Button
+                      size="small"
+                      type="link"
+                      icon={copiedSection === 'rules' ? <CheckOutlined /> : <CopyOutlined />}
+                      onClick={() => void copyText(
+`mixed-port: 17890
+allow-lan: false
+bind-address: 127.0.0.1
+
+users:
+  - "node-0001:prism"
+  - "node-0002:prism"
+  - "pro-vps1:prism"
+
+rules:
+  # 1. 指定账号走特定节点
+  - IN-USER,node-0001,🇺🇸 专线节点-美国-01
+  - IN-USER,node-0002,🇯🇵 专线节点-日本-02
+  # 2. 让特定 Pro 分组或业务环境走专用高纯净节点池
+  - IN-USER,pro-*,🚀 Pro专线自动选择
+  # 3. 兜底
+  - MATCH,DIRECT`, 'rules')}
+                    >
+                      {copiedSection === 'rules' ? t("已复制示例") : t("复制示例 YAML")}
+                    </Button>
+                  </div>
+                  <Input.TextArea
+                    readOnly
+                    autoSize={{ minRows: 9, maxRows: 12 }}
+                    style={{ fontFamily: 'ui-monospace, Menlo, monospace', fontSize: 11 }}
+                    value={
+`mixed-port: 17890
+allow-lan: false
+bind-address: 127.0.0.1
+
+users:
+  - "node-0001:prism"
+  - "node-0002:prism"
+  - "pro-vps1:prism"
+
+rules:
+  # 1. 指定账号走特定节点
+  - IN-USER,node-0001,🇺🇸 专线节点-美国-01
+  - IN-USER,node-0002,🇯🇵 专线节点-日本-02
+  # 2. 让特定 Pro 分组或业务环境走专用高纯净节点池
+  - IN-USER,pro-*,🚀 Pro专线自动选择
+  # 3. 兜底
+  - MATCH,DIRECT`
+                    }
+                  />
+                </Card>
+              </Space>
+            )
+          },
+          {
+            key: 'generator',
+            label: <Space><ThunderboltOutlined />{t("凭据生成与配置代码")}</Space>,
+            children: (
+              <Space direction="vertical" style={{ width: '100%' }} size={14}>
                 <Form layout="vertical" size="small">
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 16px' }}>
                     <Form.Item label={t("目标环境范围")}>
@@ -205,7 +304,7 @@ export function MihomoAssistantModal({
                       <Input value={host} onChange={(e) => setHost(e.target.value)} placeholder="127.0.0.1" />
                     </Form.Item>
 
-                    <Form.Item label={t("Mihomo 混合端口")}>
+                    <Form.Item label={t("Mihomo 端口")}>
                       <InputNumber
                         value={port}
                         min={1024}
@@ -231,30 +330,30 @@ export function MihomoAssistantModal({
                     </Form.Item>
                   </div>
 
-                  <Form.Item label={t("统一代理密码 (本地回环作为身份标记，无需复杂密码)")}>
+                  <Form.Item label={t("统一代理密码")}>
                     <Input value={password} onChange={(e) => setPassword(e.target.value)} placeholder="prism" />
                   </Form.Item>
                 </Form>
 
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <Typography.Text strong>{t("Mihomo 配置补丁 (复制至 config.yaml)")}</Typography.Text>
+                  <Typography.Text strong>{t("Mihomo 配置补丁 (包含 Users 与规则模板)")}</Typography.Text>
                   <Button
                     type="primary"
-                    icon={copied ? <CheckOutlined /> : <CopyOutlined />}
-                    onClick={() => void copyYaml()}
+                    icon={copiedSection === 'yaml' ? <CheckOutlined /> : <CopyOutlined />}
+                    onClick={() => void copyText(yamlConfig, 'yaml')}
                   >
-                    {copied ? t("已复制配置") : t("复制 Mihomo 配置")}
+                    {copiedSection === 'yaml' ? t("已复制配置") : t("复制 Mihomo 配置")}
                   </Button>
                 </div>
                 <Input.TextArea
                   value={yamlConfig}
                   readOnly
-                  autoSize={{ minRows: 4, maxRows: 7 }}
+                  autoSize={{ minRows: 5, maxRows: 8 }}
                   style={{ fontFamily: 'ui-monospace, Menlo, monospace', fontSize: 11 }}
                 />
 
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 }}>
-                  <Typography.Text strong>{t("分配预览 ({0} 个环境)", assignments.length)}</Typography.Text>
+                  <Typography.Text strong>{t("环境代理分配预览 ({0} 个环境)", assignments.length)}</Typography.Text>
                   <Button
                     type="primary"
                     danger
@@ -263,7 +362,7 @@ export function MihomoAssistantModal({
                     disabled={!assignments.length}
                     onClick={() => void applyToProfiles()}
                   >
-                    {t("一键批量应用到这 {0} 个环境", assignments.length)}
+                    {t("一键批量应用代理到环境", assignments.length)}
                   </Button>
                 </div>
 
@@ -284,7 +383,7 @@ export function MihomoAssistantModal({
                       )
                     },
                     {
-                      title: t("分配账号"),
+                      title: t("分配账号 (分流标识)"),
                       dataIndex: 'username',
                       key: 'username',
                       render: (username) => <Tag color="blue">{username}</Tag>
@@ -295,7 +394,7 @@ export function MihomoAssistantModal({
                       render: () => <Typography.Text code>{password}</Typography.Text>
                     },
                     {
-                      title: t("本地代理"),
+                      title: t("本地端点"),
                       key: 'endpoint',
                       render: () => <span>{protocol}://{host}:{port}</span>
                     },
@@ -358,7 +457,7 @@ export function MihomoAssistantModal({
                     <Button size="small" icon={<ReloadOutlined />} onClick={() => setIframeKey((k) => k + 1)}>
                       {t("刷新面板")}
                     </Button>
-                    <Button size="small" icon={<CopyOutlined />} onClick={() => void copyDashboardUrl()}>
+                    <Button size="small" icon={<CopyOutlined />} onClick={() => void copyText(dashboardUrl, 'dashUrl')}>
                       {t("复制链接")}
                     </Button>
                     <Button size="small" type="primary" icon={<LinkOutlined />} onClick={openExternalDashboard}>
