@@ -329,40 +329,71 @@ export class WindowSyncManager {
     const gap = this.platform === 'win32' ? 0 : 10
 
     if (layout === 'overlap') {
-      const width = Math.max(520, Math.floor(resolvedArea.width * 0.76))
-      const height = Math.max(420, Math.floor(resolvedArea.height * 0.78))
-      await Promise.all(ids.map((id, index) => this.launcher.setBrowserWindowBounds(id, {
-        left: resolvedArea.x + gap + index * 28,
-        top: resolvedArea.y + gap + index * 28,
-        width,
-        height,
-      })))
+      // 保持每个窗口原有的独立尺寸，绝不强制固定为 76% 屏幕大小，只进行阶梯错落层叠
+      const boundsList = await Promise.all(
+        ids.map((id) => this.launcher.browserWindowBounds(id).catch(() => null))
+      )
+      const step = 32
+      await Promise.all(ids.map((id, index) => {
+        const current = boundsList[index]
+        const width = current?.width && current.width > 0 ? current.width : Math.max(520, Math.floor(resolvedArea.width * 0.6))
+        const height = current?.height && current.height > 0 ? current.height : Math.max(420, Math.floor(resolvedArea.height * 0.6))
+        const maxOffsetLeft = Math.max(0, resolvedArea.width - width - gap)
+        const maxOffsetTop = Math.max(0, resolvedArea.height - height - gap)
+        const offsetLeft = maxOffsetLeft > 0 ? (index * step) % maxOffsetLeft : 0
+        const offsetTop = maxOffsetTop > 0 ? (index * step) % maxOffsetTop : 0
+        return this.launcher.setBrowserWindowBounds(id, {
+          left: resolvedArea.x + gap + offsetLeft,
+          top: resolvedArea.y + gap + offsetTop,
+          width,
+          height,
+        })
+      }))
       return
     }
 
     if (keepCurrentSize) {
-      let targetWidth = 600
-      let targetHeight = 450
-      try {
-        const mainBounds = await this.launcher.browserWindowBounds(ids[0])
-        if (mainBounds && mainBounds.width > 0 && mainBounds.height > 0) {
-          targetWidth = Math.max(320, mainBounds.width)
-          targetHeight = Math.max(240, mainBounds.height)
-        }
-      } catch {
-        // fallback
-      }
-      const maxColumns = Math.max(1, Math.floor((resolvedArea.width - gap) / (targetWidth + gap)))
-      const columns = Math.min(ids.length, maxColumns)
+      // 保持窗口大小平铺：获取每个窗口当前真实尺寸
+      const boundsList = await Promise.all(
+        ids.map((id) => this.launcher.browserWindowBounds(id).catch(() => null))
+      )
+      const first = boundsList[0]
+      const refWidth = first?.width && first.width > 0 ? first.width : 600
+      const refHeight = first?.height && first.height > 0 ? first.height : 450
+
+      // 计算每行合理列数与行数：
+      // 优先多列排布（至少 2 列，除非只有 1 个窗口），绝不退化为单列！
+      const fitCols = Math.floor((resolvedArea.width - gap) / (refWidth + gap))
+      const gridCols = Math.ceil(Math.sqrt(ids.length))
+      const columns = Math.min(ids.length, Math.max(fitCols > 1 ? fitCols : gridCols, 2))
+      const rows = Math.ceil(ids.length / columns)
+
+      // 列步长与行步长：若屏幕宽度充足，按完整窗口步进；若屏幕较紧凑，则在可用宽度内均匀平铺分布
+      const totalWidthNeeded = columns * refWidth + (columns + 1) * gap
+      const stepX = totalWidthNeeded <= resolvedArea.width
+        ? refWidth + gap
+        : columns > 1
+          ? Math.max(40, Math.floor((resolvedArea.width - refWidth - gap * 2) / (columns - 1)))
+          : 0
+
+      const totalHeightNeeded = rows * refHeight + (rows + 1) * gap
+      const stepY = totalHeightNeeded <= resolvedArea.height
+        ? refHeight + gap
+        : rows > 1
+          ? Math.max(40, Math.floor((resolvedArea.height - refHeight - gap * 2) / (rows - 1)))
+          : refHeight + gap
 
       await Promise.all(ids.map((id, index) => {
         const col = index % columns
         const row = Math.floor(index / columns)
+        const current = boundsList[index]
+        const w = current?.width && current.width > 0 ? current.width : refWidth
+        const h = current?.height && current.height > 0 ? current.height : refHeight
         return this.launcher.setBrowserWindowBounds(id, {
-          left: resolvedArea.x + gap + col * (targetWidth + gap),
-          top: resolvedArea.y + gap + row * (targetHeight + gap),
-          width: targetWidth,
-          height: targetHeight,
+          left: resolvedArea.x + gap + col * stepX,
+          top: resolvedArea.y + gap + row * stepY,
+          width: w,
+          height: h,
         })
       }))
       return
