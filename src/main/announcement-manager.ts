@@ -1,23 +1,10 @@
-import { createPublicKey, verify } from 'node:crypto'
-import { readFile } from 'node:fs/promises'
-import { join } from 'node:path'
 import type { AnnouncementStatus, ProductAnnouncement } from '../shared/types'
 import type { Logger } from './app-logger'
-import { canonicalJson } from './license-crypto'
-import { activationUrl, validateConfig } from './license-manager'
 
-interface AnnouncementPayload extends ProductAnnouncement {
-  schemaVersion: 1
-  product: 'prism-browser-announcement'
-}
-
-interface SignedAnnouncement {
-  payload: AnnouncementPayload
-  signature: string
-}
+export const GITHUB_REPO = 'XRSec/Prism-Browser'
+export const GITHUB_RELEASES_URL = `https://api.github.com/repos/${GITHUB_REPO}/releases/latest`
 
 type FetchLike = typeof fetch
-const MAX_RESPONSE_BYTES = 64 * 1024
 
 function compareVersions(first: string, second: string): number {
   const parse = (value: string): { core: number[]; prerelease: string[] } => {
@@ -52,36 +39,6 @@ function compareVersions(first: string, second: string): number {
   return 0
 }
 
-function validateSignedAnnouncement(value: unknown, publicKey: string): ProductAnnouncement {
-  const signed = value as Partial<SignedAnnouncement>
-  const payload = signed?.payload as Partial<AnnouncementPayload> | undefined
-  const action = payload?.action
-  if (!payload || payload.schemaVersion !== 1 || payload.product !== 'prism-browser-announcement'
-    || typeof payload.id !== 'string' || !/^[A-Za-z0-9._-]{1,80}$/.test(payload.id)
-    || typeof payload.title !== 'string' || payload.title.length < 1 || payload.title.length > 120
-    || typeof payload.body !== 'string' || payload.body.length < 1 || payload.body.length > 2000
-    || !['info', 'warning', 'critical'].includes(payload.severity ?? '')
-    || typeof payload.publishedAt !== 'string' || !Number.isFinite(Date.parse(payload.publishedAt))
-    || (payload.expiresAt !== undefined
-      && (typeof payload.expiresAt !== 'string' || !Number.isFinite(Date.parse(payload.expiresAt))))
-    || !Array.isArray(payload.platforms) || payload.platforms.length === 0
-    || payload.platforms.some((item) => !['all', 'darwin', 'win32'].includes(item))
-    || (payload.minimumVersion !== undefined
-      && (typeof payload.minimumVersion !== 'string' || !/^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/.test(payload.minimumVersion)))
-    || (payload.latestVersion !== undefined
-      && (typeof payload.latestVersion !== 'string' || !/^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/.test(payload.latestVersion)))
-    || (payload.latestVersion !== undefined && action === undefined)
-    || (action !== undefined && (!action || typeof action.label !== 'string' || action.label.length < 1
-      || action.label.length > 40 || typeof action.url !== 'string'
-      || new URL(action.url).protocol !== 'https:' || new URL(action.url).username || new URL(action.url).password))
-    || typeof signed.signature !== 'string' || Buffer.from(signed.signature, 'base64').length !== 64
-    || !verify(null, Buffer.from(canonicalJson(payload)), createPublicKey(publicKey), Buffer.from(signed.signature, 'base64'))) {
-    throw new Error('公告签名或字段无效')
-  }
-  const { schemaVersion: _schemaVersion, product: _product, ...announcement } = payload as AnnouncementPayload
-  return structuredClone(announcement)
-}
-
 export class AnnouncementManager {
   private current: AnnouncementStatus = { state: 'disabled', message: '暂时无法检查更新' }
 
@@ -101,45 +58,100 @@ export class AnnouncementManager {
 
   async check(): Promise<AnnouncementStatus> {
     try {
-      const path = this.configOverride ?? join(this.resourcesPath, 'license-config.json')
-      const config = validateConfig(JSON.parse(await readFile(path, 'utf8')))
-      const response = await this.fetchImpl(activationUrl(config.activationBaseUrl, '/v1/announcements/current'), {
+      const response = await this.fetchImpl(GITHUB_RELEASES_URL, {
         method: 'GET',
-        redirect: 'error',
-        headers: { accept: 'application/json', 'user-agent': `Prism-Browser/${this.currentVersion}` },
+        headers: {
+          accept: 'application/vnd.github.v3+json',
+          'user-agent': `Prism-Browser/${this.currentVersion}`
+        },
         signal: AbortSignal.timeout(10_000)
       })
-      if (!response.ok) throw new Error(`公告服务返回 HTTP ${response.status}`)
-      const declaredSize = Number(response.headers.get('content-length') ?? 0)
-      if (declaredSize > MAX_RESPONSE_BYTES) throw new Error('公告响应过大')
+
+      if (!response.ok) {
+        if (response.status === 404) {
+          this.current = { state: 'none', message: '暂无版本更新' }
+          return this.status()
+        }
+        if (response.status === 403) {
+          this.current = {
+            state: 'available',
+            message: 'GitHub API 访问达到限额，请直接前往 Release 页面',
+            announcement: {
+              id: 'github-rate-limited',
+              title: 'Prism Browser GitHub Releases',
+              body: 'GitHub API 请求次数受限，可直接访问官方 Release 页面下载更新。',
+              severity: 'info',
+              publishedAt: new Date().toISOString(),
+              platforms: ['all', 'darwin', 'win32'],
+              action: {
+                label: '访问 Release 页面',
+                url: `https://github.com/${GITHUB_REPO}/releases`
+              }
+            }
+          }
+          return this.status()
+        }
+        throw new Error(`GitHub 返回 HTTP ${response.status}`)
+      }
+
       const text = await response.text()
-      if (Buffer.byteLength(text) > MAX_RESPONSE_BYTES) throw new Error('公告响应过大')
-      const envelope = JSON.parse(text)
-      if (!envelope || envelope.schemaVersion !== 1) throw new Error('公告响应格式无效')
-      if (envelope.announcement === null) {
-        this.current = { state: 'none', message: '暂无公告' }
+      const release = JSON.parse(text)
+      const tagName = typeof release.tag_name === 'string' ? release.tag_name : ''
+      const latestVersion = tagName.replace(/^v/, '')
+      if (!latestVersion) {
+        this.current = { state: 'none', message: '暂无适用于当前版本的更新' }
         return this.status()
       }
-      const announcement = validateSignedAnnouncement(envelope.announcement, config.licensePublicKey)
-      const compatible = announcement.platforms.includes('all')
-        || announcement.platforms.includes(this.platform as 'darwin' | 'win32')
-      const expired = announcement.expiresAt !== undefined && Date.parse(announcement.expiresAt) <= this.now()
-      const updateCurrent = announcement.latestVersion !== undefined
-        && compareVersions(this.currentVersion, announcement.latestVersion) >= 0
-      const alreadyCurrent = announcement.latestVersion === undefined && announcement.minimumVersion !== undefined
-        && compareVersions(this.currentVersion, announcement.minimumVersion) >= 0
-      this.current = !compatible || expired || alreadyCurrent
-        ? { state: 'none', message: '暂无适用于当前版本的公告' }
-        : updateCurrent
-          ? { state: 'current', message: '当前已是最新版本', announcement }
-          : { state: 'available', message: announcement.title, announcement }
+
+      const assets = Array.isArray(release.assets) ? release.assets : []
+      let targetAssetUrl = release.html_url || `https://github.com/${GITHUB_REPO}/releases/latest`
+      let actionLabel = '前往 GitHub 下载'
+
+      if (this.platform === 'darwin') {
+        const dmg = assets.find((a: any) => typeof a.name === 'string' && a.name.endsWith('.dmg'))
+        const zip = assets.find((a: any) => typeof a.name === 'string' && a.name.endsWith('.zip'))
+        const best = dmg ?? zip
+        if (best?.browser_download_url) {
+          targetAssetUrl = best.browser_download_url
+          actionLabel = dmg ? '下载 DMG 安装包' : '下载 ZIP 压缩包'
+        }
+      } else if (this.platform === 'win32') {
+        const exe = assets.find((a: any) => typeof a.name === 'string' && a.name.endsWith('.exe'))
+        const msi = assets.find((a: any) => typeof a.name === 'string' && a.name.endsWith('.msi'))
+        const zip = assets.find((a: any) => typeof a.name === 'string' && a.name.endsWith('.zip'))
+        const best = exe ?? msi ?? zip
+        if (best?.browser_download_url) {
+          targetAssetUrl = best.browser_download_url
+          actionLabel = exe ? '下载 EXE 安装包' : msi ? '下载 MSI 安装包' : '下载 ZIP 压缩包'
+        }
+      }
+
+      const updateAvailable = compareVersions(latestVersion, this.currentVersion) > 0
+      const announcement: ProductAnnouncement = {
+        id: tagName,
+        title: release.name || `Prism Browser ${tagName}`,
+        body: release.body || '新版本已在 GitHub 发布，点击下方按钮前往下载。',
+        severity: 'info',
+        publishedAt: release.published_at || new Date().toISOString(),
+        latestVersion,
+        platforms: ['all', 'darwin', 'win32'],
+        action: {
+          label: actionLabel,
+          url: targetAssetUrl
+        }
+      }
+
+      this.current = updateAvailable
+        ? { state: 'available', message: `发现新版本 ${latestVersion}`, announcement }
+        : { state: 'current', message: '当前已是最新版本', announcement }
+
       return this.status()
     } catch (error) {
-      this.logger?.error('检查产品公告失败', error)
+      this.logger?.error('检查 GitHub 仓库版本更新失败', error)
       this.current = { state: 'error', message: error instanceof Error ? error.message : String(error) }
       return this.status()
     }
   }
 }
 
-export { compareVersions, validateSignedAnnouncement }
+export { compareVersions }
