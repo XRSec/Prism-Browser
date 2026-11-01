@@ -87,6 +87,7 @@ export class MihomoManager {
   private readonly serviceConfigPath: string
   private binaryPath: string = ''
   private configPath: string = ''
+  private autoStart: boolean = false
   private startedAt?: string
   private lastError?: string
   private logs: string[] = []
@@ -103,12 +104,15 @@ export class MihomoManager {
     await mkdir(this.workDir, { recursive: true })
     try {
       const raw = await readFile(this.serviceConfigPath, 'utf8')
-      const parsed = JSON.parse(raw) as { binaryPath?: string; configPath?: string }
+      const parsed = JSON.parse(raw) as { binaryPath?: string; configPath?: string; autoStart?: boolean }
       if (typeof parsed.binaryPath === 'string' && parsed.binaryPath.trim()) {
         this.binaryPath = parsed.binaryPath.trim()
       }
       if (typeof parsed.configPath === 'string' && parsed.configPath.trim()) {
         this.configPath = parsed.configPath.trim()
+      }
+      if (typeof parsed.autoStart === 'boolean') {
+        this.autoStart = parsed.autoStart
       }
     } catch {
       // no existing service config
@@ -157,12 +161,19 @@ rules:
       await mkdir(this.workDir, { recursive: true })
       await writeFile(
         this.serviceConfigPath,
-        JSON.stringify({ binaryPath: this.binaryPath, configPath: this.configPath }, null, 2),
+        JSON.stringify({ binaryPath: this.binaryPath, configPath: this.configPath, autoStart: this.autoStart }, null, 2),
         'utf8'
       )
     } catch {
       // ignore write error
     }
+  }
+
+  async setAutoStart(autoStart: boolean): Promise<MihomoStatus> {
+    this.autoStart = autoStart
+    await this.saveServiceConfig()
+    this.notifyStatusImmediate()
+    return this.getStatus()
   }
 
   async saveConfigFile(content: string, customPath?: string): Promise<string> {
@@ -196,6 +207,7 @@ rules:
       startedAt: this.startedAt,
       binaryPath: this.binaryPath,
       configPath: this.configPath,
+      autoStart: this.autoStart,
       error: this.lastError,
       recentLogs: [...this.logs]
     }

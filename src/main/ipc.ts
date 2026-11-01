@@ -551,10 +551,14 @@ export function registerIpc({ profiles, settings, launcher, kernels, extensions,
   ipcMain.handle('window-sync:close-tabs', (_event, profileIds, mode) => windowSync.closeTabs(profileIds, mode))
   ipcMain.handle('window-sync:visit', (_event, profileIds, url, newTab) => windowSync.visit(profileIds, url, newTab))
   ipcMain.handle('docs:open-path', async (_event, relativePath: string) => {
+    const stripped = relativePath.replace(/^resources\//, '')
+    const prepended = relativePath.startsWith('resources/') ? relativePath : `resources/${relativePath}`
     const candidates = [
+      resolve(process.resourcesPath, stripped),
       resolve(process.resourcesPath, relativePath),
       resolve(process.resourcesPath, '..', relativePath),
       resolve(app.getAppPath(), relativePath),
+      resolve(import.meta.dirname, '../../', prepended),
       resolve(import.meta.dirname, '../../', relativePath)
     ]
     for (const candidate of candidates) {
@@ -579,10 +583,14 @@ export function registerIpc({ profiles, settings, launcher, kernels, extensions,
     return { success: false, path: candidates[0] }
   })
   ipcMain.handle('docs:show-in-folder', async (_event, relativePath: string) => {
+    const stripped = relativePath.replace(/^resources\//, '')
+    const prepended = relativePath.startsWith('resources/') ? relativePath : `resources/${relativePath}`
     const candidates = [
+      resolve(process.resourcesPath, stripped),
       resolve(process.resourcesPath, relativePath),
       resolve(process.resourcesPath, '..', relativePath),
       resolve(app.getAppPath(), relativePath),
+      resolve(import.meta.dirname, '../../', prepended),
       resolve(import.meta.dirname, '../../', relativePath)
     ]
     for (const candidate of candidates) {
@@ -620,5 +628,8 @@ export function registerIpc({ profiles, settings, launcher, kernels, extensions,
   ipcMain.handle('mihomo:select-file', async (event, type: 'binary' | 'config') => {
     const owner = BrowserWindow.fromWebContents(event.sender) ?? undefined
     return mihomo.selectFile(type, owner)
+  })
+  ipcMain.handle('mihomo:set-auto-start', async (_event, enabled: boolean) => {
+    return mihomo.setAutoStart(enabled)
   })
 }

@@ -509,6 +509,7 @@ export interface MihomoStatus {
   startedAt?: string
   binaryPath: string
   configPath: string
+  autoStart?: boolean
   error?: string
   recentLogs: string[]
 }
@@ -690,6 +691,7 @@ export interface BrowserApi {
     readConfig: (customPath?: string) => Promise<MihomoConfigSummary>
     saveConfig: (content: string, customPath?: string) => Promise<string>
     selectFile: (type: 'binary' | 'config') => Promise<string | null>
+    setAutoStart: (enabled: boolean) => Promise<MihomoStatus>
     onStatusChanged: (listener: (status: MihomoStatus) => void) => () => void
   }
 }

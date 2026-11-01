@@ -195,6 +195,7 @@ const api: BrowserApi = {
     readConfig: (customPath?: string) => ipcRenderer.invoke('mihomo:read-config', customPath),
     saveConfig: (content: string, customPath?: string) => ipcRenderer.invoke('mihomo:save-config', content, customPath),
     selectFile: (type: 'binary' | 'config') => ipcRenderer.invoke('mihomo:select-file', type),
+    setAutoStart: (enabled: boolean) => ipcRenderer.invoke('mihomo:set-auto-start', enabled),
     onStatusChanged: (listener: (status: MihomoStatus) => void) => {
       const handler = (_event: Electron.IpcRendererEvent, status: MihomoStatus): void => listener(status)
       ipcRenderer.on('mihomo:status-changed', handler)

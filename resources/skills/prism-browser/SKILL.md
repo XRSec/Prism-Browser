@@ -18,6 +18,16 @@ Universal, cross-runtime operational guide for orchestrating Prism Fingerprint B
 
 ---
 
+### Agent-First Operational Protocol (Standing Order)
+1. **Language Discipline**:
+   - All internal documentation, architecture specs, memory shards, execution protocols, and skill definitions MUST be authored strictly in high-density English (`en-US`).
+   - Final conversational responses to the user follow the user's natural language, but internal working documents and specs must NEVER be polluted with conversational fluff.
+2. **Skills Are for Machines**:
+   - Skills and system documentation are designed exclusively for machine consumption (LLM-to-LLM / Agent-to-Agent).
+   - Zero fluff, numbers-first, schema-strict, and deterministic. Machine comprehension and execution fidelity strictly supersede human aesthetic preferences.
+
+---
+
 ## 1. Core Architecture & Operating Philosophy
 
 Prism Browser decouples browser automation from host OS profiles. Every browser environment runs in an isolated sandbox (`userDataDir`) backed by deterministic hardware fingerprint seeds, dedicated proxy tunnels, and decoupled network stacks.

@@ -8,14 +8,18 @@ import {
   GlobalOutlined,
   InfoCircleOutlined,
   LinkOutlined,
+  PartitionOutlined,
   PlayCircleOutlined,
   PoweroffOutlined,
   ReloadOutlined,
+  RobotOutlined,
+  SafetyCertificateOutlined,
   SaveOutlined,
   ThunderboltOutlined
 } from '@ant-design/icons'
-import { Alert, Button, Card, Collapse, Form, Input, InputNumber, Modal, Select, Space, Tabs, Tag, Typography, message } from 'antd'
+import { Alert, Button, Card, Checkbox, Input, InputNumber, Modal, Segmented, Space, Tabs, Tag, Typography, message } from 'antd'
 import { useEffect, useMemo, useState } from 'react'
+import { getLocale, t } from '../../shared/i18n'
 import type { BrowserProfileView, MihomoStatus } from '../../shared/types'
 
 interface MihomoAssistantModalProps {
@@ -31,7 +35,8 @@ export function MihomoAssistantModal({
   allProfiles = [],
   onClose
 }: MihomoAssistantModalProps) {
-  const [activeTab, setActiveTab] = useState<'generator' | 'clients' | 'zashboard' | 'docs'>('generator')
+  const [activeTab, setActiveTab] = useState<'prompts' | 'rules' | 'hosting'>('prompts')
+  const [configViewMode, setConfigViewMode] = useState<'script' | 'yaml'>('script')
   const [host, setHost] = useState('127.0.0.1')
   const [port, setPort] = useState<number>(17890)
   const [prefix, setPrefix] = useState('node-')
@@ -46,7 +51,7 @@ export function MihomoAssistantModal({
   // Zashboard / Controller settings
   const [externalController, setExternalController] = useState('127.0.0.1:9090')
   const [controllerSecret, setControllerSecret] = useState('')
-  const [dashboardSource, setDashboardSource] = useState<'local' | 'zash_online' | 'metacubexd'>('local')
+  const [dashboardSource, setDashboardSource] = useState<'local' | 'zash_online' | 'metacubexd' | 'yacd'>('local')
   const [iframeKey, setIframeKey] = useState(1)
 
   const { controllerHost, controllerPort, normalizedControllerAddress } = useMemo(() => {
@@ -68,6 +73,7 @@ export function MihomoAssistantModal({
 
   // Mihomo 后台轻量托管进程控制状态
   const [mihomoStatus, setMihomoStatus] = useState<MihomoStatus | null>(null)
+  const [autoStart, setAutoStart] = useState(false)
   const [isStartingMihomo, setIsStartingMihomo] = useState(false)
   const [isStoppingMihomo, setIsStoppingMihomo] = useState(false)
   const [showLogs, setShowLogs] = useState(false)
@@ -85,6 +91,7 @@ export function MihomoAssistantModal({
       .getStatus()
       .then(async (status) => {
         setMihomoStatus(status)
+        if (status.autoStart !== undefined) setAutoStart(Boolean(status.autoStart))
         if (status.binaryPath) setMihomoBinaryPath(status.binaryPath)
         const configPathToUse = status.configPath || mihomoConfigPath
         if (status.configPath) setMihomoConfigPath(status.configPath)
@@ -111,6 +118,7 @@ export function MihomoAssistantModal({
 
     const unsubscribe = window.browserApi.mihomo.onStatusChanged((status) => {
       setMihomoStatus(status)
+      if (status.autoStart !== undefined) setAutoStart(Boolean(status.autoStart))
       if (status.binaryPath) setMihomoBinaryPath(status.binaryPath)
       if (status.configPath) setMihomoConfigPath(status.configPath)
       setLiveLogs(status.recentLogs || [])
@@ -132,8 +140,22 @@ export function MihomoAssistantModal({
 
   // 生成标准的 Mihomo / Clash 配置文件补丁 (包含 users 与 IN-USER 规则示例)
   const yamlConfig = useMemo(() => {
+    const isZh = getLocale() === 'zh-CN' || getLocale() === 'zh-TW'
+    const headerComment = isZh
+      ? '# === Prism Browser Mihomo 本地多环境分流配置 ==='
+      : '# === Prism Browser Mihomo Local Multi-Profile Proxy Configuration ==='
+    const usersComment = isZh
+      ? '# 1. 本地入站用户名凭据池 (环境分流路由标签)'
+      : '# 1. Inbound user credential pool (Profile routing tags)'
+    const rulesComment = isZh
+      ? '# 2. 根据入站用户名 (IN-USER) 定向分流至指定节点\n# 说明：单机独立运行默认出口为 DIRECT；若配合机场订阅使用，可将 DIRECT 替换为真实节点或策略组名称'
+      : '# 2. Route to target outbounds based on inbound user (IN-USER)\n# Note: Default outbound is DIRECT; replace DIRECT with your actual node or proxy-group name'
+    const exampleComment = isZh
+      ? '  # 示例: 让特定环境分组（如带有 Pro 标签的环境）走专用节点/策略组 (替换 DIRECT)\n  # - IN-USER,node-pro-*,🚀 Pro专线池'
+      : '  # Example: Route specific group (e.g. Pro profiles) to dedicated group (replace DIRECT)\n  # - IN-USER,node-pro-*,🚀 Pro-Group'
+
     const lines = [
-      '# === Prism Browser Mihomo 本地多环境分流配置 ===',
+      headerComment,
       `mixed-port: ${port}`,
       'allow-lan: false',
       `bind-address: ${host}`,
@@ -142,7 +164,7 @@ export function MihomoAssistantModal({
       'external-ui-url: "https://github.com/Zephyruso/zashboard/releases/latest/download/dist-cdn-fonts.zip"',
       ...(controllerSecret ? [`secret: "${controllerSecret}"`] : []),
       '',
-      '# 1. 本地入站用户名凭据池 (环境分流路由标签)',
+      usersComment,
       'users:'
     ]
     usersList.forEach((username) => {
@@ -150,16 +172,14 @@ export function MihomoAssistantModal({
     })
 
     lines.push('')
-    lines.push('# 2. 根据入站用户名 (IN-USER) 定向分流至指定节点')
-    lines.push('# 说明：单机独立运行默认出口为 DIRECT；若配合机场订阅使用，可将 DIRECT 替换为真实节点或策略组名称')
+    lines.push(rulesComment)
     lines.push('rules:')
     if (usersList.length > 0) {
       lines.push(`  - IN-USER,${usersList[0]},DIRECT`)
       if (usersList.length > 1) {
         lines.push(`  - IN-USER,${usersList[1]},DIRECT`)
       }
-      lines.push('  # 示例: 让特定环境分组（如带有 Pro 标签的环境）走专用节点/策略组 (替换 DIRECT)')
-      lines.push('  # - IN-USER,node-pro-*,🚀 Pro专线池')
+      lines.push(exampleComment)
     }
     lines.push('  - MATCH,DIRECT')
 
@@ -168,30 +188,88 @@ export function MihomoAssistantModal({
 
   // 动态生成适合 Clash Verge / Flclash / Mihomo Party 的 JavaScript 扩展脚本
   const jsScriptConfig = useMemo(() => {
-    const userList = usersList.map((u) => `    '${u}:${password}'`).join(',\n')
-    const ruleList = usersList.slice(0, 3).map((u, i) => `    'IN-USER,${u},DIRECT'`).join(',\n')
-    return `// 适用于：Clash Verge Rev / Flclash / Mihomo Party 扩展脚本 (Script)
-function main(config) {
-  // 1. 设置本地入站端口与外部控制器
-  config['mixed-port'] = ${port};
-  config['allow-lan'] = false;
-  config['bind-address'] = '${host}';
-  config['external-controller'] = '${normalizedControllerAddress}';
+    const isZh = getLocale() === 'zh-CN' || getLocale() === 'zh-TW'
+    const groupPrefix = isZh ? 'Prism-环境-' : 'Prism-Env-'
+    const listenerUsers = usersList.map((u) => `        { username: '${u}', password: '${password}' }`).join(',\n')
+    const groupNames = usersList.map((_u, i) => `'${groupPrefix}${String(i + 1).padStart(2, '0')}'`).join(', ')
+    const defaultGroup = `'${groupPrefix}01'`
+    const ruleList = usersList.map((u, i) => `    'IN-USER,${u},${groupPrefix}${String(i + 1).padStart(2, '0')}'`).join(',\n')
 
-  // 2. 注入 Prism 环境 User 认证池 (环境路由标签)
-  config['users'] = [
-${userList || "    'node-0001:prism'"}
+    const header = isZh
+      ? '// ====================================================================\n// 适用于：Clash Verge Rev / Flclash / Mihomo Party 扩展脚本 (Script)\n// ===================================================================='
+      : '// ====================================================================\n// Compatible with: Clash Verge Rev / Flclash / Mihomo Party Script\n// ===================================================================='
+    const step1 = isZh
+      ? '  // 1. 动态过滤有效物理节点 (自动剔除流量提示等占位符)'
+      : '  // 1. Filter out traffic notices and placeholder nodes'
+    const step2 = isZh
+      ? '  // 2. 开启选择记忆持久化 (确保手动选定后绝不自动跳变)'
+      : '  // 2. Enable persistent selection memory across restarts'
+    const step3 = isZh
+      ? '  // 3. 【核心解耦】：专门为 Prism 开辟专属监听端口，主端口彻底保持无密码'
+      : '  // 3. Core Decoupling: Dedicated listener for Prism (main port remains no-auth)'
+    const step4 = isZh
+      ? '  // 4. 生成专属手动单选策略组 (纯 select 模式，不自动切换)'
+      : '  // 4. Dedicated manual select groups (pure select, no auto latency test)'
+    const step5 = isZh
+      ? '  // 5. 追加在 proxy-groups 末尾，原有的第一主策略 (如 🚀 节点选择) 保持在最顶部不变'
+      : '  // 5. Append to proxy-groups end (preserving original top selector)'
+    const step6 = isZh
+      ? '  // 6. 规则置顶：IN-USER 规则依然最高优先级命中'
+      : '  // 6. Prepend IN-USER routing rules at top priority'
+
+    return `${header}
+function main(config) {
+${step1}
+  const allProxyNames = (config.proxies || [])
+    .map((p) => p.name)
+    .filter((name) => name && !/remaining|expire|website|group|update|traffic|剩余流量|套餐到期|官网|群组|更新/i.test(name));
+
+  const providerNames = config['proxy-providers'] ? Object.keys(config['proxy-providers']) : [];
+
+${step2}
+  config['profile'] = {
+    ...(config['profile'] || {}),
+    'store-selected': true
+  };
+
+${step3}
+  config.listeners = [
+    ...(config.listeners || []),
+    {
+      name: 'prism-inbound',
+      type: 'mixed',
+      port: ${port},
+      listen: '${host}',
+      users: [
+${listenerUsers || `        { username: '${prefix}0001', password: '${password}' }`}
+      ]
+    }
   ];
 
-  // 3. 注入 IN-USER 规则（插入至 rules 顶部优先匹配，请将 DIRECT 替换为机场节点名）
+${step4}
+  const prismGroupNames = [${groupNames || defaultGroup}];
+  const newProxyGroups = prismGroupNames.map((groupName) => {
+    const group = {
+      name: groupName,
+      type: 'select',
+      proxies: ['DIRECT', ...allProxyNames]
+    };
+    if (providerNames.length > 0) group.use = providerNames;
+    return group;
+  });
+
+${step5}
+  config['proxy-groups'] = [...(config['proxy-groups'] || []), ...newProxyGroups];
+
+${step6}
   const prismRules = [
-${ruleList || "    'IN-USER,node-0001,DIRECT'"}
+${ruleList || `    'IN-USER,${prefix}0001,${groupPrefix}01'`}
   ];
   config.rules = [...prismRules, ...(config.rules || [])];
 
   return config;
 }`
-  }, [usersList, password, port, host, normalizedControllerAddress])
+  }, [usersList, password, port, host, prefix])
 
   // 监听分流配置参数变化，当使用金库内置配置时，自动静默同步写入到 config.yaml
   // 关键保护：必须在 isConfigLoaded 为 true 后才允许触发自动保存，避免组件初次挂载时用默认值冲掉磁盘！
@@ -209,46 +287,114 @@ ${ruleList || "    'IN-USER,node-0001,DIRECT'"}
   // 计算 Zashboard / Web UI 的完整访问 URL
   const dashboardUrl = useMemo(() => {
     const secretParam = controllerSecret ? "&secret=" + encodeURIComponent(controllerSecret) : ""
-    const query = `hostname=${controllerHost}&host=${controllerHost}&port=${controllerPort}&protocol=http${secretParam}`
+    const query = `hostname=${controllerHost}&host=${controllerHost}&port=${controllerPort}&protocol=http&http=true${secretParam}`
     if (dashboardSource === "local") {
       return `http://${controllerHost}:${controllerPort}/ui/#/setup?${query}`
     }
     if (dashboardSource === "zash_online") {
       return `https://board.zash.run.place/#/setup?${query}`
     }
+    if (dashboardSource === "yacd") {
+      return `https://yacd.metacubex.one/?hostname=${controllerHost}&port=${controllerPort}${secretParam}`
+    }
     return `https://metacubex.github.io/metacubexd/#/setup?${query}`
   }, [dashboardSource, controllerHost, controllerPort, controllerSecret])
+
+  const isZh = getLocale() === 'zh-CN' || getLocale() === 'zh-TW'
+
+  const promptTreeText = useMemo(() => {
+    if (isZh) {
+      return `请首先阅读 Mihomo 本地分流专属技能规范 (SKILL.md)：
+- macOS 应用路径：/Applications/Prism Browser.app/Contents/Resources/skills/mihomo-routing/SKILL.md
+- 源码/项目相对路径：resources/skills/mihomo-routing/SKILL.md
+
+基于上述 mihomo-routing 技能中的分流架构与 Go 解析器约束，读取当前 Prism 浏览器所有存量 Profile 的名称、分组 (Group) 和序号，构建树状分流拓扑：
+1. 提取所有分组（如 vps1、pro-team 等），为每个分组建立对应的独立策略组；
+2. 为关键独立环境建立专属单选节点策略组，并将策略组追加在 proxy-groups 末尾；
+3. 输出一份适用于 Clash Verge / Mihomo 的 JS 覆写脚本与 IN-USER 树状分流规则。`
+    }
+    return `Please first inspect the dedicated Mihomo routing skill specification (SKILL.md):
+- macOS app path: /Applications/Prism Browser.app/Contents/Resources/skills/mihomo-routing/SKILL.md
+- Repo/project path: resources/skills/mihomo-routing/SKILL.md
+
+Based on the mihomo-routing skill architecture and Go parser constraints, read the names, groups, and indices of all existing Prism browser profiles, and build a tree-structured routing topology:
+1. Extract all profile groups (e.g. vps1, pro-team), and create an independent proxy group for each;
+2. Create dedicated single-selection proxy groups for critical profiles and append them to the end of proxy-groups;
+3. Output a Clash Verge / Mihomo JS script override and matching IN-USER routing rules.`
+  }, [isZh])
+
+  const promptProxyText = useMemo(() => {
+    if (isZh) {
+      return `使用 Prism 的 profile 批量更新工具，将当前选中的所有环境网络代理配置为本地分流端口：
+- 协议：HTTP 或 SOCKS5
+- 主机：127.0.0.1
+- 端口：${port} (若用 Verge 专属监听器) 或 7897
+- 统一密码：${password}
+- 用户名：按环境序号自动填充（例如环境 #28 填 ${prefix}0028）
+- 绕过列表：保留默认 localhost;127.0.0.1`
+    }
+    return `Use Prism's batch profile update tool to configure proxy settings for all target browser profiles to the local routing port:
+- Protocol: HTTP or SOCKS5
+- Host: 127.0.0.1
+- Port: ${port} (if using Verge dedicated listener) or 7897
+- Password: ${password}
+- Username: auto-fill based on profile index (e.g. Profile #28 -> ${prefix}0028)
+- Bypass list: preserve default localhost;127.0.0.1`
+  }, [isZh, port, password, prefix])
+
+  const promptAuditText = useMemo(() => {
+    if (isZh) {
+      return `通过 Prism 自动化 API / MCP 依次检查目标环境的网络连通性与出口隔离状态：
+1. 启动目标环境并打开探针页 https://api.ipify.org 或 https://ipwho.is；
+2. 读取页面返回的真实外网 IP、ASN 与国家归属；
+3. 验证各环境是否成功分配了不同的独立出口 IP，输出巡检结果表格。`
+    }
+    return `Use Prism automation API / MCP to inspect network connectivity and outbound isolation across target profiles:
+1. Launch target profile and open probe page https://api.ipify.org or https://ipwho.is;
+2. Read public IP, ASN, and country returned by the page;
+3. Verify that each profile is allocated a distinct outbound IP and output an audit table.`
+  }, [isZh])
 
   async function copyText(text: string, id: string): Promise<void> {
     await navigator.clipboard.writeText(text)
     setCopiedSection(id)
-    message.success('已复制到剪贴板')
+    message.success(t("已复制"))
     setTimeout(() => setCopiedSection(''), 2000)
   }
 
-  async function openLocalDoc(): Promise<void> {
+  async function openLocalDoc(docPath = 'docs/clash-verge-guide.md'): Promise<void> {
     try {
-      const res = await window.browserApi.docs.openPath('docs/mihomo-routing-guide.md')
+      const currentLocale = getLocale()
+      const isZhDoc = currentLocale === 'zh-CN' || currentLocale === 'zh-TW'
+      const isGuideDoc = docPath.endsWith('-guide.md')
+      const targetDoc = (!isZhDoc && isGuideDoc) ? docPath.replace(/\.md$/, '.en.md') : docPath
+      let res = await window.browserApi.docs.openPath(targetDoc)
+      if (!res.success && !isZhDoc && isGuideDoc) {
+        res = await window.browserApi.docs.openPath(docPath)
+      }
       if (res.success) {
-        message.success('已在默认查看器中打开本地手册')
+        message.success(t("已在默认查看器中打开本地手册"))
       } else {
-        message.info(`文档位于: ${res.path}`)
+        message.info(t("文档位于: {0}", res.path))
       }
     } catch {
-      message.error('打开失败，请直接查看 docs/mihomo-routing-guide.md')
+      message.error(t("打开失败，请直接查看 {0}", docPath))
     }
   }
 
-  async function openDocFolder(): Promise<void> {
+  async function openDocFolder(docPath = 'docs/clash-verge-guide.md'): Promise<void> {
     try {
-      const res = await window.browserApi.docs.showInFolder('docs/mihomo-routing-guide.md')
+      const currentLocale = getLocale()
+      const isZhDoc = currentLocale === 'zh-CN' || currentLocale === 'zh-TW'
+      const targetDoc = isZhDoc ? docPath : docPath.replace(/\.md$/, '.en.md')
+      const res = await window.browserApi.docs.showInFolder(targetDoc)
       if (res.success) {
-        message.success('已在访达 (Finder) 中打开文档目录')
+        message.success(t("已在访达 (Finder) 中打开文档目录"))
       } else {
-        message.info(`目录位于: ${res.path}`)
+        await window.browserApi.docs.showInFolder(docPath)
       }
     } catch {
-      message.error('定位目录失败')
+      message.error(t("定位目录失败"))
     }
   }
 
@@ -300,7 +446,7 @@ ${ruleList || "    'IN-USER,node-0001,DIRECT'"}
         configPath: targetPath
       })
       setMihomoStatus(status)
-      message.success('Mihomo 进程启动成功')
+      message.success(t("Mihomo 进程启动成功"))
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error)
       message.error(msg)
@@ -324,7 +470,7 @@ ${ruleList || "    'IN-USER,node-0001,DIRECT'"}
         configPath: targetPath
       })
       setMihomoStatus(status)
-      message.success('已应用最新端口与分流配置并重启 Mihomo')
+      message.success(t("已应用最新端口与分流配置并重启 Mihomo"))
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error)
       message.error(msg)
@@ -338,7 +484,7 @@ ${ruleList || "    'IN-USER,node-0001,DIRECT'"}
     try {
       const status = await window.browserApi.mihomo.stop()
       setMihomoStatus(status)
-      message.info('Mihomo 进程已停止')
+      message.info(t("Mihomo 进程已停止"))
     } catch (error) {
       message.error(String(error))
     } finally {
@@ -356,7 +502,7 @@ ${ruleList || "    'IN-USER,node-0001,DIRECT'"}
         configPath: savedPath
       })
       setMihomoStatus(status)
-      message.success('分流配置已保存到金库并成功启动 Mihomo！')
+      message.success(t("分流配置已保存到金库并成功启动 Mihomo！"))
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error)
       message.error(msg)
@@ -365,12 +511,14 @@ ${ruleList || "    'IN-USER,node-0001,DIRECT'"}
     }
   }
 
-  const handleSaveConfigOnly = async () => {
+  const handleToggleAutoStart = async (checked: boolean) => {
+    setAutoStart(checked)
     try {
-      const savedPath = await window.browserApi.mihomo.saveConfig(yamlConfig)
-      setMihomoConfigPath(savedPath)
-      message.success(`分流配置已写入金库: ${savedPath}`)
+      const status = await window.browserApi.mihomo.setAutoStart(checked)
+      setMihomoStatus(status)
+      message.success(checked ? t("已开启随 app 启动启动") : t("已关闭随 app 启动启动"))
     } catch (err) {
+      setAutoStart(!checked)
       message.error(String(err))
     }
   }
@@ -384,8 +532,8 @@ ${ruleList || "    'IN-USER,node-0001,DIRECT'"}
       open={open}
       title={
         <Space>
-          <ThunderboltOutlined style={{ color: '#1677ff' }} />
-          <span>Mihomo 本地代理分流与轻量托管</span>
+          <ThunderboltOutlined style={{ color: 'var(--accent)' }} />
+          <span>{t("Mihomo 本地代理分流与轻量托管")}</span>
         </Space>
       }
       footer={null}
@@ -394,64 +542,278 @@ ${ruleList || "    'IN-USER,node-0001,DIRECT'"}
       onCancel={onClose}
       destroyOnClose
     >
-      <Alert
-        type={mihomoStatus?.running ? 'success' : 'info'}
-        showIcon
-        icon={<ThunderboltOutlined />}
-        title={
-          mihomoStatus?.running
-            ? `Mihomo 运行中 (PID: ${mihomoStatus.pid}) · 混合代理端口 ${host}:${port} · 控制台 ${externalController}`
-            : 'Mihomo 轻量托管 · 单核心多环境分流'
-        }
-        description="无需安装外部臃肿客户端，Prism 可在后台静默托管拉起 Mihomo 核心，依据环境账号 (IN-USER 规则) 定向分流至不同物理出口节点。"
-        style={{ marginBottom: 12 }}
-      />
-
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-        <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-          单核心多环境分流指南、轻量托管参数与可视化 Zashboard 面板
-        </Typography.Text>
-        <Space size={8}>
-          <Button size="small" type="primary" ghost icon={<FileTextOutlined />} onClick={() => void openLocalDoc()}>
-            打开本地权威手册
-          </Button>
-          <Button size="small" icon={<FolderOpenOutlined />} onClick={() => void openDocFolder()}>
-            打开文档目录
-          </Button>
-          <Button size="small" icon={<CopyOutlined />} onClick={() => void copyText('docs/mihomo-routing-guide.md', 'docpath')}>
-            {copiedSection === 'docpath' ? '已复制路径' : '复制文档路径'}
-          </Button>
-        </Space>
-      </div>
-
       <Tabs
         activeKey={activeTab}
-        onChange={(k) => setActiveTab(k as 'generator' | 'clients' | 'zashboard' | 'docs')}
+        onChange={(k) => setActiveTab(k as 'prompts' | 'rules' | 'hosting')}
+        size="small"
+        style={{ marginTop: -4 }}
+        tabBarExtraContent={
+          <Space size={6}>
+            <Button size="small" type="text" icon={<FileTextOutlined />} onClick={() => void openLocalDoc('docs/clash-verge-guide.md')}>
+              {t("Clash Verge 专属手册")}
+            </Button>
+            <Button size="small" type="text" icon={<FileTextOutlined />} onClick={() => void openLocalDoc('docs/mihomo-routing-guide.md')}>
+              {t("通用分流手册")}
+            </Button>
+            <Button size="small" type="text" icon={<FolderOpenOutlined />} onClick={() => void openDocFolder()}>
+              {t("打开文档目录")}
+            </Button>
+          </Space>
+        }
         items={[
           {
-            key: 'generator',
+            key: 'prompts',
+            label: (
+              <Space>
+                <RobotOutlined />
+                <span>{t("AI 提示词")}</span>
+              </Space>
+            ),
+            children: (
+              <Space direction="vertical" style={{ width: '100%' }} size={10}>
+                <Alert
+                  type={mihomoStatus?.running ? 'success' : 'info'}
+                  showIcon
+                  icon={<ThunderboltOutlined />}
+                  title={
+                    mihomoStatus?.running
+                      ? `${t("Mihomo 运行中")} (PID: ${mihomoStatus.pid}) · ${t("混合代理端口")} ${host}:${port} · ${t("外部控制")} ${externalController}`
+                      : t("Mihomo 轻量托管 · 单核心多环境分流")
+                  }
+                  description={t("无需安装外部臃肿客户端，Prism 可在后台静默托管拉起 Mihomo 核心，依据环境账号 (IN-USER 规则) 定向分流至不同物理出口节点。")}
+                  style={{ marginBottom: 4 }}
+                />
+
+                <Card
+                  size="small"
+                  title={
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <Space>
+                        <PartitionOutlined style={{ color: 'var(--accent)' }} />
+                        <Typography.Text strong>{t("提示词 1：读取环境并构建树状分流策略树")}</Typography.Text>
+                      </Space>
+                      <Button
+                        size="small"
+                        icon={copiedSection === 'prompt_tree' ? <CheckOutlined /> : <CopyOutlined />}
+                        onClick={() => void copyText(promptTreeText, 'prompt_tree')}
+                      >
+                        {copiedSection === 'prompt_tree' ? t("已复制") : t("复制提示词")}
+                      </Button>
+                    </div>
+                  }
+                >
+                  <Typography.Paragraph type="secondary" style={{ fontSize: 12, marginBottom: 8 }}>
+                    {t("让 AI 扫描存量环境，按分组（Group）与标签（Tag）构建清晰的树状分流规则，并在 Clash Verge 中追加专属策略组：")}
+                  </Typography.Paragraph>
+                  <pre style={{ margin: 0, padding: '8px 12px', borderRadius: 6, background: 'var(--surface-subtle)', fontSize: 11, fontFamily: 'ui-monospace, Menlo, monospace', whiteSpace: 'pre-wrap', lineHeight: 1.5 }}>
+{promptTreeText}
+                  </pre>
+                </Card>
+
+                <Card
+                  size="small"
+                  title={
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <Space>
+                        <ThunderboltOutlined style={{ color: '#1677ff' }} />
+                        <Typography.Text strong>{t("提示词 2：批量配置环境网络代理与染色账号")}</Typography.Text>
+                      </Space>
+                      <Button
+                        size="small"
+                        icon={copiedSection === 'prompt_proxy' ? <CheckOutlined /> : <CopyOutlined />}
+                        onClick={() => void copyText(promptProxyText, 'prompt_proxy')}
+                      >
+                        {copiedSection === 'prompt_proxy' ? t("已复制") : t("复制提示词")}
+                      </Button>
+                    </div>
+                  }
+                >
+                  <Typography.Paragraph type="secondary" style={{ fontSize: 12, marginBottom: 8 }}>
+                    {t("让 AI 自动将目标环境的代理批量配置到本地分流端口（17890 或 7897），无需人工逐个修改：")}
+                  </Typography.Paragraph>
+                  <pre style={{ margin: 0, padding: '8px 12px', borderRadius: 6, background: 'var(--surface-subtle)', fontSize: 11, fontFamily: 'ui-monospace, Menlo, monospace', whiteSpace: 'pre-wrap', lineHeight: 1.5 }}>
+{promptProxyText}
+                  </pre>
+                </Card>
+
+                <Card
+                  size="small"
+                  title={
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <Space>
+                        <SafetyCertificateOutlined style={{ color: '#52c41a' }} />
+                        <Typography.Text strong>{t("提示词 3：无头巡检各环境实际出口 IP 与连通性")}</Typography.Text>
+                      </Space>
+                      <Button
+                        size="small"
+                        icon={copiedSection === 'prompt_audit' ? <CheckOutlined /> : <CopyOutlined />}
+                        onClick={() => void copyText(promptAuditText, 'prompt_audit')}
+                      >
+                        {copiedSection === 'prompt_audit' ? t("已复制") : t("复制提示词")}
+                      </Button>
+                    </div>
+                  }
+                >
+                  <Typography.Paragraph type="secondary" style={{ fontSize: 12, marginBottom: 8 }}>
+                    {t("命令 AI 批量唤起环境，通过探针页自动获取并比对出口 IP，输出连通性报告表格：")}
+                  </Typography.Paragraph>
+                  <pre style={{ margin: 0, padding: '8px 12px', borderRadius: 6, background: 'var(--surface-subtle)', fontSize: 11, fontFamily: 'ui-monospace, Menlo, monospace', whiteSpace: 'pre-wrap', lineHeight: 1.5 }}>
+{promptAuditText}
+                  </pre>
+                </Card>
+
+                <div style={{ fontSize: 11, color: 'var(--muted)', display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 16, marginTop: 4 }}>
+                  <span>{t("内置技能")}: <code>mihomo-routing</code></span>
+                  <span>{t("唤醒指令")}: <code>/skill:mihomo-routing</code></span>
+                  <span>{t("技能文档")}: <code>/Applications/Prism Browser.app/Contents/Resources/skills/mihomo-routing/SKILL.md</code></span>
+                </div>
+              </Space>
+            )
+          },
+          {
+            key: 'rules',
             label: (
               <Space>
                 <ThunderboltOutlined />
-                <span>轻量托管与分流配置</span>
+                <span>{t("分流规则与脚本")}</span>
+              </Space>
+            ),
+            children: (
+              <Space direction="vertical" style={{ width: '100%' }} size={10}>
+                <Card
+                  size="small"
+                  styles={{ body: { padding: '10px 12px' } }}
+                  title={
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
+                      <Segmented
+                        value={configViewMode}
+                        onChange={(val) => setConfigViewMode(val as 'script' | 'yaml')}
+                        size="small"
+                        options={[
+                          { value: 'script', label: t("客户端覆写脚本 (JavaScript)") },
+                          { value: 'yaml', label: t("独立配置文件 (YAML)") }
+                        ]}
+                      />
+                      {configViewMode === 'script' ? (
+                        <Button
+                          size="small"
+                          type="primary"
+                          icon={copiedSection === 'jsscript' ? <CheckOutlined /> : <CopyOutlined />}
+                          onClick={() => void copyText(jsScriptConfig, 'jsscript')}
+                        >
+                          {copiedSection === 'jsscript' ? t("已复制") : t("复制 JS 脚本")}
+                        </Button>
+                      ) : (
+                        <Button
+                          size="small"
+                          type="primary"
+                          icon={copiedSection === 'yaml' ? <CheckOutlined /> : <CopyOutlined />}
+                          onClick={() => void copyText(yamlConfig, 'yaml')}
+                        >
+                          {copiedSection === 'yaml' ? t("已复制") : t("复制 YAML 配置")}
+                        </Button>
+                      )}
+                    </div>
+                  }
+                >
+                  <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '8px 14px', marginBottom: 10, padding: '6px 10px', background: 'var(--surface-subtle)', borderRadius: 6 }}>
+                    <Space size={4}>
+                      <span style={{ fontSize: 11, color: 'var(--muted)' }}>{t("生成 User 数量")}:</span>
+                      <InputNumber
+                        size="small"
+                        min={1}
+                        max={500}
+                        value={userCount}
+                        onChange={(v) => setUserCount(v || 10)}
+                        style={{ width: 68 }}
+                      />
+                    </Space>
+                    <Space size={4}>
+                      <span style={{ fontSize: 11, color: 'var(--muted)' }}>{t("账号前缀")}:</span>
+                      <Input
+                        size="small"
+                        value={prefix}
+                        onChange={(e) => setPrefix(e.target.value)}
+                        placeholder="node-"
+                        style={{ width: 80 }}
+                      />
+                    </Space>
+                    <Space size={4}>
+                      <span style={{ fontSize: 11, color: 'var(--muted)' }}>{configViewMode === 'script' ? t("专属监听端口") : t("监听混合端口")}:</span>
+                      <InputNumber
+                        size="small"
+                        min={1024}
+                        max={65535}
+                        value={port}
+                        onChange={(v) => setPort(v || 17890)}
+                        style={{ width: 78 }}
+                      />
+                    </Space>
+                    <Space size={4}>
+                      <span style={{ fontSize: 11, color: 'var(--muted)' }}>{t("统一密码")}:</span>
+                      <Input
+                        size="small"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        placeholder="prism"
+                        style={{ width: 78 }}
+                      />
+                    </Space>
+                    {configViewMode === 'yaml' && (
+                      <Space size={4}>
+                        <span style={{ fontSize: 11, color: 'var(--muted)' }}>external-controller:</span>
+                        <Input
+                          size="small"
+                          value={externalController}
+                          onChange={(e) => setExternalController(e.target.value)}
+                          placeholder="127.0.0.1:9090"
+                          style={{ width: 115 }}
+                        />
+                      </Space>
+                    )}
+                  </div>
+
+                  <Input.TextArea
+                    value={configViewMode === 'script' ? jsScriptConfig : yamlConfig}
+                    readOnly
+                    autoSize={{ minRows: 14, maxRows: 20 }}
+                    style={{ fontFamily: 'ui-monospace, Menlo, monospace', fontSize: 11, lineHeight: 1.45, background: 'var(--surface-subtle)', borderRadius: 6 }}
+                  />
+                </Card>
+              </Space>
+            )
+          },
+          {
+            key: 'hosting',
+            label: (
+              <Space>
+                <PlayCircleOutlined />
+                <span>{t("进程轻量托管")}</span>
               </Space>
             ),
             children: (
               <Space direction="vertical" style={{ width: '100%' }} size={14}>
-                {/* 1. 核心轻量托管控制面板 */}
+                {/* 核心轻量托管控制面板 */}
                 <Card
                   size="small"
                   title={
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
-                      <Space>
-                        <Typography.Text strong>Mihomo 进程轻量托管</Typography.Text>
+                      <Space size={8}>
+                        <Typography.Text strong>{t("Mihomo 进程轻量托管")}</Typography.Text>
                         {mihomoStatus?.running ? (
                           <Tag color="success" icon={<CheckOutlined />}>
-                            {`运行中 (PID: ${mihomoStatus.pid})`}
+                            {`${t("运行中")} (PID: ${mihomoStatus.pid})`}
                           </Tag>
                         ) : (
-                          <Tag color="default">已停止</Tag>
+                          <Tag color="default">{t("已停止")}</Tag>
                         )}
+                        <Checkbox
+                          checked={autoStart}
+                          onChange={(e) => void handleToggleAutoStart(e.target.checked)}
+                          style={{ marginLeft: 6, userSelect: 'none' }}
+                        >
+                          {t("随 app 启动启动")}
+                        </Checkbox>
                       </Space>
                       <Space wrap size={6}>
                         {mihomoStatus?.running ? (
@@ -463,7 +825,7 @@ ${ruleList || "    'IN-USER,node-0001,DIRECT'"}
                               loading={isStartingMihomo}
                               onClick={handleRestartMihomo}
                             >
-                              重启并应用配置
+                              {t("重启并应用配置")}
                             </Button>
                             <Button
                               size="small"
@@ -472,14 +834,7 @@ ${ruleList || "    'IN-USER,node-0001,DIRECT'"}
                               loading={isStoppingMihomo}
                               onClick={handleStopMihomo}
                             >
-                              停止进程
-                            </Button>
-                            <Button
-                              size="small"
-                              icon={<GlobalOutlined />}
-                              onClick={() => setActiveTab('zashboard')}
-                            >
-                              进入监控面板
+                              {t("停止进程")}
                             </Button>
                           </>
                         ) : (
@@ -491,7 +846,7 @@ ${ruleList || "    'IN-USER,node-0001,DIRECT'"}
                               loading={isStartingMihomo}
                               onClick={handleStartMihomo}
                             >
-                              启动进程
+                              {t("启动进程")}
                             </Button>
                             <Button
                               size="small"
@@ -499,7 +854,7 @@ ${ruleList || "    'IN-USER,node-0001,DIRECT'"}
                               loading={isStartingMihomo}
                               onClick={handleSaveAndStart}
                             >
-                              保存配置并启动
+                              {t("保存配置并启动")}
                             </Button>
                           </>
                         )}
@@ -509,14 +864,14 @@ ${ruleList || "    'IN-USER,node-0001,DIRECT'"}
                           icon={<FileTextOutlined />}
                           onClick={() => setShowLogs(!showLogs)}
                         >
-                          {`实时控制台日志 (${liveLogs.length})`}
+                          {t("实时控制台日志 ({0})", liveLogs.length)}
                         </Button>
                       </Space>
                     </div>
                   }
                 >
                   <Typography.Paragraph type="secondary" style={{ fontSize: 12, marginBottom: 8 }}>
-                    日常只用 Shadowrocket 或直连的用户，无需安装复杂的客户端。在此指定核心路径与已有配置，由后台静默拉起子进程，浏览器关闭时自动退出：
+                    {t("日常只用 Shadowrocket 或直连的用户，无需安装复杂的客户端。在此指定核心路径与已有配置，由后台静默拉起子进程，浏览器关闭时自动退出：")}
                   </Typography.Paragraph>
 
                   {mihomoStatus?.error && (
@@ -530,7 +885,7 @@ ${ruleList || "    'IN-USER,node-0001,DIRECT'"}
 
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 8 }}>
                     <div>
-                      <Typography.Text strong style={{ fontSize: 11 }}>Mihomo 二进制文件路径</Typography.Text>
+                      <Typography.Text strong style={{ fontSize: 11 }}>{t("Mihomo 二进制文件路径")}</Typography.Text>
                       <Input
                         size="small"
                         value={mihomoBinaryPath}
@@ -543,13 +898,13 @@ ${ruleList || "    'IN-USER,node-0001,DIRECT'"}
                             type="text"
                             icon={<FolderOpenOutlined />}
                             onClick={handleSelectBinary}
-                            title="选择二进制文件"
+                            title={t("选择二进制文件")}
                           />
                         }
                       />
                     </div>
                     <div>
-                      <Typography.Text strong style={{ fontSize: 11 }}>使用的配置文件路径 (或订阅)</Typography.Text>
+                      <Typography.Text strong style={{ fontSize: 11 }}>{t("使用的配置文件路径 (或订阅)")}</Typography.Text>
                       <Input
                         size="small"
                         value={mihomoConfigPath}
@@ -562,7 +917,7 @@ ${ruleList || "    'IN-USER,node-0001,DIRECT'"}
                             type="text"
                             icon={<FolderOpenOutlined />}
                             onClick={handleSelectConfig}
-                            title="选择配置文件"
+                            title={t("选择配置文件")}
                           />
                         }
                       />
@@ -570,25 +925,25 @@ ${ruleList || "    'IN-USER,node-0001,DIRECT'"}
                   </div>
 
                   <div style={{ background: 'var(--surface-subtle)', padding: 8, borderRadius: 6, fontSize: 11, fontFamily: 'ui-monospace, Menlo, monospace' }}>
-                    <div style={{ color: 'var(--muted)' }}># 后台静默执行命令（自动绑定沙盒运行目录与覆写配置）：</div>
+                    <div style={{ color: 'var(--muted)' }}>{t("# 后台静默执行命令（自动绑定沙盒运行目录与覆写配置）：")}</div>
                     <div>{`${mihomoBinaryPath} -d "~/Library/Application Support/prism-browser/vault/mihomo" -f "${mihomoConfigPath}"`}</div>
                   </div>
 
                   {showLogs && (
                     <div style={{ marginTop: 8, background: '#1e1e1e', color: '#d4d4d4', padding: '8px 10px', borderRadius: 6, fontSize: 11, fontFamily: 'ui-monospace, Menlo, monospace', maxHeight: 180, overflowY: 'auto' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', color: '#888', borderBottom: '1px solid #333', paddingBottom: 4, marginBottom: 6 }}>
-                        <span>{`Mihomo 控制台输出 (最近 ${liveLogs.length} 行)`}</span>
+                        <span>{t("Mihomo 控制台输出 (最近 {0} 行)", liveLogs.length)}</span>
                         <Space size={12}>
                           <span style={{ cursor: 'pointer', color: '#1890ff' }} onClick={() => void copyText(liveLogs.join('\n'), 'logs')}>
-                            {copiedSection === 'logs' ? '已复制' : '复制全部'}
+                            {copiedSection === 'logs' ? t("已复制") : t("复制全部")}
                           </span>
                           <span style={{ cursor: 'pointer', color: '#ff4d4f' }} onClick={() => setLiveLogs([])}>
-                            清空显示
+                            {t("清空显示")}
                           </span>
                         </Space>
                       </div>
                       {liveLogs.length === 0 ? (
-                        <div style={{ color: '#666', fontStyle: 'italic' }}>暂无日志输出。启动进程后将显示 stdout/stderr。</div>
+                        <div style={{ color: '#666', fontStyle: 'italic' }}>{t("暂无日志输出。启动进程后将显示 stdout/stderr。")}</div>
                       ) : (
                         liveLogs.map((log, i) => (
                           <div key={i} style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-all', lineHeight: 1.4 }}>
@@ -598,370 +953,6 @@ ${ruleList || "    'IN-USER,node-0001,DIRECT'"}
                       )}
                     </div>
                   )}
-                </Card>
-
-                {/* 2. 环境 Users 凭据池与分流规则生成器 */}
-                <Card size="small" title="环境 Users 凭据池与分流规则生成">
-                  <Typography.Paragraph type="secondary" style={{ fontSize: 12, marginBottom: 10 }}>
-                    在本地回环网络 (127.0.0.1) 中，Mihomo 通过入站用户名 (IN-USER 规则) 定向匹配出口节点。在此自定义参数，生成配置补丁或扩展脚本：
-                  </Typography.Paragraph>
-
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 12, marginBottom: 12 }}>
-                    <div>
-                      <Typography.Text strong style={{ fontSize: 11 }}>生成 User 数量</Typography.Text>
-                      <InputNumber
-                        size="small"
-                        min={1}
-                        max={500}
-                        value={userCount}
-                        onChange={(v) => setUserCount(v || 10)}
-                        style={{ width: '100%', marginTop: 4 }}
-                      />
-                    </div>
-                    <div>
-                      <Typography.Text strong style={{ fontSize: 11 }}>账号前缀</Typography.Text>
-                      <Input
-                        size="small"
-                        value={prefix}
-                        onChange={(e) => setPrefix(e.target.value)}
-                        placeholder="node-"
-                        style={{ marginTop: 4 }}
-                      />
-                    </div>
-                    <div>
-                      <Typography.Text strong style={{ fontSize: 11 }}>监听混合端口</Typography.Text>
-                      <InputNumber
-                        size="small"
-                        min={1024}
-                        max={65535}
-                        value={port}
-                        onChange={(v) => setPort(v || 17890)}
-                        style={{ width: '100%', marginTop: 4 }}
-                      />
-                    </div>
-                    <div>
-                      <Typography.Text strong style={{ fontSize: 11 }}>统一密码</Typography.Text>
-                      <Input
-                        size="small"
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        placeholder="prism"
-                        style={{ marginTop: 4 }}
-                      />
-                    </div>
-                    <div>
-                      <Typography.Text strong style={{ fontSize: 11 }}>external-controller</Typography.Text>
-                      <Input
-                        size="small"
-                        value={externalController}
-                        onChange={(e) => setExternalController(e.target.value)}
-                        placeholder="127.0.0.1:9090"
-                        style={{ marginTop: 4 }}
-                      />
-                    </div>
-                  </div>
-
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                    <div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-                        <Typography.Text strong style={{ fontSize: 12 }}>Mihomo 配置文件补丁 (YAML)</Typography.Text>
-                        <Space size={4}>
-                          <Button
-                            size="small"
-                            type="link"
-                            icon={copiedSection === 'yaml' ? <CheckOutlined /> : <CopyOutlined />}
-                            onClick={() => void copyText(yamlConfig, 'yaml')}
-                          >
-                            {copiedSection === 'yaml' ? '已复制' : '复制配置'}
-                          </Button>
-                          <Button
-                            size="small"
-                            type="link"
-                            icon={<SaveOutlined />}
-                            onClick={() => void handleSaveConfigOnly()}
-                          >
-                            保存到金库
-                          </Button>
-                        </Space>
-                      </div>
-                      <Input.TextArea
-                        value={yamlConfig}
-                        readOnly
-                        autoSize={{ minRows: 8, maxRows: 12 }}
-                        style={{ fontFamily: 'ui-monospace, Menlo, monospace', fontSize: 11 }}
-                      />
-                    </div>
-
-                    <div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-                        <Typography.Text strong style={{ fontSize: 12 }}>客户端覆写扩展脚本 (JavaScript)</Typography.Text>
-                        <Button
-                          size="small"
-                          type="link"
-                          icon={copiedSection === 'jsscript' ? <CheckOutlined /> : <CopyOutlined />}
-                          onClick={() => void copyText(jsScriptConfig, 'jsscript')}
-                        >
-                          {copiedSection === 'jsscript' ? '已复制' : '复制 JS 脚本'}
-                        </Button>
-                      </div>
-                      <Input.TextArea
-                        value={jsScriptConfig}
-                        readOnly
-                        autoSize={{ minRows: 8, maxRows: 12 }}
-                        style={{ fontFamily: 'ui-monospace, Menlo, monospace', fontSize: 11 }}
-                      />
-                    </div>
-                  </div>
-                </Card>
-              </Space>
-            )
-          },
-          {
-            key: 'clients',
-            label: (
-              <Space>
-                <AppstoreOutlined />
-                <span>客户端覆写模式教程 (Flclash / Verge)</span>
-              </Space>
-            ),
-            children: (
-              <Space direction="vertical" style={{ width: '100%' }} size={14}>
-                <Alert
-                  type="success"
-                  showIcon
-                  title="为什么强烈推荐使用“覆写 (Override) / 扩展脚本 (Script)”模式？"
-                  description={
-                    <div style={{ fontSize: 12, lineHeight: 1.6 }}>
-                      机场订阅通常每隔一段时间就会自动更新，如果直接在订阅下载的 YAML 里手写规则，一点击“更新订阅”修改就会全部被冲掉！使用覆写或扩展脚本，客户端在内存中将 Prism 规则与机场订阅动态合并，机场随便更新，Prism 分流永久有效！
-                    </div>
-                  }
-                />
-
-                <Collapse
-                  defaultActiveKey={['flclash', 'verge']}
-                  size="small"
-                  items={[
-                    {
-                      key: 'flclash',
-                      label: <Typography.Text strong>1. Flclash 覆写配置步骤</Typography.Text>,
-                      children: (
-                        <div style={{ fontSize: 12, lineHeight: 1.6 }}>
-                          <ol style={{ paddingLeft: 18, margin: '4px 0' }}>
-                            <li>打开 Flclash 客户端，点击左侧导航栏的【设置 (Settings)】。</li>
-                            <li>找到【覆写 (Override)】或【扩展脚本 (Script)】选项。</li>
-                            <li>新建或编辑覆写配置，推荐选择【JavaScript 脚本】模式（也可选择 YAML Merge）。</li>
-                            <li>将第一个 Tab 动态生成的 JavaScript 脚本代码贴入编辑器中，保存并开启开关。</li>
-                            <li>返回主界面刷新配置，即可在 17890 端口上同时生效原订阅节点与 Prism 多环境分流！</li>
-                          </ol>
-                        </div>
-                      )
-                    },
-                    {
-                      key: 'verge',
-                      label: <Typography.Text strong>2. Clash Verge Rev 覆写配置步骤</Typography.Text>,
-                      children: (
-                        <div style={{ fontSize: 12, lineHeight: 1.6 }}>
-                          <ol style={{ paddingLeft: 18, margin: '4px 0' }}>
-                            <li>打开 Clash Verge Rev，点击左侧【订阅 (Profiles)】。</li>
-                            <li>在右上角点击【新建】，类型选择【Script (扩展脚本)】，名称填写如 Prism-Override。</li>
-                            <li>右键新建的脚本点击【编辑】，将第一个 Tab 生成的 JavaScript 脚本完全覆盖贴入并保存。</li>
-                            <li>右键该脚本点击【启用 (Enable)】。此时无论原机场订阅如何更新，分流规则均自动置顶生效！</li>
-                          </ol>
-                        </div>
-                      )
-                    },
-                    {
-                      key: 'mihomo_party',
-                      label: <Typography.Text strong>3. Mihomo Party 覆写配置步骤</Typography.Text>,
-                      children: (
-                        <div style={{ fontSize: 12, lineHeight: 1.6 }}>
-                          <ol style={{ paddingLeft: 18, margin: '4px 0' }}>
-                            <li>进入 Mihomo Party 左侧导航的【覆写 (Overrides)】菜单。</li>
-                            <li>点击右上角【新建覆写】，类型选择【JavaScript】，命名为 Prism-Split。</li>
-                            <li>将第一个 Tab 生成的 JavaScript 代码填入代码框，点击右下角保存并激活生效。</li>
-                          </ol>
-                        </div>
-                      )
-                    },
-                    {
-                      key: 'cfw',
-                      label: <Typography.Text strong>4. Clash for Windows (CFW) Mixin 模式</Typography.Text>,
-                      children: (
-                        <div style={{ fontSize: 12, lineHeight: 1.6 }}>
-                          <ol style={{ paddingLeft: 18, margin: '4px 0' }}>
-                            <li>进入 CFW 的【Settings】页面，滚动至【Mixin】模块。</li>
-                            <li>点击【YAML】右侧的【Edit】，贴入第一个 Tab 提供的 YAML 片段。</li>
-                            <li>返回开启【Mixin】右侧的开关即可。</li>
-                          </ol>
-                        </div>
-                      )
-                    }
-                  ]}
-                />
-              </Space>
-            )
-          },
-          {
-            key: 'zashboard',
-            label: (
-              <Space>
-                <GlobalOutlined />
-                <span>Zashboard 监控面板</span>
-              </Space>
-            ),
-            children: (
-              <Space direction="vertical" style={{ width: '100%' }} size={12}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
-                  <Space wrap size={10}>
-                    <Select
-                      size="small"
-                      value={dashboardSource}
-                      onChange={setDashboardSource}
-                      options={[
-                        { value: 'local', label: `本地内置 UI (${normalizedControllerAddress}/ui)` },
-                        { value: 'zash_online', label: 'Zashboard 官方在线托管 (board.zash.run.place)' },
-                        { value: 'metacubexd', label: 'MetaCubeXD 官方在线托管' }
-                      ]}
-                      style={{ width: 280 }}
-                    />
-                    <Input
-                      size="small"
-                      addonBefore="Controller"
-                      value={externalController}
-                      onChange={(e) => setExternalController(e.target.value)}
-                      style={{ width: 220 }}
-                      placeholder="127.0.0.1:9090"
-                    />
-                    <Input
-                      size="small"
-                      placeholder="Secret (选填)"
-                      value={controllerSecret}
-                      onChange={(e) => setControllerSecret(e.target.value)}
-                      style={{ width: 130 }}
-                    />
-                  </Space>
-
-                  <Space size={8}>
-                    <Button size="small" icon={<ReloadOutlined />} onClick={() => setIframeKey((k) => k + 1)}>
-                      刷新面板
-                    </Button>
-                    <Button size="small" icon={<CopyOutlined />} onClick={() => void copyText(dashboardUrl, 'zashurl')}>
-                      {copiedSection === 'zashurl' ? '已复制' : '复制链接'}
-                    </Button>
-                    <Button size="small" type="primary" ghost icon={<LinkOutlined />} onClick={openExternalDashboard}>
-                      新窗口打开
-                    </Button>
-                  </Space>
-                </div>
-
-                <div style={{ width: '100%', height: 480, border: '1px solid var(--border)', borderRadius: 8, overflow: 'hidden', background: '#fff' }}>
-                  <iframe
-                    key={iframeKey}
-                    src={dashboardUrl}
-                    style={{ width: '100%', height: '100%', border: 'none' }}
-                    title="Zashboard Controller"
-                  />
-                </div>
-              </Space>
-            )
-          },
-          {
-            key: 'docs',
-            label: (
-              <Space>
-                <BookOutlined />
-                <span>技术原理解析与手册</span>
-              </Space>
-            ),
-            children: (
-              <Space direction="vertical" style={{ width: '100%' }} size={14}>
-                <Alert
-                  type="info"
-                  showIcon
-                  icon={<InfoCircleOutlined />}
-                  title="为什么需要单核心本地分流？"
-                  description={
-                    <div style={{ fontSize: 12, lineHeight: 1.6 }}>
-                      <p style={{ margin: '4px 0' }}>
-                        指纹浏览器多账号防关联的核心是“不同环境必须有不同的出口 IP”。传统做法要么购买大量昂贵的独立静态代理，要么为每个节点开启单独的代理软件，导致内存占用过大且极易混淆。
-                      </p>
-                      <p style={{ margin: '4px 0' }}>
-                        Mihomo (Clash.Meta) 原生支持在单一后台进程中，通过用户认证信息进行分流（IN-USER 规则），实现让 Profile A 走节点 1、Profile B (或 Pro 组) 走节点 2，极度节省系统资源。
-                      </p>
-                    </div>
-                  }
-                />
-
-                <Card size="small" title="核心原理解析：Listen Users 本质是“分流路由标签”">
-                  <Typography.Paragraph style={{ fontSize: 12, lineHeight: 1.6, marginBottom: 8 }}>
-                    在 127.0.0.1 本地回环网络中，不需要复杂的密码防破解。我们可以把用户名（Username）直接作为该环境的唯一“路由身份标签”，密码统一填写（如 prism）：
-                  </Typography.Paragraph>
-
-                  <div style={{ background: 'var(--surface-subtle)', padding: 10, borderRadius: 6, fontSize: 11, fontFamily: 'ui-monospace, Menlo, monospace' }}>
-                    <div><strong>Profile 代理配置:</strong> socks5://node-0001:prism@127.0.0.1:17890</div>
-                    <div style={{ color: 'var(--muted)', marginTop: 4 }}>
-                      流量带着 [node-0001] 标签进入 Mihomo 17890 端口 $\rightarrow$ 触发 IN-USER 规则 $\rightarrow$ 精准由对应的物理出口节点送出。
-                    </div>
-                  </div>
-                </Card>
-
-                <Card size="small" title="典型分流场景实战：Pro 环境组走指定节点">
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                    <Typography.Text type="secondary" style={{ fontSize: 11 }}>
-                      将以下规则片段添加到你的 Mihomo / Clash 配置文件中：
-                    </Typography.Text>
-                    <Button
-                      size="small"
-                      type="link"
-                      icon={copiedSection === 'rules' ? <CheckOutlined /> : <CopyOutlined />}
-                      onClick={() =>
-                        void copyText(
-                          `mixed-port: 17890
-allow-lan: false
-bind-address: 127.0.0.1
-
-users:
-  - "node-0001:prism"
-  - "node-0002:prism"
-  - "pro-vps1:prism"
-
-rules:
-  # 1. 单独指定环境走特定出口
-  - IN-USER,node-0001,🇺🇸 专线节点-美国-01
-  - IN-USER,node-0002,🇯🇵 专线节点-日本-02
-  # 2. 让特定 Pro 分组或业务环境走专用高纯净节点池
-  - IN-USER,pro-*,🚀 Pro专线自动选择
-  # 3. 兜底
-  - MATCH,DIRECT`,
-                          'rules'
-                        )
-                      }
-                    >
-                      {copiedSection === 'rules' ? '已复制示例' : '复制示例 YAML'}
-                    </Button>
-                  </div>
-                  <Input.TextArea
-                    readOnly
-                    autoSize={{ minRows: 7, maxRows: 10 }}
-                    style={{ fontFamily: 'ui-monospace, Menlo, monospace', fontSize: 11 }}
-                    value={`mixed-port: 17890
-allow-lan: false
-bind-address: 127.0.0.1
-
-users:
-  - "node-0001:prism"
-  - "node-0002:prism"
-  - "pro-vps1:prism"
-
-rules:
-  # 1. 单独指定环境走特定出口
-  - IN-USER,node-0001,🇺🇸 专线节点-美国-01
-  - IN-USER,node-0002,🇯🇵 专线节点-日本-02
-  # 2. 让特定 Pro 分组或业务环境走专用高纯净节点池
-  - IN-USER,pro-*,🚀 Pro专线自动选择
-  # 3. 兜底
-  - MATCH,DIRECT`}
-                  />
                 </Card>
               </Space>
             )

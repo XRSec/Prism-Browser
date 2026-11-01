@@ -48,6 +48,19 @@ describe('MihomoManager', () => {
     expect(reloaded.getStatus().configPath).toBe(savedPath)
   })
 
+  it('persists autoStart flag correctly', async () => {
+    const manager = new MihomoManager(tempVault)
+    await manager.initialize()
+    expect(manager.getStatus().autoStart).toBe(false)
+
+    await manager.setAutoStart(true)
+    expect(manager.getStatus().autoStart).toBe(true)
+
+    const reloaded = new MihomoManager(tempVault)
+    await reloaded.initialize()
+    expect(reloaded.getStatus().autoStart).toBe(true)
+  })
+
   it('reads and parses existing config file correctly', async () => {
     const manager = new MihomoManager(tempVault)
     await manager.initialize()

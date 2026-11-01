@@ -221,6 +221,11 @@ app.whenReady().then(async () => {
     mainWindow?.webContents.send('mihomo:status-changed', status)
   })
   await mihomo.initialize()
+  if (mihomo.getStatus().autoStart) {
+    void mihomo.start().catch((err) => {
+      logger?.error('Mihomo 随 App 启动失败', { error: String(err) })
+    })
+  }
   registerIpc({ profiles, settings, launcher, kernels, extensions, cookies, logger, backups, workspaceMigration, appSession, updater, licensing, automation, scheduler, mcp, announcements, advertisements, windowSync, mihomo })
   mainWindow = createWindow()
   if (app.isPackaged && process.env.PRISM_E2E !== '1') {

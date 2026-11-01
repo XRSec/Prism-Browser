@@ -1003,7 +1003,7 @@ export default function App({ colorMode = 'light', onColorModeChange = () => {} 
           <ClockCircleOutlined /><span>{t("计划任务")}</span><b>{scheduledTasks.filter((task) => task.enabled).length || '—'}</b>
         </button>
         <button className="nav-item sidebar-action" onClick={() => { setMihomoTargetIds([]); setMihomoModalOpen(true); }}>
-          <ThunderboltOutlined /><span>Mihomo 分流</span><b>{mihomoStatus?.running ? 'ON' : '—'}</b>
+          <ThunderboltOutlined /><span>{t("Mihomo 分流")}</span><b>{mihomoStatus?.running ? 'ON' : '—'}</b>
         </button>
         <button className="nav-item sidebar-action" onClick={() => setMcpOpen(true)}>
           <RobotOutlined /><span>{t("本地 AI · MCP")}</span><b>{mcpStatus?.state === 'running' ? 'ON' : '—'}</b>
@@ -1025,7 +1025,7 @@ export default function App({ colorMode = 'light', onColorModeChange = () => {} 
           <span><strong>{engine?.fingerprintKernel ? t("指纹内核已连接") : t("配置浏览器内核")}</strong><small>{mt(engine?.label ?? t("正在检查…"))}</small></span>
           <SettingOutlined />
         </button>
-        <div className="version">Prism Browser · v0.3.22</div>
+        <div className="version">Prism Browser · v0.3.23</div>
       </Sider>
 
       <Layout>

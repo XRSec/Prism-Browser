@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "channel": "beta",
-  "version": "0.3.22",
+  "version": "0.3.23",
   "platforms": {
     "darwin-arm64": {
       "appE2ePassed": false,
