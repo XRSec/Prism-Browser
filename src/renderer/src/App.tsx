@@ -1025,7 +1025,7 @@ export default function App({ colorMode = 'light', onColorModeChange = () => {} 
           <span><strong>{engine?.fingerprintKernel ? t("指纹内核已连接") : t("配置浏览器内核")}</strong><small>{mt(engine?.label ?? t("正在检查…"))}</small></span>
           <SettingOutlined />
         </button>
-        <div className="version">Prism Browser · v0.3.23</div>
+        <div className="version">Prism Browser · v0.3.24</div>
       </Sider>
 
       <Layout>
