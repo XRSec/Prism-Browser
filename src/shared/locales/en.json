@@ -1488,5 +1488,10 @@
   "Mihomo 进程已停止": "Mihomo process stopped",
   "分流配置已保存到金库并成功启动 Mihomo！": "Routing config saved to vault and Mihomo started successfully!",
   "# 后台静默执行命令（自动绑定沙盒运行目录与覆写配置）：": "# Background command (auto-binds sandbox vault and override config):",
-  "Mihomo 控制台输出 (最近 {0} 行)": "Mihomo console output (last {0} lines)"
+  "Mihomo 控制台输出 (最近 {0} 行)": "Mihomo console output (last {0} lines)",
+  "更改内核": "Change Kernel",
+  "批量更改 {0} 个环境内核": "Batch change kernel for {0} profiles",
+  "选择目标内核": "Select Target Kernel",
+  "修改浏览器内核": "Modify browser kernel",
+  "所选环境中包含正在运行的环境（{0}），请先关闭后再修改内核": "Selected profiles include running profiles ({0}). Please close them before changing kernel"
 }

@@ -120,6 +120,28 @@ describe('ProfileStore', () => {
     expect(repository.get(second.id).tags).toEqual(['已有', '批量标签'])
   })
 
+  it('updates kernelVersion for a selected batch and rejects if running', async () => {
+    const repository = await store()
+    const firstDraft = defaultProfileDraft()
+    firstDraft.name = '环境 A'
+    firstDraft.kernelVersion = '144.0.7559.132'
+    const secondDraft = defaultProfileDraft()
+    secondDraft.name = '环境 B'
+    const [first, second] = await repository.createMany([firstDraft, secondDraft])
+
+    const changed = await repository.classifyMany([first.id, second.id], {
+      kernelVersion: '150.0.0.0'
+    })
+
+    expect(changed).toHaveLength(2)
+    expect(repository.get(first.id).kernelVersion).toBe('150.0.0.0')
+    expect(repository.get(second.id).kernelVersion).toBe('150.0.0.0')
+
+    await repository.setRuntime(first.id, { status: 'running' })
+    await expect(repository.classifyMany([first.id, second.id], { kernelVersion: '153.0.0.0' }))
+      .rejects.toThrow('正在运行，不能修改内核')
+  })
+
   it('persists favorite state without changing the fingerprint seed', async () => {
     const repository = await store()
     const profile = await repository.create(defaultProfileDraft())

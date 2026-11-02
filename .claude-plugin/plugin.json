@@ -1,6 +1,6 @@
 {
   "name": "prism-browser",
-  "version": "0.3.24",
+  "version": "0.3.25",
   "description": "Prism Browser fingerprint profile automation, session persistence, and anti-detect browsing",
   "author": {
     "name": "DFarm"

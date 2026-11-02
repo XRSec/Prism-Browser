@@ -209,6 +209,7 @@ export interface ProfileBatchClassification {
   group?: string
   tags?: string[]
   addTags?: string[]
+  kernelVersion?: string
 }
 
 export type ExtensionDownloadNetwork =

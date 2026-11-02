@@ -195,6 +195,10 @@ export default function App({ colorMode = 'light', onColorModeChange = () => {} 
   const [batchAddTags, setBatchAddTags] = useState('')
   const [batchMcpEnabled, setBatchMcpEnabled] = useState(false)
   const [batchMcpMode, setBatchMcpMode] = useState<'inherit' | 'allow' | 'deny'>('inherit')
+  const [batchKernelOpen, setBatchKernelOpen] = useState(false)
+  const [batchKernelVersion, setBatchKernelVersion] = useState('')
+  const [batchKernelEnabled, setBatchKernelEnabled] = useState(false)
+  const [batchClassificationKernel, setBatchClassificationKernel] = useState('')
   const [storage, setStorage] = useState<StorageOverview>()
   const [storageLoading, setStorageLoading] = useState(false)
   const [updateStatus, setUpdateStatus] = useState<AppUpdateStatus | null>(null)
@@ -723,17 +727,27 @@ export default function App({ colorMode = 'light', onColorModeChange = () => {} 
       ? [...new Set(batchAddTags.split(/[,，]/).map((tag) => tag.trim()).filter(Boolean))]
       : undefined
 
-    if (!batchGroupEnabled && !batchTagsEnabled && !addTags?.length && !batchMcpEnabled) {
+    if (!batchGroupEnabled && !batchTagsEnabled && !addTags?.length && !batchMcpEnabled && !batchKernelEnabled) {
       messageApi.warning(t("请选择修改分组、修改标签、追加标签或修改 MCP 授权"))
       return
     }
+
+    if (batchKernelEnabled) {
+      const running = profiles.filter((p) => selectedIds.includes(p.id) && p.status !== 'closed' && p.status !== 'error')
+      if (running.length > 0) {
+        messageApi.error(t("所选环境中包含正在运行的环境（{0}），请先关闭后再修改内核", running.map((p) => p.name).join('、')))
+        return
+      }
+    }
+
     setBatchBusy(true)
     try {
-      if (batchGroupEnabled || batchTagsEnabled || addTags?.length) {
+      if (batchGroupEnabled || batchTagsEnabled || addTags?.length || batchKernelEnabled) {
         const changed = await window.browserApi.profiles.classifyMany(selectedIds, {
           group: batchGroupEnabled ? group : undefined,
           tags: replaceTags,
-          addTags
+          addTags,
+          kernelVersion: batchKernelEnabled ? batchClassificationKernel : undefined
         })
         for (const profile of changed) upsert(profile)
       }
@@ -753,6 +767,31 @@ export default function App({ colorMode = 'light', onColorModeChange = () => {} 
       setBatchAddTags('')
       setBatchMcpEnabled(false)
       setBatchMcpMode('inherit')
+      setBatchKernelEnabled(false)
+      setBatchClassificationKernel('')
+      setSelectedIds([])
+      messageApi.success(t("已批量更新 {0} 个环境", selectedIds.length))
+    } catch (error) {
+      messageApi.error(humanError(error))
+    } finally {
+      setBatchBusy(false)
+    }
+  }
+
+  async function saveBatchKernel(): Promise<void> {
+    const running = profiles.filter((p) => selectedIds.includes(p.id) && p.status !== 'closed' && p.status !== 'error')
+    if (running.length > 0) {
+      messageApi.error(t("所选环境中包含正在运行的环境（{0}），请先关闭后再修改内核", running.map((p) => p.name).join('、')))
+      return
+    }
+    setBatchBusy(true)
+    try {
+      const changed = await window.browserApi.profiles.classifyMany(selectedIds, {
+        kernelVersion: batchKernelVersion
+      })
+      for (const profile of changed) upsert(profile)
+      setBatchKernelOpen(false)
+      setBatchKernelVersion('')
       setSelectedIds([])
       messageApi.success(t("已批量更新 {0} 个环境", selectedIds.length))
     } catch (error) {
@@ -1025,7 +1064,7 @@ export default function App({ colorMode = 'light', onColorModeChange = () => {} 
           <span><strong>{engine?.fingerprintKernel ? t("指纹内核已连接") : t("配置浏览器内核")}</strong><small>{mt(engine?.label ?? t("正在检查…"))}</small></span>
           <SettingOutlined />
         </button>
-        <div className="version">Prism Browser · v0.3.24</div>
+        <div className="version">Prism Browser · v0.3.25</div>
       </Sider>
 
       <Layout>
@@ -1189,6 +1228,7 @@ export default function App({ colorMode = 'light', onColorModeChange = () => {} 
                     <Button size="small" icon={<PoweroffOutlined />} loading={batchBusy} onClick={() => void runBatch('close')}>{t("批量关闭")}</Button>
                     <Button size="small" icon={<ApiOutlined />} loading={batchBusy} onClick={() => void runProxyChecks(selectedIds)}>{t("检测代理")}</Button>
                     <Button size="small" icon={<ClearOutlined />} disabled={batchBusy} onClick={() => { setClearDataTargetIds(selectedIds); setClearDataModalOpen(true); }}>{t("清理数据")}</Button>
+                    <Button size="small" icon={<SettingOutlined />} disabled={batchBusy} onClick={() => setBatchKernelOpen(true)}>{t("更改内核")}</Button>
                     <Button size="small" icon={<TagsOutlined />} disabled={batchBusy} onClick={() => setBatchClassificationOpen(true)}>{t("分组/标签")}</Button>
                     <Button size="small" danger icon={<DeleteOutlined />} disabled={batchBusy} onClick={confirmBatchRemove}>{t("移入回收站")}</Button>
                   </Space>
@@ -1426,6 +1466,8 @@ export default function App({ colorMode = 'light', onColorModeChange = () => {} 
           setBatchAddTags('')
           setBatchMcpEnabled(false)
           setBatchMcpMode('inherit')
+          setBatchKernelEnabled(false)
+          setBatchClassificationKernel('')
         }}
       >
         <Typography.Paragraph type="secondary">{t("可选择修改分组、覆盖/清空标签，或批量调整本地 AI · MCP 授权。")}</Typography.Paragraph>
@@ -1466,6 +1508,27 @@ export default function App({ colorMode = 'light', onColorModeChange = () => {} 
           )}
 
           <div>
+            <Checkbox checked={batchKernelEnabled} onChange={(event) => setBatchKernelEnabled(event.target.checked)}>
+              {t("修改浏览器内核")}
+            </Checkbox>
+            <Select
+              disabled={!batchKernelEnabled}
+              value={batchClassificationKernel}
+              className="full-width"
+              style={{ marginTop: 6 }}
+              options={[
+                { value: '', label: t("自动跟随当前内核{0}", engine?.version ? ` · ${engine.version}` : '') },
+                ...selectableKernels.map((kernel) => ({
+                  value: kernel.version,
+                  label: `${kernel.version}${kernelRequiresPro(kernel.version) ? ' · Pro' : ''}${kernel.origin === 'local-build' ? ' · ' + t('本地构建') : ''}`,
+                  disabled: kernelRequiresPro(kernel.version) && license?.plan !== 'pro'
+                }))
+              ]}
+              onChange={setBatchClassificationKernel}
+            />
+          </div>
+
+          <div>
             <Checkbox checked={batchMcpEnabled} onChange={(event) => setBatchMcpEnabled(event.target.checked)}>
               {t("修改本地 AI · MCP 授权")}
             </Checkbox>
@@ -1483,6 +1546,40 @@ export default function App({ colorMode = 'light', onColorModeChange = () => {} 
             />
           </div>
         </Space>
+      </Modal>
+      <Modal
+        open={batchKernelOpen}
+        title={t("批量更改 {0} 个环境内核", selectedIds.length)}
+        okText={t("应用修改")}
+        cancelText={t("取消")}
+        confirmLoading={batchBusy}
+        onOk={() => void saveBatchKernel()}
+        onCancel={() => {
+          setBatchKernelOpen(false)
+          setBatchKernelVersion('')
+        }}
+      >
+        <Typography.Paragraph type="secondary">
+          {t("长期使用的账号建议固定版本；自动模式会跟随应用当前选择的内核。")}
+        </Typography.Paragraph>
+        <div style={{ marginTop: 12 }}>
+          <Typography.Text strong style={{ fontSize: 12, display: 'block', marginBottom: 6 }}>
+            {t("选择目标内核")}
+          </Typography.Text>
+          <Select
+            value={batchKernelVersion}
+            onChange={setBatchKernelVersion}
+            className="full-width"
+            options={[
+              { value: '', label: t("自动跟随当前内核{0}", engine?.version ? ` · ${engine.version}` : '') },
+              ...selectableKernels.map((kernel) => ({
+                value: kernel.version,
+                label: `${kernel.version}${kernelRequiresPro(kernel.version) ? ' · Pro' : ''}${kernel.origin === 'local-build' ? ' · ' + t('本地构建') : ''}`,
+                disabled: kernelRequiresPro(kernel.version) && license?.plan !== 'pro'
+              }))
+            ]}
+          />
+        </div>
       </Modal>
     </Layout>
   )

@@ -353,8 +353,8 @@ export class ProfileStore {
     const ids = [...new Set(idsInput)]
     if (!ids.length) throw new Error('没有选择浏览器环境')
     if (ids.length > 500) throw new Error('单次最多修改 500 个浏览器环境')
-    if (patch.group === undefined && patch.tags === undefined && !patch.addTags?.length) {
-      throw new Error('请选择要修改的分组或标签')
+    if (patch.group === undefined && patch.tags === undefined && !patch.addTags?.length && patch.kernelVersion === undefined) {
+      throw new Error('请选择要修改的分组、标签或内核')
     }
     if (patch.group !== undefined && typeof patch.group !== 'string') throw new Error('环境分组格式无效')
     if (patch.tags !== undefined && (!Array.isArray(patch.tags) || !patch.tags.every((tag) => typeof tag === 'string'))) {
@@ -362,6 +362,17 @@ export class ProfileStore {
     }
     if (patch.addTags !== undefined && (!Array.isArray(patch.addTags) || !patch.addTags.every((tag) => typeof tag === 'string'))) {
       throw new Error('环境标签格式无效')
+    }
+    if (patch.kernelVersion !== undefined && typeof patch.kernelVersion !== 'string') {
+      throw new Error('内核版本格式无效')
+    }
+    if (patch.kernelVersion !== undefined) {
+      for (const id of ids) {
+        const profile = this.get(id)
+        if (profile.status !== 'closed' && profile.status !== 'error') {
+          throw new Error(`环境“${profile.name}”正在运行，不能修改内核`)
+        }
+      }
     }
     const now = new Date().toISOString()
     const nextProfiles = ids.map((id) => {
@@ -375,7 +386,7 @@ export class ProfileStore {
         extensionIds: current.extensionIds,
         color: current.color,
         startUrls: current.startUrls,
-        kernelVersion: current.kernelVersion,
+        kernelVersion: patch.kernelVersion === undefined ? current.kernelVersion : patch.kernelVersion,
         window: current.window,
         proxy: current.proxy,
         fingerprint: current.fingerprint

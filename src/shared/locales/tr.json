@@ -1488,5 +1488,10 @@
   "Mihomo 进程已停止": "Mihomo işlemi durduruldu",
   "分流配置已保存到金库并成功启动 Mihomo！": "Yönlendirme yapılandırması kasaya kaydedildi ve Mihomo başarıyla başlatıldı!",
   "# 后台静默执行命令（自动绑定沙盒运行目录与覆写配置）：": "# Arka plan komutu (korumalı alan kasasını ve geçersiz kılma yapılandırmasını otomatik olarak bağlar):",
-  "Mihomo 控制台输出 (最近 {0} 行)": "Mihomo konsol çıktısı (son {0} satır)"
+  "Mihomo 控制台输出 (最近 {0} 行)": "Mihomo konsol çıktısı (son {0} satır)",
+  "更改内核": "Çekirdeği Değiştir",
+  "批量更改 {0} 个环境内核": "{0} profil için toplu çekirdek değiştirme",
+  "选择目标内核": "Hedef Çekirdeği Seçin",
+  "修改浏览器内核": "Tarayıcı çekirdeğini değiştir",
+  "所选环境中包含正在运行的环境（{0}），请先关闭后再修改内核": "Seçilen profiller çalışan profilleri ({0}) içeriyor. Lütfen çekirdeği değiştirmeden önce kapatın"
 }
