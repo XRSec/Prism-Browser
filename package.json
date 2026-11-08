@@ -1,10 +1,10 @@
 {
   "name": "prism-browser",
-  "version": "0.3.25",
+  "version": "0.3.26",
   "private": true,
   "author": {
-    "name": "DFarm",
-    "url": "https://x.com/DFarm_club"
+    "name": "XRSec",
+    "url": "https://github.com/XRSec"
   },
   "description": "Open-source local-first multi-profile fingerprint browser",
   "keywords": [
@@ -56,29 +56,29 @@
     "beta:validate-evidence": "node tools/beta-acceptance/validate-evidence.mjs"
   },
   "dependencies": {
-    "@ant-design/icons": "^6.1.0",
-    "@modelcontextprotocol/server": "^2.0.0",
-    "antd": "^6.1.3",
-    "proxy-chain": "^2.6.0",
-    "react": "^19.2.0",
-    "react-dom": "^19.2.0",
-    "undici": "^7.29.0",
-    "zod": "^4.4.3"
+    "@ant-design/icons": "^6.3.4",
+    "@modelcontextprotocol/server": "^2.4.0",
+    "antd": "^6.7.0",
+    "proxy-chain": "^3.0.1",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "undici": "^8.12.4",
+    "zod": "^4.6.7"
   },
   "devDependencies": {
-    "@modelcontextprotocol/client": "^2.0.0",
-    "@types/node": "^24.10.0",
-    "@types/react": "^19.2.0",
-    "@types/react-dom": "^19.2.0",
-    "@vitejs/plugin-react": "^5.1.0",
-    "electron": "^43.2.0",
-    "electron-builder": "^26.0.12",
-    "electron-vite": "^4.0.0",
-    "esbuild": "^0.25.12",
+    "@modelcontextprotocol/client": "^2.4.0",
+    "@types/node": "^26.6.6",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.2.1",
+    "electron": "^45.2.3",
+    "electron-builder": "^26.18.0",
+    "electron-vite": "^6.0.0",
+    "esbuild": "^0.28.2",
     "postject": "^1.0.0-alpha.6",
-    "typescript": "^5.9.3",
-    "vite": "^7.2.0",
-    "vitest": "^4.0.0"
+    "typescript": "^7.0.2",
+    "vite": "^8.3.6",
+    "vitest": "^5.1.0"
   },
   "overrides": {
     "nanoid": "3.3.18"

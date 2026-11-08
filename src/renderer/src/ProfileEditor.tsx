@@ -58,18 +58,24 @@ function editorValues(profile: BrowserProfileView | undefined, index: number): E
   const fingerprint = { ...draft.fingerprint }
   return {
     name: draft.name,
-    note: draft.note,
-    group: draft.group,
-    tags: [...draft.tags],
-    extensionIds: [...draft.extensionIds],
+    note: draft.note ?? '',
+    group: draft.group ?? '',
+    tags: [...(draft.tags ?? [])],
+    extensionIds: [...(draft.extensionIds ?? [])],
     color: draft.color,
-    startUrlsText: draft.startUrls.join('\n'),
-    kernelVersion: draft.kernelVersion,
+    startUrlsText: (draft.startUrls ?? []).join('\n'),
+    kernelVersion: draft.kernelVersion ?? '',
     window: { ...draft.window },
-    proxy: { ...draft.proxy },
+    proxy: {
+      ...draft.proxy,
+      password: draft.proxy.password ?? '',
+      passwordStored: draft.proxy.passwordStored === true,
+      bypassList: draft.proxy.bypassList ?? ''
+    },
     fingerprint: {
       ...fingerprint,
-      disabledSpoofing: [...draft.fingerprint.disabledSpoofing]
+      brandVersion: fingerprint.brandVersion ?? '',
+      disabledSpoofing: [...(draft.fingerprint.disabledSpoofing ?? [])]
     }
   }
 }
@@ -85,8 +91,6 @@ export function ProfileEditor({ open, profile, suggestedIndex, saving, extension
 
   const [form] = Form.useForm<EditorValues>()
   const proxyProtocol = Form.useWatch(['proxy', 'protocol'], form)
-  const proxyPassword = Form.useWatch(['proxy', 'password'], form) ?? ''
-  const proxyPasswordStored = Form.useWatch(['proxy', 'passwordStored'], form) === true
   const webrtcPolicy = Form.useWatch(['fingerprint', 'webrtcPolicy'], form) ?? 'proxy_only'
   const fingerprintTimezone = Form.useWatch(['fingerprint', 'timezone'], form)
   const fingerprintLanguage = Form.useWatch(['fingerprint', 'language'], form) ?? 'zh-CN'
@@ -129,6 +133,7 @@ export function ProfileEditor({ open, profile, suggestedIndex, saving, extension
 
   useEffect(() => {
     if (open) {
+      form.resetFields()
       form.setFieldsValue(editorValues(profile, suggestedIndex))
       setProxyResult(null)
     }
@@ -153,6 +158,7 @@ export function ProfileEditor({ open, profile, suggestedIndex, saving, extension
     await form.validateFields()
     const values = form.getFieldsValue(true) as EditorValues
     const color = typeof values.color === 'string' ? values.color : values.color.toHexString()
+    const bypassList = values.proxy.bypassList?.trim()
     await onSave({
       name: values.name,
       note: values.note,
@@ -162,7 +168,10 @@ export function ProfileEditor({ open, profile, suggestedIndex, saving, extension
       startUrls: values.startUrlsText.split(/\r?\n/).map((line) => line.trim()).filter(Boolean),
       kernelVersion: values.kernelVersion,
       window: values.window,
-      proxy: values.proxy,
+      proxy: {
+        ...values.proxy,
+        bypassList: bypassList ? bypassList : undefined
+      },
       extensionIds: values.extensionIds,
       fingerprint: values.fingerprint
     })
@@ -298,21 +307,13 @@ export function ProfileEditor({ open, profile, suggestedIndex, saving, extension
             <Col span={12}>
               <Form.Item
                 label={t("密码")}
-                extra={proxyPasswordStored
-                  ? t("已保存；代理地址和用户名未修改时，留空可保持原密码。")
-                  : t("密码将安全保存在当前设备。")}
+                extra={t("密码将安全保存在当前设备。")}
               >
-                <Space.Compact block>
-                  <Form.Item name={['proxy', 'password']} noStyle>
-                    <Input.Password
-                      autoComplete="new-password"
-                      placeholder={proxyPasswordStored ? t("已保存，留空保持不变") : undefined}
-                    />
-                  </Form.Item>
-                  {proxyPasswordStored && !proxyPassword && (
-                    <Button onClick={() => form.setFieldValue(['proxy', 'passwordStored'], false)}>{t("清除已保存")}</Button>
-                  )}
-                </Space.Compact>
+                <Form.Item name={['proxy', 'password']} noStyle>
+                  <Input.Password
+                    autoComplete="new-password"
+                  />
+                </Form.Item>
               </Form.Item>
             </Col>
           </Row>

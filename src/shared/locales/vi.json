@@ -1493,5 +1493,7 @@
   "批量更改 {0} 个环境内核": "Thay đổi nhân hàng loạt cho {0} hồ sơ",
   "选择目标内核": "Chọn nhân đích",
   "修改浏览器内核": "Sửa đổi nhân trình duyệt",
-  "所选环境中包含正在运行的环境（{0}），请先关闭后再修改内核": "Các hồ sơ đã chọn bao gồm hồ sơ đang chạy ({0}). Vui lòng đóng chúng trước khi đổi nhân"
+  "所选环境中包含正在运行的环境（{0}），请先关闭后再修改内核": "Các hồ sơ đã chọn bao gồm hồ sơ đang chạy ({0}). Vui lòng đóng chúng trước khi đổi nhân",
+  "全部标签 ({0})": "Tất cả các thẻ ({0})",
+  "无标签": "Chưa gắn thẻ"
 }

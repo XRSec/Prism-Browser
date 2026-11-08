@@ -1493,5 +1493,7 @@
   "批量更改 {0} 个环境内核": "Changer le noyau en lot pour {0} profils",
   "选择目标内核": "Sélectionner le noyau cible",
   "修改浏览器内核": "Modifier le noyau du navigateur",
-  "所选环境中包含正在运行的环境（{0}），请先关闭后再修改内核": "Les profils sélectionnés incluent des profils en cours d exécution ({0}). Veuillez les fermer avant de modifier le noyau"
+  "所选环境中包含正在运行的环境（{0}），请先关闭后再修改内核": "Les profils sélectionnés incluent des profils en cours d exécution ({0}). Veuillez les fermer avant de modifier le noyau",
+  "全部标签 ({0})": "Toutes les étiquettes ({0})",
+  "无标签": "Sans étiquette"
 }

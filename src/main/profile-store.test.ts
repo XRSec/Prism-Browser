@@ -169,6 +169,7 @@ describe('ProfileStore', () => {
     expect(repository.get(created.id).proxy.password).toBe('new-secret')
 
     const cleared = publicProfile(repository.get(created.id))
+    cleared.proxy.password = ''
     cleared.proxy.passwordStored = false
     await repository.update(created.id, cleared)
     expect(repository.get(created.id).proxy.password).toBe('')
@@ -182,6 +183,7 @@ describe('ProfileStore', () => {
     const created = await repository.create(draft)
     const changed = publicProfile(created)
     changed.proxy.host = 'two.example.com'
+    changed.proxy.password = ''
 
     await repository.update(created.id, changed)
     expect(repository.get(created.id).proxy.password).toBe('')

@@ -22,7 +22,7 @@ export function publicProfile(profile: BrowserProfile): BrowserProfileView {
     startUrls: [...profile.startUrls],
     proxy: {
       ...profile.proxy,
-      password: '',
+      password: profile.proxy.password,
       passwordStored: Boolean(profile.proxy.password)
     },
     fingerprint: {

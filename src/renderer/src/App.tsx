@@ -160,6 +160,7 @@ export default function App({ colorMode = 'light', onColorModeChange = () => {} 
   const [kernelManagerOpen, setKernelManagerOpen] = useState(false)
   const [importing, setImporting] = useState(false)
   const [selectedGroup, setSelectedGroup] = useState('__all__')
+  const [selectedTag, setSelectedTag] = useState('__all__')
   const [selectedStatus, setSelectedStatus] = useState('__all__')
   const [sortMode, setSortMode] = useState<'updated' | 'recent' | 'name' | 'created'>('updated')
   const [favoritesOnly, setFavoritesOnly] = useState(false)
@@ -341,6 +342,8 @@ export default function App({ colorMode = 'light', onColorModeChange = () => {} 
     const normalized = query.trim().toLowerCase()
     const filtered = profiles.filter((profile) => {
       if (selectedGroup !== '__all__' && profile.group !== selectedGroup) return false
+      if (selectedTag === '__untagged__' && profile.tags.length > 0) return false
+      if (selectedTag !== '__all__' && selectedTag !== '__untagged__' && !profile.tags.includes(selectedTag)) return false
       if (favoritesOnly && !profile.favorite) return false
       if (selectedStatus === 'closed' && profile.status !== 'closed') return false
       if (selectedStatus === 'running' && !['starting', 'running', 'stopping'].includes(profile.status)) return false
@@ -356,7 +359,7 @@ export default function App({ colorMode = 'light', onColorModeChange = () => {} 
       if (sortMode === 'created') return second.createdAt.localeCompare(first.createdAt)
       return second.updatedAt.localeCompare(first.updatedAt)
     })
-  }, [profiles, query, selectedGroup, selectedStatus, sortMode, favoritesOnly, locale])
+  }, [profiles, query, selectedGroup, selectedTag, selectedStatus, sortMode, favoritesOnly, locale])
 
   const groupOptions = useMemo(() => {
     const counts = new Map<string, number>()
@@ -367,6 +370,33 @@ export default function App({ colorMode = 'light', onColorModeChange = () => {} 
         .sort(([a], [b]) => a.localeCompare(b, locale))
         .map(([group, count]) => ({ value: group, label: `${group || t("未分组")} (${count})` }))
     ]
+  }, [profiles, locale])
+
+  const tagOptions = useMemo(() => {
+    const counts = new Map<string, number>()
+    let untaggedCount = 0
+    for (const profile of profiles) {
+      if (!profile.tags || profile.tags.length === 0) {
+        untaggedCount++
+      } else {
+        for (const tag of profile.tags) {
+          const trimmed = tag.trim()
+          if (trimmed) counts.set(trimmed, (counts.get(trimmed) ?? 0) + 1)
+        }
+      }
+    }
+    const options = [
+      { value: '__all__', label: t("全部标签 ({0})", profiles.length) }
+    ]
+    if (untaggedCount > 0) {
+      options.push({ value: '__untagged__', label: `${t("无标签")} (${untaggedCount})` })
+    }
+    options.push(
+      ...[...counts.entries()]
+        .sort(([a], [b]) => a.localeCompare(b, locale))
+        .map(([tag, count]) => ({ value: tag, label: `${tag} (${count})` }))
+    )
+    return options
   }, [profiles, locale])
   const editableGroups = useMemo(() => [...new Set(profiles
     .map((profile) => profile.group.trim())
@@ -1242,6 +1272,12 @@ export default function App({ colorMode = 'light', onColorModeChange = () => {} 
                   options={groupOptions}
                   onChange={setSelectedGroup}
                   className="group-filter"
+                />
+                <Select
+                  value={selectedTag}
+                  options={tagOptions}
+                  onChange={setSelectedTag}
+                  className="tag-filter"
                 />
                 <Select
                   value={selectedStatus}

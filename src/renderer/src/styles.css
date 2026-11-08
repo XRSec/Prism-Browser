@@ -657,7 +657,7 @@ button, input, textarea { font: inherit; }
   gap: 16px;
   min-width: 0;
 }
-.group-filter { width: 155px; }
+.group-filter, .tag-filter { width: 155px; }
 .status-filter, .sort-filter { width: 125px; }
 .search-input { width: 310px; }
 .batch-classification-fields { width: 100%; }
@@ -1077,7 +1077,8 @@ html:not([lang^='zh']) .workspace-overview { flex-wrap: wrap; gap: 12px 18px; pa
 html:not([lang^='zh']) .table-title-actions { flex-wrap: wrap; gap: 12px; }
 html:not([lang^='zh']) .table-toolbar { flex-wrap: wrap; }
 html:not([lang^='zh']) .plan-feature-list > div { line-height: 1.55; }
-html:not([lang^='zh']) .group-filter { width: 185px; }
+html:not([lang^='zh']) .group-filter,
+html:not([lang^='zh']) .tag-filter { width: 185px; }
 html:not([lang^='zh']) .status-filter { width: 175px; }
 html:not([lang^='zh']) .sort-filter { width: 190px; }
 html:not([lang^='zh']) .kernel-toolbar { flex-wrap: wrap; gap: 12px; }

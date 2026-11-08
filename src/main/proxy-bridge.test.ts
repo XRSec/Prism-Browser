@@ -1,6 +1,6 @@
 import { createServer } from 'node:http'
 import { createConnection, createServer as createTcpServer, type Server as TcpServer } from 'node:net'
-import proxyChain from 'proxy-chain'
+import * as proxyChain from 'proxy-chain'
 import { ProxyAgent, request } from 'undici'
 import { describe, expect, it, vi } from 'vitest'
 import { closeProxyBridge, openProxyBridge, upstreamProxyUrl } from './proxy-bridge'

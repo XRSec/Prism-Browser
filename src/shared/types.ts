@@ -193,8 +193,7 @@ export interface BrowserProfile {
   lastError?: string
 }
 
-export interface PublicProxyConfig extends Omit<ProxyConfig, 'password' | 'passwordStored'> {
-  password: ''
+export interface PublicProxyConfig extends Omit<ProxyConfig, 'passwordStored'> {
   passwordStored: boolean
 }
 

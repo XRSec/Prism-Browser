@@ -24,18 +24,19 @@ function profile(): BrowserProfile {
 }
 
 describe('profile secret boundary', () => {
-  it('removes proxy passwords from profiles exposed to the renderer', () => {
+  it('preserves proxy passwords for profiles exposed to the renderer', () => {
     const stored = profile()
     stored.lastError = 'failed via http://user:pass@proxy.example.com'
     const exposed = publicProfile(stored)
-    expect(exposed.proxy.password).toBe('')
+    expect(exposed.proxy.password).toBe('top-secret')
     expect(exposed.proxy.passwordStored).toBe(true)
     expect(exposed.lastError).not.toContain('user:pass')
   })
 
-  it('reuses a stored password only for the same proxy identity', () => {
+  it('reuses a stored password only for the same proxy identity when input password is empty', () => {
     const stored = profile()
     const exposed = publicProfile(stored)
+    exposed.proxy.password = ''
     expect(proxyForTest(exposed.proxy, stored).password).toBe('top-secret')
 
     exposed.proxy.host = 'attacker.example.com'

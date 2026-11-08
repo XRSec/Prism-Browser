@@ -1493,5 +1493,7 @@
   "批量更改 {0} 个环境内核": "Cambiar núcleo en lote para {0} perfiles",
   "选择目标内核": "Seleccionar núcleo de destino",
   "修改浏览器内核": "Modificar núcleo del navegador",
-  "所选环境中包含正在运行的环境（{0}），请先关闭后再修改内核": "Los perfiles seleccionados incluyen perfiles en ejecución ({0}). Ciérrelos antes de cambiar el núcleo"
+  "所选环境中包含正在运行的环境（{0}），请先关闭后再修改内核": "Los perfiles seleccionados incluyen perfiles en ejecución ({0}). Ciérrelos antes de cambiar el núcleo",
+  "全部标签 ({0})": "Todas las etiquetas ({0})",
+  "无标签": "Sin etiquetas"
 }

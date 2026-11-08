@@ -1,4 +1,4 @@
-import proxyChain from 'proxy-chain'
+import * as proxyChain from 'proxy-chain'
 import { isIP } from 'node:net'
 import type { ProxyConfig } from '../shared/types'
 

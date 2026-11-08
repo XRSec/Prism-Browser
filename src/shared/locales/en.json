@@ -1493,5 +1493,7 @@
   "批量更改 {0} 个环境内核": "Batch change kernel for {0} profiles",
   "选择目标内核": "Select Target Kernel",
   "修改浏览器内核": "Modify browser kernel",
-  "所选环境中包含正在运行的环境（{0}），请先关闭后再修改内核": "Selected profiles include running profiles ({0}). Please close them before changing kernel"
+  "所选环境中包含正在运行的环境（{0}），请先关闭后再修改内核": "Selected profiles include running profiles ({0}). Please close them before changing kernel",
+  "全部标签 ({0})": "All Tags ({0})",
+  "无标签": "Untagged"
 }
