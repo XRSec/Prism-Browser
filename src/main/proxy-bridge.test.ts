@@ -11,7 +11,7 @@ async function authenticatedSocks5Server(username: string, password: string): Pr
     let buffered = Buffer.alloc(0)
     client.on('data', (chunk) => {
       if (stage === 'relay') return
-      buffered = Buffer.concat([buffered, chunk])
+      buffered = Buffer.concat([buffered, typeof chunk === 'string' ? Buffer.from(chunk) : chunk])
       if (stage === 'greeting') {
         if (buffered.length < 2) return
         if (buffered.length < 2 + buffered[1]) return

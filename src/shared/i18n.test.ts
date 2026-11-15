@@ -1,7 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import { readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
-import ts from 'typescript'
 import { formatList, getLocale, isUiLocale, languages, quote, resolveLocale, setLocale, subscribeLocale, t, translateMessage } from './i18n'
 import { suffixedProfileName } from './profile-name'
 import { defaultProfileDraft } from './defaults'
@@ -78,18 +77,23 @@ describe('interface languages', () => {
           .toEqual([...key.matchAll(/\{\d+\}/g)].map(m => m[0]).sort())
       }
     }
+    const extractTranslationKeys = (content: string): string[] => {
+      const keys: string[] = []
+      const pattern = /(?<![A-Za-z0-9_$.])t\(\s*(['"`])((?:\\.|(?!\1)[^\\\r\n])*)\1/g
+      for (const match of content.matchAll(pattern)) {
+        const quoteChar = match[1]
+        const raw = match[2]
+        if (quoteChar === '`' && raw.includes('${')) continue
+        keys.push(raw.replace(/\\(['"`\\])/g, '$1').replace(/\\n/g, '\n').replace(/\\t/g, '\t'))
+      }
+      return keys
+    }
     for (const folder of ['src/renderer/src', 'src/main']) {
       for (const name of readdirSync(folder).filter(name => /\.tsx?$/.test(name) && !name.includes('.test.'))) {
         const path = join(folder, name)
-        const file = ts.createSourceFile(path, readFileSync(path, 'utf8'), ts.ScriptTarget.Latest, true)
-        function visit(node: ts.Node): void {
-          if (ts.isCallExpression(node) && node.expression.getText(file) === 't') {
-            const key = node.arguments[0]
-            if (key && ts.isStringLiteralLike(key)) expect(source, `${path}: ${key.text}`).toHaveProperty(key.text)
-          }
-          ts.forEachChild(node, visit)
+        for (const key of extractTranslationKeys(readFileSync(path, 'utf8'))) {
+          expect(source, `${path}: ${key}`).toHaveProperty(key)
         }
-        visit(file)
       }
     }
   })
