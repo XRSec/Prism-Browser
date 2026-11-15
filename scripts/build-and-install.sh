@@ -25,6 +25,9 @@ CSC_NAME="$CERT_NAME" \
     --config.mac.notarize=false
 
 echo "==> 安装到 $INSTALL_PATH ..."
+if [ -d "$INSTALL_PATH" ]; then
+    node -e "const fs = require('fs'); fs.rmSync(process.argv[1], { recursive: true, force: true });" "$INSTALL_PATH"
+fi
 ditto "release/mac-arm64/Prism Browser.app" "$INSTALL_PATH"
 
 echo ""

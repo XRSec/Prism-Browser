@@ -1,9 +1,26 @@
+/**
+ * Purpose: Coordinates real-time input event synchronization, tab control, and layout arrangements across browser instances.
+ * Context: Core coordinator for Prism multi-window synchronization, bridging CDP sessions and Electron screen layouts.
+ * Usage: Instantiated within main process to manage sync lifecycle, window tiling, and broadcast queues.
+ * Prerequisites: Running browser instances with active CDP control connections.
+ * Justification: 500-800 lines due to combined event-queue synchronization, CDP hooks, and window lifecycle management.
+ */
+
 import { access, constants } from 'node:fs'
 import { join } from 'node:path'
 import { spawn } from 'node:child_process'
 import type { ChildProcess } from 'node:child_process'
 import { screen } from 'electron'
 import type { Logger } from './app-logger'
+import type { WindowSyncDisplayInfo, WindowTileOptions } from '../shared/types'
+import {
+  computeMasterSizeGrid,
+  computeOptimalGrid,
+  computeOverlapLayout,
+  distributeAcrossDisplays,
+  orderedProfileIds
+} from './window-sync-layout'
+import type { DisplayWorkArea } from './window-sync-layout'
 
 export interface WindowSyncSettings {
   syncClicks: boolean
@@ -279,147 +296,212 @@ export class WindowSyncManager {
     }
   }
 
-  private async resolveWorkArea(ids: string[], area?: WindowArea): Promise<WindowArea> {
-    if (area && area.width > 320 && area.height > 240) {
-      return area
-    }
+  getDisplays(): WindowSyncDisplayInfo[] {
     try {
-      if (ids.length > 0) {
-        const bounds = await this.launcher.browserWindowBounds(ids[0])
+      const displays = screen.getAllDisplays()
+      const primaryId = screen.getPrimaryDisplay()?.id
+      return displays.map((d, index) => {
+        const isPrimary = d.id === primaryId
+        let label = d.label ? d.label.trim() : ''
+        if (!label) {
+          label = isPrimary ? '主显示器' : `显示器 ${index + 1}`
+        }
+        return {
+          id: d.id,
+          label,
+          bounds: { x: d.bounds.x, y: d.bounds.y, width: d.bounds.width, height: d.bounds.height },
+          workArea: { x: d.workArea.x, y: d.workArea.y, width: d.workArea.width, height: d.workArea.height },
+          scaleFactor: d.scaleFactor,
+          isPrimary
+        }
+      })
+    } catch {
+      return [{
+        id: 1,
+        label: '主显示器',
+        bounds: { x: 0, y: 0, width: 1440, height: 900 },
+        workArea: { x: 0, y: 0, width: 1440, height: 900 },
+        scaleFactor: 1,
+        isPrimary: true
+      }]
+    }
+  }
+
+  private async resolveTargetDisplays(
+    mainProfileId?: string,
+    options?: WindowTileOptions,
+    fallbackArea?: WindowArea
+  ): Promise<DisplayWorkArea[]> {
+    let displays: Electron.Display[] = []
+    let primaryDisplay: Electron.Display | undefined
+    try {
+      displays = screen.getAllDisplays()
+      primaryDisplay = screen.getPrimaryDisplay()
+    } catch {
+      displays = []
+    }
+
+    if (!displays || displays.length === 0) {
+      const area = fallbackArea && fallbackArea.width > 0 && fallbackArea.height > 0
+        ? fallbackArea
+        : { x: 0, y: 0, width: 1440, height: 900 }
+      return [{ id: 1, workArea: area, isPrimary: true, isMaster: true }]
+    }
+
+    let masterDisplayId = primaryDisplay?.id ?? displays[0]?.id
+    if (mainProfileId) {
+      try {
+        const bounds = await this.launcher.browserWindowBounds(mainProfileId)
         if (bounds && bounds.width > 0 && bounds.height > 0) {
-          const display = screen.getDisplayMatching({
+          const matching = screen.getDisplayMatching({
             x: bounds.left ?? 0,
             y: bounds.top ?? 0,
             width: bounds.width,
             height: bounds.height
           })
-          if (display?.workArea && display.workArea.width > 0 && display.workArea.height > 0) {
-            return {
-              x: display.workArea.x,
-              y: display.workArea.y,
-              width: display.workArea.width,
-              height: display.workArea.height
-            }
-          }
+          if (matching?.id) masterDisplayId = matching.id
         }
+      } catch {
+        // fallback to primary display
       }
-    } catch {
-      // ignore
     }
-    try {
-      const primary = screen.getPrimaryDisplay()
-      if (primary?.workArea && primary.workArea.width > 0 && primary.workArea.height > 0) {
-        return {
-          x: primary.workArea.x,
-          y: primary.workArea.y,
-          width: primary.workArea.width,
-          height: primary.workArea.height
-        }
+
+    if (options?.displayMode === 'display' && options.displayId !== undefined) {
+      const chosen = displays.find((d) => d.id === options.displayId)
+      if (chosen) {
+        return [{
+          id: chosen.id,
+          workArea: { x: chosen.workArea.x, y: chosen.workArea.y, width: chosen.workArea.width, height: chosen.workArea.height },
+          isPrimary: chosen.id === primaryDisplay?.id,
+          isMaster: chosen.id === masterDisplayId
+        }]
       }
-    } catch {
-      // ignore
     }
-    return { x: 0, y: 0, width: 1440, height: 900 }
+
+    if (options?.displayMode === 'all' && displays.length > 1) {
+      const sorted = [...displays].sort((a, b) => {
+        if (a.id === masterDisplayId) return -1
+        if (b.id === masterDisplayId) return 1
+        return a.bounds.x - b.bounds.x
+      })
+      return sorted.map((d) => ({
+        id: d.id,
+        workArea: { x: d.workArea.x, y: d.workArea.y, width: d.workArea.width, height: d.workArea.height },
+        isPrimary: d.id === primaryDisplay?.id,
+        isMaster: d.id === masterDisplayId
+      }))
+    }
+
+    const masterDisplay = displays.find((d) => d.id === masterDisplayId) ?? primaryDisplay ?? displays[0]
+    return [{
+      id: masterDisplay.id,
+      workArea: { x: masterDisplay.workArea.x, y: masterDisplay.workArea.y, width: masterDisplay.workArea.width, height: masterDisplay.workArea.height },
+      isPrimary: masterDisplay.id === primaryDisplay?.id,
+      isMaster: true
+    }]
   }
 
-  async tile(profileIds: string[], layout: WindowTileLayout, area: WindowArea, keepCurrentSize = false): Promise<void> {
+  async tile(
+    profileIds: string[],
+    layout: WindowTileLayout,
+    area?: WindowArea,
+    keepCurrentSize = false,
+    options?: WindowTileOptions
+  ): Promise<void> {
     this.requirePro()
-    const ids = this.runningIds(profileIds)
+    const targetMainId = options?.mainProfileId ?? this.current.mainProfileId ?? profileIds[0]
+    const ordered = orderedProfileIds(targetMainId, profileIds)
+    const ids = this.runningIds(ordered)
     if (ids.length < 2) throw new Error('至少选择 2 个正在运行的环境')
-    const resolvedArea = await this.resolveWorkArea(ids, area)
+
     const gap = this.platform === 'win32' ? 0 : 10
+    const displays = await this.resolveTargetDisplays(ids[0], options, area)
 
     if (layout === 'overlap') {
-      // 保持每个窗口原有的独立尺寸，绝不强制固定为 76% 屏幕大小，只进行阶梯错落层叠
-      const boundsList = await Promise.all(
-        ids.map((id) => this.launcher.browserWindowBounds(id).catch(() => null))
-      )
-      const step = 32
+      const targetArea = displays[0].workArea
+      const mainBounds = await this.launcher.browserWindowBounds(ids[0]).catch(() => null)
+      const baseSize = mainBounds && mainBounds.width > 0 && mainBounds.height > 0
+        ? { width: mainBounds.width, height: mainBounds.height }
+        : undefined
+      const slots = computeOverlapLayout(ids.length, targetArea, baseSize, gap)
       await Promise.all(ids.map((id, index) => {
-        const current = boundsList[index]
-        const width = current?.width && current.width > 0 ? current.width : Math.max(520, Math.floor(resolvedArea.width * 0.6))
-        const height = current?.height && current.height > 0 ? current.height : Math.max(420, Math.floor(resolvedArea.height * 0.6))
-        const maxOffsetLeft = Math.max(0, resolvedArea.width - width - gap)
-        const maxOffsetTop = Math.max(0, resolvedArea.height - height - gap)
-        const offsetLeft = maxOffsetLeft > 0 ? (index * step) % maxOffsetLeft : 0
-        const offsetTop = maxOffsetTop > 0 ? (index * step) % maxOffsetTop : 0
+        const slot = slots[index]
+        if (!slot) return Promise.resolve()
         return this.launcher.setBrowserWindowBounds(id, {
-          left: resolvedArea.x + gap + offsetLeft,
-          top: resolvedArea.y + gap + offsetTop,
-          width,
-          height,
+          left: slot.x,
+          top: slot.y,
+          width: slot.width,
+          height: slot.height
         })
       }))
       return
     }
 
     if (keepCurrentSize) {
-      // 保持窗口大小平铺：获取每个窗口当前真实尺寸
-      const boundsList = await Promise.all(
-        ids.map((id) => this.launcher.browserWindowBounds(id).catch(() => null))
-      )
-      const first = boundsList[0]
-      const refWidth = first?.width && first.width > 0 ? first.width : 600
-      const refHeight = first?.height && first.height > 0 ? first.height : 450
-
-      // 计算每行合理列数与行数：
-      // 优先多列排布（至少 2 列，除非只有 1 个窗口），绝不退化为单列！
-      const fitCols = Math.floor((resolvedArea.width - gap) / (refWidth + gap))
-      const gridCols = Math.ceil(Math.sqrt(ids.length))
-      const columns = Math.min(ids.length, Math.max(fitCols > 1 ? fitCols : gridCols, 2))
-      const rows = Math.ceil(ids.length / columns)
-
-      // 列步长与行步长：若屏幕宽度充足，按完整窗口步进；若屏幕较紧凑，则在可用宽度内均匀平铺分布
-      const totalWidthNeeded = columns * refWidth + (columns + 1) * gap
-      const stepX = totalWidthNeeded <= resolvedArea.width
-        ? refWidth + gap
-        : columns > 1
-          ? Math.max(40, Math.floor((resolvedArea.width - refWidth - gap * 2) / (columns - 1)))
-          : 0
-
-      const totalHeightNeeded = rows * refHeight + (rows + 1) * gap
-      const stepY = totalHeightNeeded <= resolvedArea.height
-        ? refHeight + gap
-        : rows > 1
-          ? Math.max(40, Math.floor((resolvedArea.height - refHeight - gap * 2) / (rows - 1)))
-          : refHeight + gap
-
+      const mainBounds = await this.launcher.browserWindowBounds(ids[0]).catch(() => null)
+      const masterSize = {
+        width: mainBounds?.width && mainBounds.width > 0 ? mainBounds.width : 600,
+        height: mainBounds?.height && mainBounds.height > 0 ? mainBounds.height : 450
+      }
+      const slots = distributeAcrossDisplays(ids.length, displays, 'master-size', { masterSize, gap })
       await Promise.all(ids.map((id, index) => {
-        const col = index % columns
-        const row = Math.floor(index / columns)
-        const current = boundsList[index]
-        const w = current?.width && current.width > 0 ? current.width : refWidth
-        const h = current?.height && current.height > 0 ? current.height : refHeight
+        const slot = slots[index]
+        if (!slot) return Promise.resolve()
         return this.launcher.setBrowserWindowBounds(id, {
-          left: resolvedArea.x + gap + col * stepX,
-          top: resolvedArea.y + gap + row * stepY,
-          width: w,
-          height: h,
+          left: slot.x,
+          top: slot.y,
+          width: slot.width,
+          height: slot.height
         })
       }))
       return
     }
 
-    const columns = Math.ceil(Math.sqrt(ids.length))
-    const rows = Math.ceil(ids.length / columns)
-    const width = Math.max(320, Math.floor((resolvedArea.width - gap * (columns + 1)) / columns))
-    const height = Math.max(240, Math.floor((resolvedArea.height - gap * (rows + 1)) / rows))
-    await Promise.all(ids.map((id, index) => this.launcher.setBrowserWindowBounds(id, {
-      left: resolvedArea.x + gap + index % columns * (width + gap),
-      top: resolvedArea.y + gap + Math.floor(index / columns) * (height + gap),
-      width,
-      height,
-    })))
+    const slots = distributeAcrossDisplays(ids.length, displays, 'optimal', {
+      gap,
+      minWidth: 320,
+      minHeight: 240
+    })
+    await Promise.all(ids.map((id, index) => {
+      const slot = slots[index]
+      if (!slot) return Promise.resolve()
+      return this.launcher.setBrowserWindowBounds(id, {
+        left: slot.x,
+        top: slot.y,
+        width: slot.width,
+        height: slot.height
+      })
+    }))
   }
 
-  async uniformSize(mainProfileId: string, followerProfileIds: string[]): Promise<void> {
+  async uniformSize(
+    mainProfileId: string,
+    followerProfileIds: string[],
+    options?: WindowTileOptions
+  ): Promise<void> {
     this.requirePro()
-    const ids = this.runningIds([mainProfileId, ...followerProfileIds])
+    const ordered = orderedProfileIds(mainProfileId, followerProfileIds)
+    const ids = this.runningIds(ordered)
     if (!ids.includes(mainProfileId) || ids.length < 2) throw new Error('主控和受控环境必须处于运行状态')
+
     const main = await this.launcher.browserWindowBounds(mainProfileId)
-    await Promise.all(ids.filter((id) => id !== mainProfileId).map(async (id) => {
-      const current = await this.launcher.browserWindowBounds(id)
-      await this.launcher.setBrowserWindowBounds(id, { ...current, width: main.width, height: main.height })
+    const masterSize = {
+      width: main?.width && main.width > 0 ? main.width : 800,
+      height: main?.height && main.height > 0 ? main.height : 600
+    }
+    const gap = this.platform === 'win32' ? 0 : 10
+    const displays = await this.resolveTargetDisplays(mainProfileId, options)
+    const slots = distributeAcrossDisplays(ids.length, displays, 'master-size', { masterSize, gap })
+
+    await Promise.all(ids.map((id, index) => {
+      const slot = slots[index]
+      if (!slot) return Promise.resolve()
+      return this.launcher.setBrowserWindowBounds(id, {
+        left: slot.x,
+        top: slot.y,
+        width: slot.width,
+        height: slot.height
+      })
     }))
   }
 

@@ -1495,5 +1495,8 @@
   "修改浏览器内核": "Tarayıcı çekirdeğini değiştir",
   "所选环境中包含正在运行的环境（{0}），请先关闭后再修改内核": "Seçilen profiller çalışan profilleri ({0}) içeriyor. Lütfen çekirdeği değiştirmeden önce kapatın",
   "全部标签 ({0})": "Tüm etiketler ({0})",
-  "无标签": "Etiketsiz"
+  "无标签": "Etiketsiz",
+  "自动 (主窗口所在屏)": "Otomatik (Ana pencerenin bulunduğu ekran)",
+  "多屏平铺 (全部 {0} 块屏幕)": "Çoklu ekran döşeme (Tüm {0} ekran)",
+  "目标屏幕": "Hedef ekran"
 }

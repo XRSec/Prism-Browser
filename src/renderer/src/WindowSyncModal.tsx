@@ -1,3 +1,10 @@
+/**
+ * Purpose: Window Sync Modal dialog providing control over multi-window synchronization, display selection, and tiling.
+ * Context: Rendered within the main management UI when the user opens the multi-window synchronizer.
+ * Usage: <WindowSyncModal open={isOpen} profiles={profiles} status={status} ... />
+ * Prerequisites: Active React component tree with window.browserApi.windowSync bridge.
+ */
+
 import { t, translateMessage as mt } from '../../shared/i18n'
 import {
   AppstoreOutlined,
@@ -13,7 +20,7 @@ import {
 } from '@ant-design/icons'
 import { Alert, Button, Checkbox, Input, InputNumber, Modal, Select, Space, Switch, Tag, Typography } from 'antd'
 import { useEffect, useMemo, useState } from 'react'
-import type { BrowserProfileView, WindowSyncSettings, WindowSyncStatus } from '../../shared/types'
+import type { BrowserProfileView, WindowSyncDisplayInfo, WindowSyncSettings, WindowSyncStatus } from '../../shared/types'
 
 interface WindowSyncModalProps {
   open: boolean
@@ -50,8 +57,17 @@ export function WindowSyncModal({ open, profiles, status, proEnabled, onChanged,
   const [busy, setBusy] = useState('')
   const [error, setError] = useState('')
   const [uniformSize, setUniformSize] = useState(true)
+  const [displays, setDisplays] = useState<WindowSyncDisplayInfo[]>([])
+  const [displayTarget, setDisplayTarget] = useState<string>('auto')
 
   const active = status?.state === 'running' || status?.state === 'starting'
+
+  useEffect(() => {
+    if (!open) return
+    window.browserApi.windowSync.getDisplays()
+      .then((items) => setDisplays(items ?? []))
+      .catch(() => setDisplays([]))
+  }, [open])
 
   useEffect(() => {
     if (!open) return
@@ -70,11 +86,39 @@ export function WindowSyncModal({ open, profiles, status, proEnabled, onChanged,
     setSettings(status?.settings ?? fallbackSettings)
   }, [open, active, status?.mainProfileId, runningProfiles])
 
-  const selectedIds = [mainId, ...followerIds].filter(Boolean)
+  const selectedIds = useMemo(
+    () => [mainId, ...followerIds.filter((id) => id !== mainId)].filter(Boolean),
+    [mainId, followerIds]
+  )
   const options = runningProfiles.map((profile) => ({
     value: profile.id,
     label: `#${profile.serialNumber} · ${profile.name}`
   }))
+
+  const displayOptions = useMemo(() => {
+    const items = [
+      { value: 'auto', label: t("自动 (主窗口所在屏)") }
+    ]
+    for (const d of displays) {
+      items.push({
+        value: String(d.id),
+        label: `${d.label} (${d.workArea.width}×${d.workArea.height})`
+      })
+    }
+    if (displays.length > 1) {
+      items.push({
+        value: 'all',
+        label: t("多屏平铺 (全部 {0} 块屏幕)", displays.length)
+      })
+    }
+    return items
+  }, [displays])
+
+  const tileOptions = useMemo(() => ({
+    displayMode: displayTarget === 'all' ? ('all' as const) : (displayTarget === 'auto' ? ('auto' as const) : ('display' as const)),
+    displayId: displayTarget !== 'auto' && displayTarget !== 'all' ? Number(displayTarget) : undefined,
+    mainProfileId: mainId || undefined
+  }), [displayTarget, mainId])
 
   async function operation(name: string, task: () => Promise<unknown>): Promise<void> {
     setBusy(name)
@@ -282,7 +326,7 @@ export function WindowSyncModal({ open, profiles, status, proEnabled, onChanged,
                 icon={<AppstoreOutlined />}
                 loading={busy === 'grid'}
                 disabled={selectedIds.length < 2}
-                onClick={() => void operation('grid', () => window.browserApi.windowSync.tile(selectedIds, 'grid', { x: 0, y: 0, width: window.screen.availWidth, height: window.screen.availHeight }, !uniformSize))}
+                onClick={() => void operation('grid', () => window.browserApi.windowSync.tile(selectedIds, 'grid', undefined, uniformSize, tileOptions))}
               >
                 {t("网格平铺")}
               </Button>
@@ -290,7 +334,7 @@ export function WindowSyncModal({ open, profiles, status, proEnabled, onChanged,
                 icon={<AppstoreOutlined />}
                 loading={busy === 'overlap'}
                 disabled={selectedIds.length < 2}
-                onClick={() => void operation('overlap', () => window.browserApi.windowSync.tile(selectedIds, 'overlap', { x: 0, y: 0, width: window.screen.availWidth, height: window.screen.availHeight }))}
+                onClick={() => void operation('overlap', () => window.browserApi.windowSync.tile(selectedIds, 'overlap', undefined, false, tileOptions))}
               >
                 {t("重叠排列")}
               </Button>
@@ -301,13 +345,21 @@ export function WindowSyncModal({ open, profiles, status, proEnabled, onChanged,
                   const checked = e.target.checked
                   setUniformSize(checked)
                   if (checked && mainId && followerIds.length >= 1) {
-                    void operation('size', () => window.browserApi.windowSync.uniformSize(mainId, followerIds))
+                    void operation('size', () => window.browserApi.windowSync.uniformSize(mainId, followerIds, tileOptions))
                   }
                 }}
                 style={{ marginLeft: 6, marginRight: 6, userSelect: 'none' }}
               >
                 {t("统一大小")}
               </Checkbox>
+              <Select
+                size="middle"
+                value={displayTarget}
+                onChange={setDisplayTarget}
+                options={displayOptions}
+                style={{ minWidth: 170 }}
+                title={t("目标屏幕")}
+              />
               <Button
                 icon={<EyeOutlined />}
                 loading={busy === 'front'}

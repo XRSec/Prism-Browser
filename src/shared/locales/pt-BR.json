@@ -1495,5 +1495,8 @@
   "修改浏览器内核": "Modificar kernel do navegador",
   "所选环境中包含正在运行的环境（{0}），请先关闭后再修改内核": "Os perfis selecionados incluem perfis em execução ({0}). Feche-os antes de alterar o kernel",
   "全部标签 ({0})": "Todas as tags ({0})",
-  "无标签": "Sem tags"
+  "无标签": "Sem tags",
+  "自动 (主窗口所在屏)": "Automático (Tela com janela principal)",
+  "多屏平铺 (全部 {0} 块屏幕)": "Organizar em várias telas (Todas as {0} telas)",
+  "目标屏幕": "Tela de destino"
 }

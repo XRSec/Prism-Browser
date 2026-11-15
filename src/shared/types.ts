@@ -484,6 +484,30 @@ export interface WindowSyncSettings {
   delayMaxMs: number
 }
 
+export interface WindowArea {
+  x: number
+  y: number
+  width: number
+  height: number
+}
+
+export interface WindowSyncDisplayInfo {
+  id: number
+  label: string
+  bounds: WindowArea
+  workArea: WindowArea
+  scaleFactor: number
+  isPrimary: boolean
+}
+
+export type WindowSyncDisplayMode = 'auto' | 'all' | 'display'
+
+export interface WindowTileOptions {
+  displayMode?: WindowSyncDisplayMode
+  displayId?: number
+  mainProfileId?: string
+}
+
 export interface WindowSyncStartOptions {
   mainProfileId?: string
   followerProfileIds?: string[]
@@ -670,8 +694,19 @@ export interface BrowserApi {
     status: () => Promise<WindowSyncStatus>
     start: (options: WindowSyncStartOptions) => Promise<WindowSyncStatus>
     stop: () => Promise<WindowSyncStatus>
-    tile: (profileIds: string[], layout: 'grid' | 'overlap', area: { x: number; y: number; width: number; height: number }, keepSize?: boolean) => Promise<void>
-    uniformSize: (mainProfileId: string, followerProfileIds: string[]) => Promise<void>
+    getDisplays: () => Promise<WindowSyncDisplayInfo[]>
+    tile: (
+      profileIds: string[],
+      layout: 'grid' | 'overlap',
+      area?: WindowArea,
+      keepSize?: boolean,
+      options?: WindowTileOptions
+    ) => Promise<void>
+    uniformSize: (
+      mainProfileId: string,
+      followerProfileIds: string[],
+      options?: WindowTileOptions
+    ) => Promise<void>
     bringToFront: (profileIds: string[]) => Promise<void>
     minimize: (profileIds: string[]) => Promise<void>
     sameTabs: (mainProfileId: string, followerProfileIds: string[]) => Promise<void>
