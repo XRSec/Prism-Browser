@@ -78,6 +78,9 @@ describe('upstreamProxyUrl', () => {
     expect(upstreamProxyUrl({
       protocol: 'socks5', host: 'proxy.example.com', port: 1080, username: 'user@example.com', password: 'p@ss/word'
     })).toBe('socks5://user%40example.com:p%40ss%2Fword@proxy.example.com:1080')
+    expect(upstreamProxyUrl({
+      protocol: 'socks5h', host: 'proxy.example.com', port: 1080, username: 'user@example.com', password: 'p@ss/word'
+    })).toBe('socks5h://user%40example.com:p%40ss%2Fword@proxy.example.com:1080')
   })
 
   it('brackets IPv6 upstreams and does not silently drop password-only credentials', () => {
@@ -137,6 +140,33 @@ describe('upstreamProxyUrl', () => {
     try {
       const response = await request(`http://127.0.0.1:${targetAddress.port}/`, { dispatcher })
       expect(await response.body.text()).toBe('socks-ok')
+    } finally {
+      await dispatcher.close().catch(() => undefined)
+      await closeProxyBridge(bridge)
+      await new Promise<void>((resolve, reject) => socks.close((error) => error ? reject(error) : resolve()))
+      await new Promise<void>((resolve, reject) => target.close((error) => error ? reject(error) : resolve()))
+    }
+  })
+
+  it('relays through an authenticated SOCKS5H upstream', async () => {
+    const target = createServer((_request, response) => response.end('socks5h-ok'))
+    await new Promise<void>((resolve) => target.listen(0, '127.0.0.1', resolve))
+    const targetAddress = target.address()
+    if (!targetAddress || typeof targetAddress === 'string') throw new Error('target server did not start')
+    const socks = await authenticatedSocks5Server('socks-user', 'socks-password')
+    const socksAddress = socks.address()
+    if (!socksAddress || typeof socksAddress === 'string') throw new Error('SOCKS server did not start')
+    const bridge = await openProxyBridge({
+      protocol: 'socks5h',
+      host: '127.0.0.1',
+      port: socksAddress.port,
+      username: 'socks-user',
+      password: 'socks-password'
+    })
+    const dispatcher = new ProxyAgent(bridge!)
+    try {
+      const response = await request(`http://127.0.0.1:${targetAddress.port}/`, { dispatcher })
+      expect(await response.body.text()).toBe('socks5h-ok')
     } finally {
       await dispatcher.close().catch(() => undefined)
       await closeProxyBridge(bridge)

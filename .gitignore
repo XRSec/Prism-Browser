@@ -9,3 +9,4 @@ vault/
 /private/
 resources/pro-agent/prism-pro-agent
 .claude/
+.t3/

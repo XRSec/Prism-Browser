@@ -280,7 +280,8 @@ export function ProfileEditor({ open, profile, suggestedIndex, saving, extension
             { value: 'direct', label: t("不使用代理（本地网络）") },
             { value: 'http', label: 'HTTP' },
             { value: 'https', label: 'HTTPS' },
-            { value: 'socks5', label: 'SOCKS5' }
+            { value: 'socks5', label: 'SOCKS5' },
+            { value: 'socks5h', label: 'SOCKS5H' }
           ]}
         />
       </Form.Item>

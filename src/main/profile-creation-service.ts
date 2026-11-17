@@ -21,7 +21,7 @@ const profileCreateInputSchema = z.object({
   kernelVersion: z.string().regex(/^(?:\d+(?:\.\d+){3})?$/).optional(),
   extensionIds: z.array(z.string().uuid()).max(50).optional(),
   proxy: z.object({
-    protocol: z.enum(['direct', 'http', 'https', 'socks5']),
+    protocol: z.enum(['direct', 'http', 'https', 'socks5', 'socks5h']),
     host: z.string().max(255).optional(),
     port: z.number().int().min(1).max(65535).optional(),
     username: z.string().max(1000).optional(),

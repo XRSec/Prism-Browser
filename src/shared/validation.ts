@@ -167,7 +167,7 @@ export function validateProxyConfig(input: ProxyConfig): ProxyConfig {
   if (typeof input.host !== 'string' || typeof input.username !== 'string' || typeof input.password !== 'string') {
     throw new Error('代理配置格式无效')
   }
-  const allowed = new Set(['direct', 'http', 'https', 'socks5'])
+  const allowed = new Set(['direct', 'http', 'https', 'socks5', 'socks5h'])
   if (!allowed.has(input.protocol)) throw new Error('不支持的代理协议')
   let host = input.host.trim()
   if (host.startsWith('[') && host.endsWith(']')) host = host.slice(1, -1)

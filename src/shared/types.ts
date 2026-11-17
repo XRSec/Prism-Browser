@@ -13,7 +13,7 @@ export type HardwareProfileId =
   | 'windows-10-rtx3060'
   | 'windows-11-rtx4060'
   | 'windows-11-rtx4070'
-export type ProxyProtocol = 'direct' | 'http' | 'https' | 'socks5'
+export type ProxyProtocol = 'direct' | 'http' | 'https' | 'socks5' | 'socks5h'
 export type WebRtcPolicy = 'proxy_only' | 'public_only' | 'default'
 export type NetworkIdentityMode = 'manual' | 'proxy'
 export type ProxyExitPolicy = 'warn' | 'block'

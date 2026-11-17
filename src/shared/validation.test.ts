@@ -26,6 +26,16 @@ describe('profile validation', () => {
     ipv6Draft.proxy = { protocol: 'socks5', host: '[2001:db8::15]', port: 1080, username: '', password: '' }
     expect(validateProfileDraft(ipv6Draft).proxy.host).toBe('2001:db8::15')
 
+    const socks5hDraft = defaultProfileDraft()
+    socks5hDraft.proxy = { protocol: 'socks5h', host: 'proxy.socks5h.example', port: 10808, username: 'u', password: 'p' }
+    expect(validateProfileDraft(socks5hDraft).proxy).toEqual({
+      protocol: 'socks5h',
+      host: 'proxy.socks5h.example',
+      port: 10808,
+      username: 'u',
+      password: 'p'
+    })
+
     const urlDraft = defaultProfileDraft()
     urlDraft.proxy = { protocol: 'http', host: 'http://proxy.example.com:8080', port: 8080, username: '', password: '' }
     expect(() => validateProfileDraft(urlDraft)).toThrow('只能填写主机名或 IP')
