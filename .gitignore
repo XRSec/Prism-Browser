@@ -8,5 +8,6 @@ vault/
 *.tsbuildinfo
 /private/
 resources/pro-agent/prism-pro-agent
+resources/mcp/
 .claude/
 .t3/

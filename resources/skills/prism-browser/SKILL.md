@@ -1,9 +1,8 @@
 ---
 name: prism-browser
 description: >-
-  Official built-in skill for Prism Fingerprint Browser automation, profile lifecycle management, and session persistence.
-  Use ONLY when explicitly requested to control Prism isolated profiles, automate Google/Gmail accounts, or perform zero-contamination browser automation.
-compatibility: ">=1.0.0 (Pi Coding Agent, Claude Code, OpenAI Codex, Gemini CLI, Cursor, Windsurf)"
+  Prism Fingerprint Browser automation via Prism MCP. Controls isolated vault profiles, task sessions, and structured page extraction. Manual-only; activate ONLY on /skill:prism-browser or explicit Prism profile intent.
+compatibility: ">=1.0.0 (Antigravity, Pi Coding Agent, Claude Code, OpenAI Codex, Gemini CLI, Cursor, Windsurf)"
 disable-model-invocation: true
 metadata:
   version: "1.0.0"
@@ -12,158 +11,30 @@ metadata:
   author: "Prism Browser Team"
 ---
 
-# Prism Browser & Fingerprint Automation Skill
+# Prism Browser Automation Micro-Kernel
 
-Universal, cross-runtime operational guide for orchestrating Prism Fingerprint Browser profiles, managing isolated Google account sessions, and executing anti-detect automation with zero default profile contamination.
+Orchestrate isolated Prism Browser profiles and pages via Prism MCP with zero host-browser contamination.
 
----
+## Core Invariants
+- **Zero Contamination**: NEVER modify default Chrome/Safari/Edge profiles, system hosts, or system proxies. Profile data stays isolated in the Prism Vault (`~/Library/Application Support/prism-browser/vault/` on macOS, `$XDG_CONFIG_HOME/prism-browser/vault/` or `~/.config/prism-browser/vault/` on Linux, `%APPDATA%\prism-browser\vault\` on Windows).
+- **Safe Deletion**: NEVER run raw `rm` or `rm -rf` on vault or profile files; invoke `/opt/xrsec/.env/rmfile <target>` when present or use safe-delete tooling.
+- **UUID Profile IDs**: Resolve `profileId` (UUID `id`) via `prism_list_profiles`; NEVER pass `serialNumber` to `prism_start_profile` or any tool. Only Local-AI-enabled profiles are visible.
+- **Auto-Start Navigation**: `prism_open_page` auto-starts closed AI-enabled profiles; omit separate `prism_start_profile` calls.
+- **Task Isolation (`taskSessionId`)**: Create `taskSessionId` via `prism_create_task_session({ profileId })` for concurrent tasks or multi-agent profile sharing, pass `taskSessionId` on page/DOM calls, and release via `prism_close_task_session`; call `prism_close_profile` only for full profile shutdown.
+- **Opaque `ref_...` Handles**: `prism_read_page` and `prism_find` return transient, task-scoped `ref_...` handles (`^ref_[a-f\d]{32}$`). NEVER pass CSS or XPath selectors to `prism_get_text`, `prism_click_element`, or `prism_type_text`; re-read after navigation or DOM mutation.
+- **No Raw HTML**: NEVER dump raw HTML into context. Extract via `prism_inspect_pages`, `prism_get_markdown`, `prism_read_page`, `prism_get_text`, `prism_get_table`, or `prism_get_list`; use `prism_take_screenshot` (or CUA fallback) only when accessibility state is obscured.
+- **Schema First**: Inspect tool schemas before passing unfamiliar `prism_*` parameters (`durationMs`, `maxChars`, `ref`); never guess field names.
 
-### Agent-First Operational Protocol (Standing Order)
-1. **Language Discipline**:
-   - All internal documentation, architecture specs, memory shards, execution protocols, and skill definitions MUST be authored strictly in high-density English (`en-US`).
-   - Final conversational responses to the user follow the user's natural language, but internal working documents and specs must NEVER be polluted with conversational fluff.
-2. **Skills Are for Machines**:
-   - Skills and system documentation are designed exclusively for machine consumption (LLM-to-LLM / Agent-to-Agent).
-   - Zero fluff, numbers-first, schema-strict, and deterministic. Machine comprehension and execution fidelity strictly supersede human aesthetic preferences.
+## Cross-Runtime Router
+- **Antigravity**: Call `call_mcp_tool` on `ServerName: "Prism"` (or `"prism"` if listed lowercase in `<mcp_servers>`). Inspect schemas on demand in `~/.gemini/antigravity/mcp/Prism/` (or `.../mcp/prism/`) or via `tools/list`. Do NOT probe `~/.pi/agent/mcp.json`, `bot-prism.md`, or Paseo directories.
+- **Pi / Claude Code / Cursor / Codex**: Call `mcp__prism__*` tools directly via native MCP binding or code mode.
+- **CLI / Unbound Fallback**: Read `vault/runtime/mcp-connection.json` (`endpoint` + `Bearer <token>`) or spawn the MCP server command copied from Prism Settings -> Local AI (MCP).
+- **Batch / Multi-Profile (`>3` profiles)**: Prefer `prism_inspect_pages` (`profileId`, `urls[1..10]`, `waitStableMs`, `maxCharsPerPage`, `closeProfileAfter`) to open, wait, and extract markdown in one MCP call. Across many profiles, fan out via subagents, workflows, or a direct script against `mcp-connection.json` instead of 100+ serial calls in one context.
 
----
-
-## 1. Core Architecture & Operating Philosophy
-
-Prism Browser decouples browser automation from host OS profiles. Every browser environment runs in an isolated sandbox (`userDataDir`) backed by deterministic hardware fingerprint seeds, dedicated proxy tunnels, and decoupled network stacks.
-
-### Silent-by-Default (On-Demand Activation)
-This skill enforces **strict silent-by-default behavior**:
-- `disable-model-invocation: true`: AI runtimes will **NEVER** automatically load or inject this skill into context on routine tasks. It activates exclusively upon explicit invocation (e.g., `/skill:prism-browser` or direct intent to operate Prism profiles).
-- **Deferred MCP Exposure**: The 57 native MCP tools remain dormant in namespaces (`mcp__prism__*` or code mode) without dumping schemas into system prompts.
-
----
-
-## 2. Invariants & Safety Redlines (Must Never Violate)
-
-1. **Default Profile Zero-Contamination**:
-   - NEVER touch or modify macOS default user profiles, Safari, default Google Chrome user directories, system hosts, or system-wide proxies.
-   - All profile data must strictly reside under `~/Library/Application Support/prism-browser/vault/profiles/<uuid>/`.
-
-2. **Safe Deletion Protocol**:
-   - `rm` or `rm -rf` is strictly forbidden. All file or directory deletions must invoke `/opt/xrsec/.env/rmfile`.
-
-3. **Zero-Token Calling Discipline**:
-   - Never dump raw HTML or giant DOM trees into LLM context.
-   - Always extract structured data inside the browser context using `prism_get_text`, `prism_get_markdown`, `prism_get_table`, or `prism_find`.
-
-4. **Session-Scoped Ref Integrity (Anti-Stale Ref)**:
-   - Element refs (e.g., `ref_xxxx`) generated by `prism_find` or `prism_read_page` are transient and strictly bound to the active MCP task connection snapshot.
-   - You must inspect and click/interact within the **same active connection session**. Never reuse refs across disconnected calls.
-
----
-
-## 3. Dual-Mode Runtime Execution
-
-### Mode A: Native MCP Tool Invocation (Preferred)
-Supported by **Pi Coding Agent**, **Claude Code**, **Cindy Bot**, **Cursor**, and any MCP client connected to Prism MCP Server (`prism-pro-agent --mcp`).
-
-```
-[Agent Runtime] ──(JSON-RPC 2.0 / Stdio)──> [Prism Pro Agent] ──(CDP Pipe)──> [Chromium Kernel]
-```
-
-### Mode B: Direct Stdio / Pipe Subprocess Fallback
-When running inside CLI runtimes without direct MCP tool binding (e.g., raw bash scripts, standalone Python/Node agents), communicate directly with the bundled agent:
-```bash
-/Applications/Prism\ Browser.app/Contents/Resources/pro-agent/prism-pro-agent --mcp
-# or in development tree:
-<repo-root>/resources/pro-agent/prism-pro-agent --mcp
-```
-
----
-
-## 4. End-to-End Operational Lifecycle (Recipes)
-
-### Step 1: Profile Discovery & Health Check
-Verify MCP server readiness and enumerate available profiles:
-- **Tool**: `prism_health` / `prism_list_profiles`
-- **Vault Location**: `~/Library/Application Support/prism-browser/vault/profiles.json`
-- **Output Schema**:
-  ```json
-  [
-    {
-      "id": "746ccb14-9b08-49ca-87b5-314cf73833ad",
-      "serialNumber": 28,
-      "name": "fetozikato76",
-      "group": "vps1",
-      "status": "closed",
-      "lastOpenedAt": "2026-10-30T23:05:40.636Z"
-    }
-  ]
-  ```
-
-### Step 2: Task Session Isolation (Multi-Agent Concurrency)
-When executing independent tasks or parallel agents on the same profile:
-- **Tool**: `prism_create_task_session`
-- **Arguments**: `{"profileId": "<uuid>"}`
-- **Returns**: `{"taskSessionId": "<session-uuid>"}`
-
-### Step 3: Page Navigation
-Launch the profile if closed and navigate to the target URL:
-- **Tool**: `prism_open_page`
-- **Arguments**:
-  ```json
-  {
-    "profileId": "<uuid>",
-    "taskSessionId": "<session-uuid>",
-    "url": "https://mail.google.com/mail/u/0/#inbox"
-  }
-  ```
-
-### Step 4: Low-Overhead Page Reading & Element Discovery
-Read page state using bounded Markdown or semantic search:
-- **Read Full Viewport / Page**: `prism_get_markdown` (`maxChars: 15000`) or `prism_get_text`.
-- **Targeted Search**: `prism_find` with `{"profileId": "<uuid>", "query": "Target Text"}`.
-  Returns actionable element refs: `{"role": "link", "ref": "ref_...", "actionable": true}`.
-
-### Step 5: Element Interaction & State Verification
-Perform precise, verified interactions:
-- **Click**: `prism_click_element` with `{"profileId": "<uuid>", "ref": "<ref>"}`.
-  Verify result returns: `{"performed": true, "stateChanged": true}`.
-- **Input Text**: `prism_type_text` with `{"profileId": "<uuid>", "ref": "<ref>", "text": "value"}`.
-- **Wait for Stability**: `prism_wait_for_stable` or `prism_wait_for_text`.
-
-### Step 6: Visual Inspection (Optional / Degraded State)
-When accessibility trees are obscured or wallet popups require inspection:
-- **Tool**: `prism_take_screenshot` (returns viewport PNG).
-- **Secondary Tool**: Desktop CUA driver (`mcp__cindy_computer__call_tool` or `cua-driver`).
-
-### Step 7: Clean Exit & Session Persistence
-Always close task sessions and profiles cleanly to flush SQLite cookie databases and prevent profile locks:
-- **Tool**: `prism_close_task_session` / `prism_close_profile` with `{"profileId": "<uuid>"}`.
-
----
-
-## 5. Multi-Runtime Quickstart Reference
-
-| AI Runtime | Configuration & Discovery Method | Execution Command / Invocation |
-| :--- | :--- | :--- |
-| **Pi Coding Agent** | Configured in `~/.pi/agent/mcp.json` (`prism`) | `/skill:prism-browser` or `mcp__prism__*` in code mode |
-| **Claude Code** | Symlinked or installed in `.claude/skills/prism-browser` | `/prism-browser` or prompt: "Use skill prism-browser to..." |
-| **OpenAI Codex** | Placed in `~/.agents/skills/prism-browser` or project root | Invoked via Agentskills routing contract |
-| **Cursor / Windsurf** | Registered as MCP server in `cursor/mcp.json` | Mention `@prism` or reference skill instructions |
-| **Cindy Teammates** | Shared through `cindy_helper` capability discovery | Dispatched as independent Session task |
-
----
-
-## 6. Diagnostic & Error Code Matrix
-
-| Error Code | Root Cause | Deterministic Remedy |
-| :--- | :--- | :--- |
-| `MCP_GLOBAL_DISABLED` | Global MCP toggle is turned off in Prism UI | Open Prism Settings $\to$ Enable "Local AI (MCP) Control". |
-| `STALE_ELEMENT_REF` | Element ref expired due to page navigation or new connection | Re-run `prism_find` or `prism_read_page` in the **same connection** right before clicking. |
-| `WAIT_NAVIGATION_TIMEOUT` | Slow proxy or complex single-page app (e.g. Gmail) | Page is often already usable; call `prism_get_markdown` or `prism_wait_for_text` to verify. |
-| `PROXY_AUTH_REQUIRED (407)` | Upstream SSH tunnel or proxy bridge credentials missing | Verify `ssh -N -L 127.0.0.1:17892:...` is running; Prism bridge manages profile proxy credentials automatically. |
-| `PROFILE_LOCKED` | Chromium process did not exit cleanly | Check `ps aux \| grep Chromium` and ensure `SingletonLock` under user-data is cleared cleanly. |
-
----
-
-<!-- nmem:skill-outcome-footer v1 -->
-## Improving this skill
-Report feedback and execution metrics to keep this built-in skill razor-sharp:
-- Print execution breadcrumb: `nmem-skill-used: prism-browser`
+## Lifecycle & Recovery
+1. Check service and authorized profiles: `prism_health` -> `prism_list_profiles`.
+2. Batch reading: `prism_inspect_pages`. Interactive flow: `prism_create_task_session` -> `prism_open_page` -> `prism_read_page`/`prism_find` -> interact -> `prism_close_task_session` (+ `prism_close_profile` when done).
+3. `MCP_GLOBAL_DISABLED` / `PROFILE_NOT_ALLOWED` -> enable Local AI (MCP) globally and per-profile in Prism Settings.
+4. `STALE_ELEMENT_REF` / `STALE_SNAPSHOT` -> re-run `prism_read_page` or `prism_find` in the same `taskSessionId`.
+5. `NAVIGATION_TIMEOUT` / `PAGE_NOT_STABLE` -> SPAs often finish loading; verify via `prism_list_pages` or `prism_get_markdown`.
+6. `TASK_SESSION_NOT_FOUND` -> create a fresh session via `prism_create_task_session({ profileId })`.

@@ -32,9 +32,14 @@ export function McpModal({ open, status, permissions, profiles, proEnabled, onSt
   const [search, setSearch] = useState('')
 
   async function copyText(text: string): Promise<void> {
-    await navigator.clipboard.writeText(text)
-    setCopiedCmd(text)
-    setTimeout(() => setCopiedCmd(''), 2000)
+    setError('')
+    try {
+      await navigator.clipboard.writeText(text)
+      setCopiedCmd(text)
+      setTimeout(() => setCopiedCmd(''), 2000)
+    } catch (cause) {
+      setError(humanError(cause))
+    }
   }
 
   const policy: McpPolicy = status?.policy ?? { enabled: true, defaultAccess: 'deny', allowProfileCreation: false }
@@ -125,8 +130,24 @@ export function McpModal({ open, status, permissions, profiles, proEnabled, onSt
   }
 
   async function copy(): Promise<void> {
-    await navigator.clipboard.writeText(configuration)
-    setCopied(true)
+    setError('')
+    try {
+      let nextConfig = configuration
+      if (!nextConfig) {
+        setBusy('start')
+        const connection = await window.browserApi.mcp.start()
+        onStatusChanged(connection)
+        nextConfig = connectionJson(connection)
+        setConfiguration(nextConfig)
+      }
+      await navigator.clipboard.writeText(nextConfig)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    } catch (cause) {
+      setError(humanError(cause))
+    } finally {
+      setBusy('')
+    }
   }
 
   const stateLabel = status?.state === 'running' ? t("AI 已连接")
@@ -163,12 +184,12 @@ export function McpModal({ open, status, permissions, profiles, proEnabled, onSt
           <Space wrap>
             <Button
               type="primary"
-              icon={<RobotOutlined />}
+              icon={active ? (copied ? <CheckOutlined /> : <CopyOutlined />) : <RobotOutlined />}
               loading={busy === 'start'}
               disabled={!policy.enabled || Boolean(busy && busy !== 'start') || (!enabled.size && !policy.allowProfileCreation && policy.defaultAccess !== 'allow')}
-              onClick={() => void start()}
+              onClick={() => void (active ? copy() : start())}
             >
-              {active ? t("复制 MCP 配置") : t("启用 MCP")}
+              {active ? (copied ? t("已复制") : t("复制 MCP 配置")) : t("启用 MCP")}
             </Button>
             {active && (
               <Button loading={busy === 'stop'} onClick={() => void stop(false)}>
@@ -344,7 +365,7 @@ export function McpModal({ open, status, permissions, profiles, proEnabled, onSt
                           <Button
                             type="link"
                             size="small"
-                            icon={copiedCmd === 'pi-local' ? <CheckOutlined /> : <CopyOutlined />}
+                            icon={copiedCmd === 'pi install "/Applications/Prism Browser.app/Contents/Resources/plugin"' ? <CheckOutlined /> : <CopyOutlined />}
                             onClick={() => void copyText('pi install "/Applications/Prism Browser.app/Contents/Resources/plugin"')}
                           >
                             {copiedCmd === 'pi install "/Applications/Prism Browser.app/Contents/Resources/plugin"' ? t("已复制") : t("复制")}

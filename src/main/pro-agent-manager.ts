@@ -152,11 +152,12 @@ export class ProAgentManager {
     if (this.mcpBroker.status().policy?.enabled === false) throw new Error('MCP 全局开关已关闭')
     await this.ensureStarted()
     if (!this.mcpAccessToken || !this.agentExecutable) throw new Error('Prism Pro Agent 未返回 MCP 会话凭据')
+    const mcpScriptPath = join(this.resourcesPath, 'mcp', 'prism-mcp.mjs')
     return {
       ...this.mcpBroker.status(true),
-      command: this.agentExecutable,
-      args: ['--mcp'],
-      env: {}
+      command: process.execPath,
+      args: [mcpScriptPath],
+      env: { ELECTRON_RUN_AS_NODE: '1' }
     }
   }
 
