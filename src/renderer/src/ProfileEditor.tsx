@@ -22,6 +22,7 @@ import {
 import { useEffect, useState } from 'react'
 import { defaultPlatform, defaultProfileDraft, randomSeed } from '../../shared/defaults'
 import { fingerprintVersionWarning } from '../../shared/fingerprint-consistency'
+import { isFingerprintFlagSupported } from '../../shared/fingerprint-capabilities'
 import {
   applyHardwareProfile,
   effectiveGpuIdentity,
@@ -115,6 +116,11 @@ export function ProfileEditor({ open, profile, suggestedIndex, saving, extension
       }
     : engine
   const versionWarning = fingerprintVersionWarning(brandVersion, selectedEngine)
+  const disableSpoofingSupported = isFingerprintFlagSupported(
+    '--disable-spoofing',
+    selectedEngine?.version,
+    selectedEngine?.fingerprintKernel ?? true
+  )
   const selectedHardware = hardwareProfile(hardwareProfileId)
   const selectedGpuIdentity = effectiveGpuIdentity({
     hardwareProfileId,
@@ -603,8 +609,15 @@ export function ProfileEditor({ open, profile, suggestedIndex, saving, extension
       <Form.Item name={['fingerprint', 'acceptLanguages']} label="Accept-Language">
         <Input disabled={networkIdentityMode === 'proxy' && proxyProtocol !== 'direct'} placeholder="zh-CN,zh,en-US,en" />
       </Form.Item>
-      <Form.Item name={['fingerprint', 'disabledSpoofing']} label={t("关闭部分伪装")} extra={t("仅用于排障，正常情况下保持全不选。")}>
+      <Form.Item
+        name={['fingerprint', 'disabledSpoofing']}
+        label={t("关闭部分伪装")}
+        extra={disableSpoofingSupported
+          ? t("仅用于排障，正常情况下保持全不选。")
+          : t("当前所选内核不支持选择性关闭伪装（需 Fingerprint Chromium 144+）。")}
+      >
         <Checkbox.Group
+          disabled={!disableSpoofingSupported}
           options={[
             { value: 'font', label: t("字体") },
             { value: 'audio', label: 'Audio' },

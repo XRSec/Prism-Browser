@@ -1,0 +1,172 @@
+{
+  "schemaVersion": 1,
+  "kernelFamily": "prism-fingerprint-chromium",
+  "majorRanges": [
+    {
+      "id": "legacy-pre-144",
+      "minMajor": 136,
+      "maxMajor": 143,
+      "label": "Chromium 136–143（基础指纹内核）",
+      "notes": "支持基础种子、平台、品牌、硬件并发、屏幕尺寸、语言、定位与 WebRTC 策略；不支持 --disable-spoofing 与 --fingerprint-render-identity。"
+    },
+    {
+      "id": "prism-144-147",
+      "minMajor": 144,
+      "maxMajor": 147,
+      "label": "Chromium 144–147（渲染身份 v1–v4 与选择性降级）",
+      "notes": "新增 --disable-spoofing 与 --fingerprint-render-identity，支持按硬件画像与种子选择 GPU 渲染身份。"
+    },
+    {
+      "id": "prism-148-152",
+      "minMajor": 148,
+      "maxMajor": 152,
+      "label": "Chromium 148–152（现代指纹内核）",
+      "notes": "完整支持全量 Prism 指纹参数与 UA-CH 品牌版本对齐。"
+    },
+    {
+      "id": "prism-153-plus",
+      "minMajor": 153,
+      "maxMajor": null,
+      "label": "Chromium 153+（当前主流指纹内核）",
+      "notes": "Prism 当前主力内核分支，完整支持所有 Prism 定制指纹参数与原生网络/WebRTC 隔离。"
+    }
+  ],
+  "flags": {
+    "--fingerprint": {
+      "category": "identity",
+      "minMajor": 136,
+      "maxMajor": null,
+      "status": "supported",
+      "requiresFingerprintKernel": true,
+      "notes": "核心指纹种子（32 位无符号整数），驱动各子系统确定性噪声与硬件桶选择。"
+    },
+    "--fingerprint-platform": {
+      "category": "identity",
+      "minMajor": 136,
+      "maxMajor": null,
+      "status": "supported",
+      "requiresFingerprintKernel": true,
+      "notes": "目标操作系统平台（macos / windows）。"
+    },
+    "--fingerprint-platform-version": {
+      "category": "identity",
+      "minMajor": 136,
+      "maxMajor": null,
+      "status": "supported",
+      "requiresFingerprintKernel": true,
+      "notes": "目标操作系统版本号（用于 UA-CH platformVersion）。"
+    },
+    "--fingerprint-brand": {
+      "category": "identity",
+      "minMajor": 136,
+      "maxMajor": null,
+      "status": "supported",
+      "requiresFingerprintKernel": true,
+      "notes": "浏览器品牌标识（Chrome / Edge）。"
+    },
+    "--fingerprint-brand-version": {
+      "category": "identity",
+      "minMajor": 136,
+      "maxMajor": null,
+      "status": "supported",
+      "requiresFingerprintKernel": true,
+      "notes": "浏览器品牌版本号，启动时自动与实际内核版本对齐。"
+    },
+    "--fingerprint-hardware-concurrency": {
+      "category": "hardware",
+      "minMajor": 136,
+      "maxMajor": null,
+      "status": "supported",
+      "requiresFingerprintKernel": true,
+      "notes": "伪装 navigator.hardwareConcurrency 逻辑核心数。"
+    },
+    "--fingerprint-screen-width": {
+      "category": "hardware",
+      "minMajor": 136,
+      "maxMajor": null,
+      "status": "supported",
+      "requiresFingerprintKernel": true,
+      "notes": "伪装 screen.width / availWidth。"
+    },
+    "--fingerprint-screen-height": {
+      "category": "hardware",
+      "minMajor": 136,
+      "maxMajor": null,
+      "status": "supported",
+      "requiresFingerprintKernel": true,
+      "notes": "伪装 screen.height / availHeight。"
+    },
+    "--fingerprint-language": {
+      "category": "locale",
+      "minMajor": 136,
+      "maxMajor": null,
+      "status": "supported",
+      "requiresFingerprintKernel": true,
+      "notes": "主语言标签（navigator.language）。"
+    },
+    "--fingerprint-location": {
+      "category": "locale",
+      "minMajor": 136,
+      "maxMajor": null,
+      "status": "supported",
+      "requiresFingerprintKernel": true,
+      "notes": "代理联动地理位置坐标与精度（latitude,longitude,accuracyMeters）。"
+    },
+    "--fingerprint-render-identity": {
+      "category": "rendering",
+      "minMajor": 144,
+      "maxMajor": null,
+      "status": "supported",
+      "requiresFingerprintKernel": true,
+      "notes": "Prism 定制渲染身份版本（如 v4），协调 GPU / Canvas / Audio 信号一致性。"
+    },
+    "--disable-spoofing": {
+      "category": "spoofing",
+      "minMajor": 144,
+      "maxMajor": null,
+      "status": "supported",
+      "requiresFingerprintKernel": true,
+      "notes": "选择性关闭指定指纹面伪装（font,audio,canvas,clientrects,gpu），需 Chromium 144+。"
+    },
+    "--disable-non-proxied-udp": {
+      "category": "network",
+      "minMajor": 136,
+      "maxMajor": null,
+      "status": "supported",
+      "requiresFingerprintKernel": false,
+      "notes": "禁止非代理 UDP 流量，配合 proxy_only WebRTC 策略防止真实 IP 泄漏。"
+    },
+    "--webrtc-ip-handling-policy": {
+      "category": "network",
+      "minMajor": 136,
+      "maxMajor": null,
+      "status": "supported",
+      "requiresFingerprintKernel": false,
+      "notes": "Chromium 原生 WebRTC IP 处理策略（disable_non_proxied_udp / default_public_interface_only）。"
+    },
+    "--lang": {
+      "category": "locale",
+      "minMajor": 136,
+      "maxMajor": null,
+      "status": "supported",
+      "requiresFingerprintKernel": false,
+      "notes": "Chromium 原生界面与首选语言参数。"
+    },
+    "--accept-lang": {
+      "category": "locale",
+      "minMajor": 136,
+      "maxMajor": null,
+      "status": "supported",
+      "requiresFingerprintKernel": false,
+      "notes": "HTTP Accept-Language 与 navigator.languages 列表。"
+    },
+    "--timezone": {
+      "category": "locale",
+      "minMajor": 136,
+      "maxMajor": null,
+      "status": "supported",
+      "requiresFingerprintKernel": false,
+      "notes": "强制覆盖 ICU / Intl 时区（如 America/New_York）。"
+    }
+  }
+}

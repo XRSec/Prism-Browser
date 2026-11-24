@@ -1,5 +1,5 @@
 import { t, translateMessage as mt } from '../../shared/i18n'
-import { CheckOutlined, CodeOutlined, CopyOutlined, LockOutlined, RobotOutlined, SafetyCertificateOutlined, StopOutlined } from '@ant-design/icons'
+import { CheckOutlined, CopyOutlined, LockOutlined, RobotOutlined, SafetyCertificateOutlined, StopOutlined } from '@ant-design/icons'
 import { Alert, Button, Input, Modal, Popconfirm, Select, Space, Switch, Tabs, Tag, Typography } from 'antd'
 import { useEffect, useMemo, useState } from 'react'
 import type { BrowserProfileView, McpConnection, McpPolicy, McpProfilePermission, McpStatus } from '../../shared/types'
@@ -156,6 +156,31 @@ export function McpModal({ open, status, permissions, profiles, proEnabled, onSt
         : t("已停止")
   const active = status?.state === 'running' || status?.state === 'ready'
   const canEmergencyStop = active || Boolean(status?.controlledProfileIds.length)
+
+  function renderCopyInput(label: string, value: string) {
+    const isCopied = copiedCmd === value
+    return (
+      <div>
+        <Typography.Text strong style={{ fontSize: 12, display: 'block', marginBottom: 4 }}>
+          {label}
+        </Typography.Text>
+        <Input
+          readOnly
+          value={value}
+          addonAfter={
+            <Button
+              type="link"
+              size="small"
+              icon={isCopied ? <CheckOutlined /> : <CopyOutlined />}
+              onClick={() => void copyText(value)}
+            >
+              {isCopied ? t("已复制") : t("复制")}
+            </Button>
+          }
+        />
+      </div>
+    )
+  }
 
   return (
     <Modal
@@ -342,7 +367,7 @@ export function McpModal({ open, status, permissions, profiles, proEnabled, onSt
         <section className="mcp-configuration">
           <div className="mcp-section-heading">
             <div>
-              <strong><CodeOutlined /> {t("AI Agent 技能与插件 (Skill & Plugin)")}</strong>
+              <strong>{t("AI Agent 技能与插件 (Skill & Plugin)")}</strong>
               <span>{t("支持 Pi、Claude Code、Antigravity，装入后随 App 自动演进，默认主动沉默（按需激活）")}</span>
             </div>
           </div>
@@ -354,43 +379,14 @@ export function McpModal({ open, status, permissions, profiles, proEnabled, onSt
                 label: 'Pi / Antigravity',
                 children: (
                   <Space orientation="vertical" style={{ width: '100%' }} size={10}>
-                    <div>
-                      <Typography.Text strong style={{ fontSize: 12, display: 'block', marginBottom: 4 }}>
-                        {t("从本地 App 安装 (推荐，随软件自动更新)")}
-                      </Typography.Text>
-                      <Input
-                        readOnly
-                        value={'pi install "/Applications/Prism Browser.app/Contents/Resources/plugin"'}
-                        addonAfter={
-                          <Button
-                            type="link"
-                            size="small"
-                            icon={copiedCmd === 'pi install "/Applications/Prism Browser.app/Contents/Resources/plugin"' ? <CheckOutlined /> : <CopyOutlined />}
-                            onClick={() => void copyText('pi install "/Applications/Prism Browser.app/Contents/Resources/plugin"')}
-                          >
-                            {copiedCmd === 'pi install "/Applications/Prism Browser.app/Contents/Resources/plugin"' ? t("已复制") : t("复制")}
-                          </Button>
-                        }
-                      />
-                    </div>
-                    <div>
-                      <Typography.Text strong style={{ fontSize: 12, display: 'block', marginBottom: 4 }}>
-                        {t("从 GitHub 远程安装")}
-                      </Typography.Text>
-                      <Input
-                        readOnly
-                        value={'pi install git:github.com/XRSec/Prism-Browser'}
-                        addonAfter={
-                          <Button
-                            type="link"
-                            size="small"
-                            onClick={() => void copyText('pi install git:github.com/XRSec/Prism-Browser')}
-                          >
-                            {copiedCmd === 'pi install git:github.com/XRSec/Prism-Browser' ? t("已复制") : t("复制")}
-                          </Button>
-                        }
-                      />
-                    </div>
+                    {renderCopyInput(
+                      t("从本地 App 安装 (推荐，随软件自动更新)"),
+                      'pi install "/Applications/Prism Browser.app/Contents/Resources/plugin"'
+                    )}
+                    {renderCopyInput(
+                      t("从 GitHub 远程安装"),
+                      'pi install git:github.com/XRSec/Prism-Browser'
+                    )}
                   </Space>
                 )
               },
@@ -399,24 +395,30 @@ export function McpModal({ open, status, permissions, profiles, proEnabled, onSt
                 label: 'Claude Code',
                 children: (
                   <Space orientation="vertical" style={{ width: '100%' }} size={10}>
-                    <div>
-                      <Typography.Text strong style={{ fontSize: 12, display: 'block', marginBottom: 4 }}>
-                        {t("Claude Code 插件安装命令")}
-                      </Typography.Text>
-                      <Input
-                        readOnly
-                        value={'claude plugin install "/Applications/Prism Browser.app/Contents/Resources/plugin"'}
-                        addonAfter={
-                          <Button
-                            type="link"
-                            size="small"
-                            onClick={() => void copyText('claude plugin install "/Applications/Prism Browser.app/Contents/Resources/plugin"')}
-                          >
-                            {copiedCmd === 'claude plugin install "/Applications/Prism Browser.app/Contents/Resources/plugin"' ? t("已复制") : t("复制")}
-                          </Button>
-                        }
-                      />
-                    </div>
+                    {renderCopyInput(
+                      t("Claude Code 插件安装命令"),
+                      'claude plugin install "/Applications/Prism Browser.app/Contents/Resources/plugin"'
+                    )}
+                  </Space>
+                )
+              },
+              {
+                key: 'skill-only',
+                label: t("仅用 Skill（免装插件）"),
+                children: (
+                  <Space orientation="vertical" style={{ width: '100%' }} size={10}>
+                    {renderCopyInput(
+                      t("Skill 目录路径"),
+                      '/Applications/Prism Browser.app/Contents/Resources/skills'
+                    )}
+                    {renderCopyInput(
+                      t("核心技能入口文件"),
+                      '/Applications/Prism Browser.app/Contents/Resources/skills/prism-browser/SKILL.md'
+                    )}
+                    {renderCopyInput(
+                      t("通用软链命令"),
+                      'ln -s "/Applications/Prism Browser.app/Contents/Resources/skills/prism-browser" ~/.agents/skills/prism-browser'
+                    )}
                   </Space>
                 )
               },

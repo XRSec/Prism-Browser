@@ -188,6 +188,18 @@ export function registerIpc({ profiles, settings, launcher, kernels, extensions,
     if (result.canceled || !result.filePaths[0]) return null
     return backups.export(id, result.filePaths[0])
   })
+  ipcMain.handle('profiles:export-portable-session', async (_event, id: string) => {
+    const profile = profiles.get(id)
+    if (launcher.isRunning(id) || (profile.status !== 'closed' && profile.status !== 'error')) throw new Error('请先关闭环境再导出便携会话包')
+    if (cookies.isBusy(id)) throw new Error('该环境正在执行 Cookie 操作')
+    const processCheck = (await launcher.diagnose(id)).checks.find((check) => check.key === 'process')
+    if (processCheck?.status === 'error') throw new Error(`无法安全导出：${processCheck.message}`)
+    const owner = BrowserWindow.getFocusedWindow()
+    const options: Electron.OpenDialogOptions = { title: t('选择便携会话包保存位置'), properties: ['openDirectory', 'createDirectory'] }
+    const result = owner ? await dialog.showOpenDialog(owner, options) : await dialog.showOpenDialog(options)
+    if (result.canceled || !result.filePaths[0]) return null
+    return backups.exportPortableSession(id, result.filePaths[0])
+  })
   ipcMain.handle('profiles:import-backup', async () => {
     const owner = BrowserWindow.getFocusedWindow()
     const options: Electron.OpenDialogOptions = { title: t('选择 Prism 环境数据备份目录'), properties: ['openDirectory'] }
@@ -308,6 +320,7 @@ export function registerIpc({ profiles, settings, launcher, kernels, extensions,
     return publicProfile(profile)
   })
   ipcMain.handle('profiles:diagnose', (_event, id: string) => launcher.diagnose(id))
+  ipcMain.handle('profiles:check-fingerprint', (_event, id: string) => launcher.checkFingerprint(id))
   ipcMain.handle('profiles:crash-history', (_event, id: string) => launcher.crashHistory(id))
   ipcMain.handle('profiles:set-favorite', async (_event, id: string, favorite: boolean) => publicProfile(await profiles.setFavorite(id, favorite)))
   ipcMain.handle('profiles:classify-many', async (_event, ids: string[], patch) => {

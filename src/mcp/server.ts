@@ -114,6 +114,7 @@ export interface PrismMcpServerOptions {
   fetchImpl?: typeof fetch
   requestImpl?: RequestImpl
   serviceControl?: ServiceControl
+  fingerprintBridgePath?: string
 }
 
 export interface PrismMcpRuntimeOptions {
@@ -913,13 +914,14 @@ function profilePath(profileId: string, suffix: string): string {
   return `/v1/mcp/profiles/${encodeURIComponent(profileId)}/${suffix}`
 }
 
-/** Build the McpServer registering all 58 base Prism tools plus `prism_inspect_pages`. */
+/** Build the McpServer registering all 58 base Prism tools plus `prism_inspect_pages` and `prism_check_fingerprint`. */
 export function createPrismMcpServer({
   endpoint,
   token,
   fetchImpl = fetch,
   requestImpl,
-  serviceControl
+  serviceControl,
+  fingerprintBridgePath = join(dirname(defaultConnectionStatePath()), 'fingerprint-check-bridge.json')
 }: PrismMcpServerOptions = {}): McpServer {
   const baseUrl = requestImpl ? '' : validateConnection(endpoint, token)
   const fixedSessionId = randomUUID()
@@ -1182,6 +1184,81 @@ export function createPrismMcpServer({
       annotations: { readOnlyHint: true, openWorldHint: false, idempotentHint: true }
     },
     guarded(({ profileId }) => request(profilePath(profileId, 'status')))
+  )
+
+  server.registerTool(
+    'prism_check_fingerprint',
+    {
+      title: 'Check Expected vs Runtime fingerprint consistency',
+      description:
+        'Run a live CDP fingerprint consistency self-check on a running authorized profile: evaluates Runtime signals in the active page (userAgent, userAgentData, webdriver, platform, hardwareConcurrency, language, languages, timezone, screen, devicePixelRatio, WebGL, canvasHash, clientRectsHash) and compares them against Expected values from launch args, network identity, and hardware profile.',
+      inputSchema: profileInput,
+      annotations: { readOnlyHint: true, openWorldHint: false, idempotentHint: true }
+    },
+    guarded(async ({ profileId }) => {
+      const status = (await request(profilePath(profileId, 'status'))) as { status?: unknown } | null
+      if (status?.status !== 'running') {
+        const error = new PrismServiceError(
+          'PROFILE_NOT_RUNNING',
+          'Profile is not running; start it first with prism_start_profile',
+          false
+        )
+        error.suggestedTool = 'prism_start_profile'
+        throw error
+      }
+
+      let bridgeDescriptor: { endpoint?: unknown; token?: unknown } | null = null
+      try {
+        const raw = await readFile(fingerprintBridgePath, 'utf8')
+        bridgeDescriptor = JSON.parse(raw) as { endpoint?: unknown; token?: unknown }
+      } catch {
+        bridgeDescriptor = null
+      }
+
+      if (bridgeDescriptor && typeof bridgeDescriptor.endpoint === 'string' && typeof bridgeDescriptor.token === 'string') {
+        const bridgeBaseUrl = validateConnection(bridgeDescriptor.endpoint, bridgeDescriptor.token)
+        const response = await fetchImpl(`${bridgeBaseUrl}${profilePath(profileId, 'check-fingerprint')}`, {
+          method: 'POST',
+          redirect: 'error',
+          headers: {
+            authorization: `Bearer ${bridgeDescriptor.token}`,
+            accept: 'application/json'
+          },
+          signal: AbortSignal.timeout(DEFAULT_REQUEST_TIMEOUT_MS)
+        })
+        const text = await response.text()
+        let parsed: { result?: unknown; error?: unknown }
+        try {
+          parsed = JSON.parse(text) as { result?: unknown; error?: unknown }
+        } catch {
+          throw new Error(`Prism fingerprint bridge returned HTTP ${response.status}`)
+        }
+        if (!response.ok) {
+          const detail =
+            parsed?.error && typeof parsed.error === 'object'
+              ? (parsed.error as { code?: unknown; message?: unknown; retryable?: unknown; suggestedTool?: unknown })
+              : null
+          const serviceError = new PrismServiceError(
+            typeof detail?.code === 'string' ? detail.code : 'FINGERPRINT_CHECK_FAILED',
+            typeof detail?.message === 'string' ? detail.message : `Prism fingerprint bridge returned HTTP ${response.status}`,
+            detail?.retryable === true
+          )
+          if (typeof detail?.suggestedTool === 'string') serviceError.suggestedTool = detail.suggestedTool
+          throw serviceError
+        }
+        return parsed.result
+      }
+
+      if (requestImpl) {
+        return request(profilePath(profileId, 'check-fingerprint'), 'POST')
+      }
+
+      throw new PrismServiceError(
+        'FINGERPRINT_BRIDGE_UNAVAILABLE',
+        'Prism fingerprint check bridge is unavailable; ensure Prism Browser is running',
+        true
+      )
+    })
   )
 
   server.registerTool(
@@ -2176,7 +2253,8 @@ export async function runPrismMcpRuntime({
   })
   const server = createPrismMcpServer({
     requestImpl: (...args) => connection.request(...args),
-    serviceControl: connection
+    serviceControl: connection,
+    fingerprintBridgePath: join(dirname(statePath), 'fingerprint-check-bridge.json')
   })
   const transport = new StdioTransport(input, output)
   transport.onerror = onerror

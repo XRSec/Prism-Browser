@@ -62,6 +62,8 @@ import { ProfileDataModal } from './ProfileDataModal'
 import { RecycleBinModal } from './RecycleBinModal'
 import { ExtensionManagerModal } from './ExtensionManagerModal'
 import { LaunchDiagnosticsModal } from './LaunchDiagnosticsModal'
+import { FingerprintCheckModal } from './FingerprintCheckModal'
+import type { FingerprintCheckReport } from '../../shared/fingerprint-check'
 import { CrashHistoryModal } from './CrashHistoryModal'
 import { BatchResultModal, type BatchOperationResult } from './BatchResultModal'
 import { ClearDataModal } from './ClearDataModal'
@@ -180,6 +182,8 @@ export default function App({ colorMode = 'light', onColorModeChange = () => {} 
   const [activatingLicense, setActivatingLicense] = useState(false)
   const [diagnosticProfile, setDiagnosticProfile] = useState<BrowserProfileView>()
   const [diagnosticReport, setDiagnosticReport] = useState<LaunchDiagnosticReport>()
+  const [fingerprintCheckProfile, setFingerprintCheckProfile] = useState<BrowserProfileView>()
+  const [fingerprintCheckReport, setFingerprintCheckReport] = useState<FingerprintCheckReport>()
   const [crashProfile, setCrashProfile] = useState<BrowserProfileView>()
   const [crashRecords, setCrashRecords] = useState<BrowserCrashRecord[]>([])
   const [crashHistoryLoading, setCrashHistoryLoading] = useState(false)
@@ -722,6 +726,14 @@ export default function App({ colorMode = 'light', onColorModeChange = () => {} 
     })
   }
 
+  async function runFingerprintCheck(profile: BrowserProfileView): Promise<void> {
+    await withBusy(profile.id, async () => {
+      const report = await window.browserApi.profiles.checkFingerprint(profile.id)
+      setFingerprintCheckProfile(profile)
+      setFingerprintCheckReport(report)
+    })
+  }
+
   async function openCrashHistory(profile: BrowserProfileView): Promise<void> {
     setCrashProfile(profile)
     setCrashRecords([])
@@ -875,6 +887,7 @@ export default function App({ colorMode = 'light', onColorModeChange = () => {} 
         { key: 'clear-cache', icon: <ClearOutlined />, label: t("清理缓存"), disabled: !editable },
         { key: 'clear-data', icon: <ClearOutlined />, label: t("清除浏览数据"), disabled: !editable },
         { key: 'diagnose', icon: <SafetyCertificateOutlined />, label: t("启动诊断") },
+        { key: 'fingerprint-check', icon: <SafetyCertificateOutlined />, label: t("指纹自检"), disabled: profile.status !== 'running' },
         { key: 'crashes', icon: <WarningFilled />, label: t("异常与恢复") },
         { key: 'proxy-check', icon: <ApiOutlined />, label: t("检测代理") },
         { key: 'duplicate', icon: <CopyOutlined />, label: t("复制环境") },
@@ -890,6 +903,7 @@ export default function App({ colorMode = 'light', onColorModeChange = () => {} 
           setClearDataModalOpen(true)
         }
         if (key === 'diagnose') void runDiagnostics(profile)
+        if (key === 'fingerprint-check') void runFingerprintCheck(profile)
         if (key === 'crashes') void openCrashHistory(profile)
         if (key === 'proxy-check') void runProxyChecks([profile.id])
         if (key === 'duplicate') {
@@ -1452,6 +1466,12 @@ export default function App({ colorMode = 'light', onColorModeChange = () => {} 
         profile={diagnosticProfile}
         report={diagnosticReport}
         onClose={() => { setDiagnosticProfile(undefined); setDiagnosticReport(undefined) }}
+      />
+      <FingerprintCheckModal
+        open={Boolean(fingerprintCheckProfile && fingerprintCheckReport)}
+        profile={fingerprintCheckProfile}
+        report={fingerprintCheckReport}
+        onClose={() => { setFingerprintCheckProfile(undefined); setFingerprintCheckReport(undefined) }}
       />
       <CrashHistoryModal
         open={Boolean(crashProfile)}

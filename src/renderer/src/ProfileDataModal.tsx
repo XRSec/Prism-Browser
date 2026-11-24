@@ -102,6 +102,19 @@ export function ProfileDataModal({ open, profile, onClose }: ProfileDataModalPro
     }
   }
 
+  async function exportPortableSession(): Promise<void> {
+    if (!profile) return
+    setBackupBusy(true)
+    try {
+      const result = await window.browserApi.profiles.exportPortableSession(profile.id)
+      if (result) messageApi.success(t("便携会话包已导出，共 {0}、{1} 个文件", formatBytes(result.totalBytes), result.fileCount))
+    } catch (error) {
+      messageApi.error(errorText(error))
+    } finally {
+      setBackupBusy(false)
+    }
+  }
+
   const canClear = profile?.status === 'closed' || profile?.status === 'error'
 
   return (
@@ -140,7 +153,10 @@ export function ProfileDataModal({ open, profile, onClose }: ProfileDataModalPro
           <Typography.Text strong>{t("完整数据备份")}</Typography.Text>
           <Typography.Text type="secondary">{t("备份可能包含账号登录信息，请妥善保管；跨系统恢复后部分网站可能需要重新登录。")}</Typography.Text>
         </div>
-        <Button icon={<DownloadOutlined />} loading={backupBusy} disabled={!canClear || backupBusy} onClick={() => void exportBackup()}>{t("导出备份目录")}</Button>
+        <Space>
+          <Button icon={<DownloadOutlined />} loading={backupBusy} disabled={!canClear || backupBusy} onClick={() => void exportPortableSession()}>{t("导出便携会话包")}</Button>
+          <Button icon={<DownloadOutlined />} loading={backupBusy} disabled={!canClear || backupBusy} onClick={() => void exportBackup()}>{t("导出备份目录")}</Button>
+        </Space>
       </div>
       <div className="cookie-transfer">
         <div>

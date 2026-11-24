@@ -86,4 +86,76 @@ describe('ProfileBackupManager', () => {
     await expect(manager.import(source)).rejects.toThrow('超出安全范围')
     expect(profiles.list()).toHaveLength(0)
   })
+
+  it('exports a portable session skipping heavy caches and repairs extension references & paths on import', async () => {
+    const vault = await mkdtemp(join(tmpdir(), 'prism-session-vault-'))
+    const destination = await mkdtemp(join(tmpdir(), 'prism-session-out-'))
+    temporaryPaths.push(vault, destination)
+    const profiles = new ProfileStore(vault)
+    await profiles.initialize()
+
+    const fakeExtensions = {
+      list: () => [
+        {
+          id: '22222222-2222-2222-2222-222222222222',
+          name: 'uBlock Origin',
+          version: '1.60.0',
+          description: '',
+          manifestVersion: 3 as const,
+          installedAt: '2026-11-24T00:00:00.000Z',
+          path: '/new-device/extensions/ublock',
+          globalEnabled: false,
+          storeId: 'cjpalhdlnbpafiamejdnhcphjbkeiagm'
+        }
+      ]
+    } as unknown as import('./extension-store').ExtensionStore
+
+    const draft = defaultProfileDraft()
+    draft.name = '会话包环境'
+    draft.extensionIds = ['22222222-2222-2222-2222-222222222222']
+    const source = await profiles.create(draft)
+    const sourceData = profiles.profileDataPath(source.id)
+
+    await mkdir(join(sourceData, 'Default', 'Cache'), { recursive: true })
+    await writeFile(join(sourceData, 'Default', 'Cache', 'blob'), 'heavy-cache')
+    await writeFile(join(sourceData, 'Default', 'Cookies'), 'cookie-db')
+    await writeFile(
+      join(sourceData, 'Default', 'Preferences'),
+      JSON.stringify({
+        extensions: {
+          settings: {
+            cjpalhdlnbpafiamejdnhcphjbkeiagm: {
+              path: '/old-device/extensions/ublock',
+              manifest: { name: 'uBlock Origin' }
+            },
+            missingext123: {
+              path: '/old-device/extensions/missing',
+              manifest: { name: 'MissingExt' }
+            }
+          }
+        }
+      })
+    )
+
+    const manager = new ProfileBackupManager(profiles, '0.3.28', undefined, fakeExtensions)
+    const exported = await manager.exportPortableSession(source.id, destination)
+    const manifest = JSON.parse(await readFile(join(exported.path, 'manifest.json'), 'utf8')) as {
+      packageKind: string
+      extensionReferences: Array<{ storeId?: string; name: string }>
+    }
+    expect(manifest.packageKind).toBe('portable-session')
+    expect(manifest.extensionReferences).toHaveLength(1)
+    expect(manifest.extensionReferences[0].storeId).toBe('cjpalhdlnbpafiamejdnhcphjbkeiagm')
+
+    const imported = await manager.import(exported.path)
+    expect(imported.profile.extensionIds).toEqual(['22222222-2222-2222-2222-222222222222'])
+    await expect(readFile(join(profiles.profileDataPath(imported.profile.id), 'Default', 'Cookies'), 'utf8')).resolves.toBe('cookie-db')
+    await expect(readFile(join(profiles.profileDataPath(imported.profile.id), 'Default', 'Cache', 'blob'), 'utf8')).rejects.toThrow()
+
+    const repairedPrefs = JSON.parse(
+      await readFile(join(profiles.profileDataPath(imported.profile.id), 'Default', 'Preferences'), 'utf8')
+    ) as { extensions: { settings: Record<string, { path?: string }> } }
+    expect(repairedPrefs.extensions.settings.cjpalhdlnbpafiamejdnhcphjbkeiagm.path).toBe('/new-device/extensions/ublock')
+    expect(repairedPrefs.extensions.settings.missingext123.path).toBeUndefined()
+  })
 })

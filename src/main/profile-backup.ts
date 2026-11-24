@@ -3,21 +3,46 @@ import { createHash, randomUUID, type Hash } from 'node:crypto'
 import { createReadStream } from 'node:fs'
 import { copyFile, lstat, mkdir, mkdtemp, readFile, readdir, rename, rm, stat, writeFile } from 'node:fs/promises'
 import { dirname, join, resolve, sep } from 'node:path'
-import type { BrowserProfile, ProfileBackupResult, ProfileDraft } from '../shared/types'
+import type { BrowserExtension, BrowserProfile, ProfileBackupResult, ProfileDraft } from '../shared/types'
 import { validateProfileDraft } from '../shared/validation'
 import type { Logger } from './app-logger'
+import type { ExtensionStore } from './extension-store'
 import type { ProfileStore } from './profile-store'
+
+export type ProfileBackupMode = 'full' | 'portable-session'
+
+export interface ExtensionReference {
+  id: string
+  name: string
+  storeId?: string
+  version?: string
+}
 
 interface ProfileBackupManifest {
   schemaVersion: 1
+  packageKind?: ProfileBackupMode
   exportedAt: string
   sourcePlatform: NodeJS.Platform
   sourceAppVersion: string
   totalBytes: number
   fileCount: number
   contentSha256?: string
+  extensionReferences?: ExtensionReference[]
   profile: ProfileDraft
 }
+
+const VOLATILE_CACHE_DIRS = new Set([
+  'Cache',
+  'Code Cache',
+  'GPUCache',
+  'DawnGraphiteCache',
+  'DawnWebGPUCache',
+  'GrShaderCache',
+  'ShaderCache',
+  'Crashpad',
+  'BrowserMetrics',
+  'CacheStorage'
+])
 
 interface CopyStats {
   bytes: number
@@ -41,13 +66,20 @@ function ensureOutside(source: string, target: string): void {
   }
 }
 
-async function copySafeTree(source: string, target: string, stats: CopyStats, relativePath = ''): Promise<void> {
+async function copySafeTree(
+  source: string,
+  target: string,
+  stats: CopyStats,
+  relativePath = '',
+  skipVolatileCaches = false
+): Promise<void> {
   const info = await lstat(source)
   if (info.isSymbolicLink()) return
   if (info.isDirectory()) {
     await mkdir(target, { recursive: true })
     for (const entry of (await readdir(source)).sort()) {
-      await copySafeTree(join(source, entry), join(target, entry), stats, join(relativePath, entry))
+      if (skipVolatileCaches && VOLATILE_CACHE_DIRS.has(entry)) continue
+      await copySafeTree(join(source, entry), join(target, entry), stats, join(relativePath, entry), skipVolatileCaches)
     }
     return
   }
@@ -80,20 +112,85 @@ function portableDraft(profile: BrowserProfile): ProfileDraft {
   }
 }
 
+function remapExtensions(
+  references: ExtensionReference[] | undefined,
+  installed: BrowserExtension[]
+): string[] {
+  if (!references?.length || !installed.length) return []
+  const matched = new Set<string>()
+  for (const ref of references) {
+    const byStore = ref.storeId ? installed.find((ext) => ext.storeId && ext.storeId === ref.storeId) : undefined
+    const byName = byStore ?? installed.find((ext) => ext.name === ref.name)
+    if (byName) matched.add(byName.id)
+  }
+  return [...matched]
+}
+
+async function repairImportedExtensionPaths(userDataDir: string, installed: BrowserExtension[]): Promise<void> {
+  const prefsPath = join(userDataDir, 'Default', 'Preferences')
+  let parsed: Record<string, unknown>
+  try {
+    parsed = JSON.parse(await readFile(prefsPath, 'utf8')) as Record<string, unknown>
+  } catch {
+    return
+  }
+  const extensionsSection = parsed.extensions as Record<string, unknown> | undefined
+  const settings = extensionsSection?.settings as Record<string, Record<string, unknown>> | undefined
+  if (!settings || typeof settings !== 'object') return
+
+  let changed = false
+  for (const [extKey, entry] of Object.entries(settings)) {
+    if (!entry || typeof entry !== 'object') continue
+    const rawPath = entry.path
+    if (typeof rawPath !== 'string' || !rawPath) continue
+    const byStore = installed.find((ext) => ext.storeId === extKey)
+    const manifestName = (entry.manifest as Record<string, unknown> | undefined)?.name
+    const byName = typeof manifestName === 'string' ? installed.find((ext) => ext.name === manifestName) : undefined
+    const target = byStore ?? byName
+    if (target) {
+      if (rawPath !== target.path) {
+        entry.path = target.path
+        changed = true
+      }
+    } else {
+      try {
+        await stat(rawPath)
+      } catch {
+        delete entry.path
+        changed = true
+      }
+    }
+  }
+  if (changed) {
+    await writeFile(prefsPath, JSON.stringify(parsed), 'utf8')
+  }
+}
+
 export class ProfileBackupManager {
   constructor(
     private readonly profiles: ProfileStore,
     private readonly appVersion: string,
-    private readonly logger?: Logger
+    private readonly logger?: Logger,
+    private readonly extensions?: ExtensionStore
   ) {}
 
-  async export(profileId: string, destinationParent: string): Promise<ProfileBackupResult> {
+  async exportPortableSession(profileId: string, destinationParent: string): Promise<ProfileBackupResult> {
+    return this.export(profileId, destinationParent, { mode: 'portable-session' })
+  }
+
+  async export(
+    profileId: string,
+    destinationParent: string,
+    options: { mode?: ProfileBackupMode } = {}
+  ): Promise<ProfileBackupResult> {
+    const mode: ProfileBackupMode = options.mode ?? 'full'
     const profile = this.profiles.get(profileId)
     if (profile.status !== 'closed' && profile.status !== 'error') throw new Error('请先关闭浏览器环境再备份完整数据')
     await this.profiles.assertProfileDataIdentity(profileId)
     const source = this.profiles.profileDataPath(profileId)
     const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19)
-    const target = join(resolve(destinationParent), `Prism Backup - ${safeDirectoryName(profile.name)} - ${stamp}`)
+    const prefix = mode === 'portable-session' ? 'Prism Session' : 'Prism Backup'
+    const target = join(resolve(destinationParent), `${prefix} - ${safeDirectoryName(profile.name)} - ${stamp}`)
     const staging = `${target}.partial`
     ensureOutside(source, target)
     try {
@@ -105,21 +202,38 @@ export class ProfileBackupManager {
     await mkdir(staging, { recursive: false })
     const stats: CopyStats = { bytes: 0, files: 0, hash: createHash('sha256') }
     try {
-      await copySafeTree(source, join(staging, 'user-data'), stats)
+      await copySafeTree(source, join(staging, 'user-data'), stats, '', mode === 'portable-session')
       const contentSha256 = stats.hash.digest('hex')
+      const installedExtensions = this.extensions?.list() ?? []
+      const extensionReferences: ExtensionReference[] = profile.extensionIds
+        .map((extId) => installedExtensions.find((ext) => ext.id === extId))
+        .filter((ext): ext is BrowserExtension => Boolean(ext))
+        .map((ext) => ({
+          id: ext.id,
+          name: ext.name,
+          ...(ext.storeId ? { storeId: ext.storeId } : {}),
+          ...(ext.version ? { version: ext.version } : {})
+        }))
       const manifest: ProfileBackupManifest = {
         schemaVersion: 1,
+        ...(mode === 'portable-session' ? { packageKind: 'portable-session' } : {}),
         exportedAt: new Date().toISOString(),
         sourcePlatform: process.platform,
         sourceAppVersion: this.appVersion,
         totalBytes: stats.bytes,
         fileCount: stats.files,
         contentSha256,
+        ...(extensionReferences.length ? { extensionReferences } : {}),
         profile: portableDraft(profile)
       }
       await writeFile(join(staging, 'manifest.json'), JSON.stringify(manifest, null, 2), { encoding: 'utf8', mode: 0o600 })
       await rename(staging, target)
-      this.logger?.info('环境完整数据备份已导出', { profileId, bytes: stats.bytes, files: stats.files })
+      this.logger?.info(mode === 'portable-session' ? '便携式会话包已导出' : '环境完整数据备份已导出', {
+        profileId,
+        mode,
+        bytes: stats.bytes,
+        files: stats.files
+      })
       return { path: target, totalBytes: stats.bytes, fileCount: stats.files }
     } catch (error) {
       await rm(staging, { recursive: true, force: true })
@@ -149,11 +263,13 @@ export class ProfileBackupManager {
     const userDataSource = join(source, 'user-data')
     const sourceInfo = await lstat(userDataSource)
     if (!sourceInfo.isDirectory() || sourceInfo.isSymbolicLink()) throw new Error('备份中的 user-data 目录无效')
+    const installedExtensions = this.extensions?.list() ?? []
+    const remappedExtensionIds = remapExtensions(manifest.extensionReferences, installedExtensions)
     const draft = validateProfileDraft({
       ...manifest.profile,
       kernelVersion: typeof manifest.profile.kernelVersion === 'string' ? manifest.profile.kernelVersion : '',
       name: suffixedProfileName('{0}（迁移）', manifest.profile.name),
-      extensionIds: [],
+      extensionIds: remappedExtensionIds,
       proxy: { ...manifest.profile.proxy, password: '', passwordStored: false }
     })
     const stagingRoot = await mkdtemp(join(this.profiles.vaultPath, '.profile-backup-import-'))
@@ -181,6 +297,7 @@ export class ProfileBackupManager {
         await rename(empty, target).catch(() => undefined)
         throw error
       }
+      await repairImportedExtensionPaths(target, installedExtensions)
       await this.profiles.assertProfileDataIdentity(profile.id)
       this.logger?.info('环境完整数据备份已导入', { profileId: profile.id, bytes: stats.bytes, files: stats.files })
       return { profile: this.profiles.get(profile.id), result: { path: source, totalBytes: stats.bytes, fileCount: stats.files } }

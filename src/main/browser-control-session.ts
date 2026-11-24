@@ -3116,6 +3116,22 @@ export class BrowserControlSession {
     }
     throw new Error("等待网页加载完成超时");
   }
+  async evaluateFingerprintRuntime(expression) {
+    await this.ensurePage();
+    const result = await this.cdp.send("Runtime.evaluate", {
+      expression,
+      awaitPromise: true,
+      returnByValue: true
+    }, this.sessionId);
+    if (result.exceptionDetails) {
+      throw new Error(result.exceptionDetails.text || "执行指纹采集脚本失败");
+    }
+    const value = result.result?.value;
+    if (!value || typeof value !== "object") {
+      throw new Error("页面未返回有效的运行时指纹数据");
+    }
+    return value;
+  }
   async waitForDocumentGeneration(previousGeneration) {
     for (let attempt = 0; attempt < 150; attempt += 1) {
       if (this.documentGeneration > previousGeneration) return;

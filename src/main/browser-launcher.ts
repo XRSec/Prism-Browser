@@ -5,7 +5,8 @@ import { constants } from 'node:fs'
 import { join } from 'node:path'
 import type { BrowserCrashRecord, BrowserProfile, LaunchDiagnosticCheck, LaunchDiagnosticReport, ProfileLaunchOptions, ProxyConfig, ProxyTestResult } from '../shared/types'
 import { locateBrowserForProfile } from './browser-locator'
-import { buildLaunchArgs } from './launch-args'
+import { auditLaunchFingerprintArgs, buildLaunchArgs } from './launch-args'
+import { kernelCapabilityProfile } from '../shared/fingerprint-capabilities'
 import { ensureDefaultProfilePreferences, ensureSharedExtensionStorage } from './profile-preferences'
 import { syncExtensionDataOnLaunch, syncExtensionDataOnClose } from './extension-data-sharing'
 import type { ProfileStore } from './profile-store'
@@ -15,6 +16,12 @@ import type { Logger } from './app-logger'
 import type { ExtensionStore } from './extension-store'
 import { findManagedProcess, SystemProcessInspector, type ProcessInspector } from './process-inspector'
 import { assertFingerprintKernelCompatibility } from '../shared/fingerprint-consistency'
+import {
+  RUNTIME_FINGERPRINT_COLLECTOR_SCRIPT,
+  buildExpectedFingerprint,
+  compareFingerprintExpectedVsRuntime,
+  type FingerprintCheckReport
+} from '../shared/fingerprint-check'
 import { safeErrorText } from './redaction'
 import { hardwareProfile, hardwareProfileSummary } from '../shared/hardware-profiles'
 import { hostHardwareSnapshot } from './host-hardware'
@@ -230,7 +237,7 @@ export class BrowserLauncher {
       await ensureDefaultProfilePreferences(this.profiles.profileDataPath(id));
       await ensureSharedExtensionStorage(this.profiles.profileDataPath(id));
       await syncExtensionDataOnLaunch(this.profiles.vaultPath, id, this.extensions.list(), this.logger);
-      const args = buildLaunchArgs(profile, {
+      const launchAudit = auditLaunchFingerprintArgs(profile, {
         userDataDir: this.profiles.profileDataPath(id),
         proxyUrl: localProxyUrl,
         extensionPaths: this.extensions.paths(profile.extensionIds),
@@ -241,6 +248,13 @@ export class BrowserLauncher {
         proxyIdentity: profile.proxyCheck,
         allowGeoConflict: options.allowGeoConflict === true
       });
+      const args = launchAudit.args;
+      const skippedFlags = launchAudit.audit
+        .filter((entry) => entry.status === "skipped-unsupported")
+        .map((entry) => ({ flag: entry.flag, reason: entry.reason }));
+      if (skippedFlags.length) {
+        this.logger?.info("已按内核能力表跳过不支持的指纹参数", { profileId: id, engineVersion: engine.version, skippedFlags });
+      }
       if (process.platform === "darwin") {
         args.push("--use-mock-keychain", "--password-store=basic");
       } else if (process.platform === "linux") {
@@ -328,6 +342,16 @@ export class BrowserLauncher {
       const running = {
         process: child,
         automation: automation2,
+        launchSnapshot: {
+          engineVersion: engine.version,
+          fingerprintKernel: engine.fingerprintKernel,
+          hostHardwareConcurrency: hostHardware.hardwareConcurrency,
+          hostPlatformVersion: hostHardware.platformVersion,
+          proxyIdentity: profile.proxyCheck,
+          allowGeoConflict: options.allowGeoConflict === true,
+          launchArgs: args,
+          skippedFlags
+        },
         proxyUrl: localProxyUrl,
         proxyIdentityIp: profile.proxyCheck?.ip,
         proxyMonitorRunning: false,
@@ -667,6 +691,39 @@ export class BrowserLauncher {
     }
     return running.automation;
   }
+  async checkFingerprint(id): Promise<FingerprintCheckReport> {
+    const profile = this.profiles.get(id);
+    const running = this.processes.get(id);
+    if (!running) {
+      throw new Error("浏览器环境尚未启动，请先启动环境后再执行指纹自检");
+    }
+    if (!running.automation) {
+      throw new Error("当前浏览器内核没有建立 CDP 控制通道，请关闭环境后重新启动");
+    }
+    const snapshot = running.launchSnapshot;
+    const expected = snapshot
+      ? buildExpectedFingerprint(profile, snapshot)
+      : buildExpectedFingerprint(profile, {
+          ...(await (async () => {
+            const engine = await locateBrowserForProfile(this.settings, this.profiles.vaultPath, profile.kernelVersion);
+            const hostHardware = hostHardwareSnapshot();
+            return {
+              engineVersion: engine.version,
+              fingerprintKernel: engine.fingerprintKernel,
+              hostHardwareConcurrency: hostHardware.hardwareConcurrency,
+              hostPlatformVersion: hostHardware.platformVersion,
+              proxyIdentity: profile.proxyCheck
+            };
+          })())
+        });
+    const session = running.automation.fork();
+    try {
+      const runtime = await session.evaluateFingerprintRuntime(RUNTIME_FINGERPRINT_COLLECTOR_SCRIPT);
+      return compareFingerprintExpectedVsRuntime(profile.id, profile.name, expected, runtime);
+    } finally {
+      session.close();
+    }
+  }
   async crashHistory(id) {
     this.profiles.get(id);
     try {
@@ -722,6 +779,21 @@ export class BrowserLauncher {
         add("version", "版本一致性", "pass", engine.fingerprintKernel && engine.version ? `UA、UA-CH 与请求头版本将统一使用实际内核 ${engine.version}` : "兼容模式使用浏览器自身版本");
       } catch (error) {
         add("version", "版本一致性", "error", error instanceof Error ? error.message : String(error));
+      }
+      const capSummary = kernelCapabilityProfile(engine.version, engine.fingerprintKernel);
+      const dryRunAudit = auditLaunchFingerprintArgs(profile, {
+        userDataDir: this.profiles.profileDataPath(id),
+        engineVersion: engine.version,
+        fingerprintKernel: engine.fingerprintKernel,
+        proxyIdentity: profile.proxyCheck
+      });
+      const skippedInDryRun = dryRunAudit.audit.filter((entry) => entry.status === "skipped-unsupported");
+      if (!engine.fingerprintKernel) {
+        add("capabilities", "内核指纹能力", "warning", "当前为兼容模式内核，所有 --fingerprint* 伪装参数均不生效");
+      } else if (skippedInDryRun.length) {
+        add("capabilities", "内核指纹能力", "warning", `${capSummary.range?.label ?? `Chromium ${engine.version ?? ""}`}：以下参数将被自动跳过：${skippedInDryRun.map((item) => item.flag).join("、")}`);
+      } else {
+        add("capabilities", "内核指纹能力", "pass", `${capSummary.range?.label ?? `Chromium ${engine.version ?? "未知版本"}`}：全部已配置指纹参数均受支持`);
       }
     }
     try {

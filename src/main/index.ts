@@ -32,6 +32,7 @@ import { AnnouncementManager } from './announcement-manager'
 import { AdvertisementManager } from './advertisement-manager'
 import { WindowSyncManager, MacWindowSyncBridge, WindowsWindowSyncBridge } from './window-sync-manager'
 import { MihomoManager } from './mihomo-manager'
+import { FingerprintCheckBridge } from './fingerprint-check-bridge'
 
 let mainWindow: BrowserWindow | null = null
 let launcher: BrowserLauncher | null = null
@@ -42,6 +43,7 @@ let scheduler: SchedulerManager | null = null
 let mcp: McpControlManager | null = null
 let windowSync: WindowSyncManager | null = null
 let mihomo: MihomoManager | null = null
+let fingerprintBridge: FingerprintCheckBridge | null = null
 
 if (process.platform === 'win32') app.setAppUserModelId('com.xrsec.prismbrowser')
 
@@ -137,7 +139,7 @@ app.whenReady().then(async () => {
   const purgedKernelTrashCount = await kernels.purgeTrashOlderThan(settings.get().recycleRetentionDays)
   if (purgedKernelTrashCount) logger.info('已按保留策略自动清理内核回收站', { count: purgedKernelTrashCount })
   const cookies = new CookieManager(profiles, settings, logger)
-  const backups = new ProfileBackupManager(profiles, app.getVersion(), logger)
+  const backups = new ProfileBackupManager(profiles, app.getVersion(), logger, extensions)
   const workspaceMigration = new WorkspaceMigrationManager(profiles, extensions, app.getVersion(), logger)
   const updater = new UpdateManager(vaultPath, app.getVersion(), process.resourcesPath, (status) => {
     mainWindow?.webContents.send('updates:changed', status)
@@ -160,11 +162,30 @@ app.whenReady().then(async () => {
   await Promise.all([updater.initialize(), licensing.initialize()])
   launcher.setProKernelAccessCheck(() => licensing.status().plan === 'pro')
   kernels.setProKernelAccessCheck(() => licensing.status().plan === 'pro')
+  const mcpPermissions = new McpPermissionStore(vaultPath)
   mcp = new McpControlManager(
-    new McpPermissionStore(vaultPath), profiles, launcher, licensing, mcpAudit,
+    mcpPermissions, profiles, launcher, licensing, mcpAudit,
     (status) => mainWindow?.webContents.send('mcp:changed', status)
   )
   await mcp.initialize()
+  fingerprintBridge = new FingerprintCheckBridge({
+    runtimeDirectory: join(vaultPath, 'runtime'),
+    isMcpEnabled: () => mcpPermissions.getPolicy().enabled,
+    isProfileAllowed: (id) => mcpPermissions.enabled(id),
+    hasProfile: (id) => {
+      try {
+        profiles.get(id)
+        return true
+      } catch {
+        return false
+      }
+    },
+    checkFingerprint: (id) => launcher!.checkFingerprint(id),
+    logger
+  })
+  await fingerprintBridge.start().catch((err) => {
+    logger?.error('指纹自检本地桥启动失败', { error: String(err) })
+  })
   await mcp
     .pruneOrphanedPermissions((await profiles.listTrash()).map((item) => item.profileId))
     .catch((error) => logger?.error('清理已删除环境的 MCP 设置失败', error))
@@ -259,6 +280,7 @@ app.on('before-quit', (event) => {
   void Promise.allSettled([
     scheduler?.shutdown() ?? Promise.resolve(),
     mcp?.shutdown() ?? Promise.resolve(),
+    fingerprintBridge?.stop() ?? Promise.resolve(),
     windowSync?.stop() ?? Promise.resolve(),
     mihomo?.cleanup() ?? Promise.resolve()
   ]).then(() => Promise.allSettled([

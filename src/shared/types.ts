@@ -1,4 +1,5 @@
 import type { UiLocale } from './i18n'
+import type { FingerprintCheckReport } from './fingerprint-check'
 export type BrowserPlatform = 'windows' | 'macos'
 export type BrowserBrand = 'Chrome' | 'Edge'
 export type HardwareProfileId =
@@ -575,6 +576,7 @@ export interface BrowserApi {
     clearCache: (id: string) => Promise<ProfileStorageInfo>
     clearData: (id: string, options: ClearProfileDataOptions) => Promise<ProfileStorageInfo>
     exportBackup: (id: string) => Promise<ProfileBackupResult | null>
+    exportPortableSession: (id: string) => Promise<ProfileBackupResult | null>
     importBackup: () => Promise<{ profile: BrowserProfileView; result: ProfileBackupResult } | null>
     exportWorkspace: (password: string) => Promise<WorkspaceMigrationResult | null>
     importWorkspace: (password: string, conflictPolicy: 'rename' | 'skip') => Promise<WorkspaceMigrationResult | null>
@@ -592,6 +594,7 @@ export interface BrowserApi {
     closeAll: () => Promise<void>
     testProxy: (id: string) => Promise<BrowserProfileView>
     diagnose: (id: string) => Promise<LaunchDiagnosticReport>
+    checkFingerprint: (id: string) => Promise<FingerprintCheckReport>
     crashHistory: (id: string) => Promise<BrowserCrashRecord[]>
     setFavorite: (id: string, favorite: boolean) => Promise<BrowserProfileView>
     classifyMany: (ids: string[], patch: ProfileBatchClassification) => Promise<BrowserProfileView[]>

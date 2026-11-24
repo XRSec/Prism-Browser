@@ -2,7 +2,7 @@ import { EventEmitter } from 'node:events'
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
 import { chmod, mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { dirname, join } from 'node:path'
 import { PassThrough } from 'node:stream'
 import { Client } from '@modelcontextprotocol/client'
 import type { JSONRPCMessage, Transport } from '@modelcontextprotocol/server'
@@ -186,10 +186,11 @@ describe('Prism first-party MCP STDIO server', () => {
 
     const listed = await client.listTools()
     const names = listed.tools.map((tool) => tool.name)
-    expect(names).toHaveLength(59)
+    expect(names).toHaveLength(60)
     expect(names).toContain('prism_health')
     expect(names).toContain('prism_list_profiles')
     expect(names).toContain('prism_inspect_pages')
+    expect(names).toContain('prism_check_fingerprint')
     expect(client.getInstructions()).toContain('prism_open_page auto-starts closed profiles')
     expect(client.getInstructions()).toContain('ref_*')
     expect(launchImpl).not.toHaveBeenCalled()
@@ -408,5 +409,64 @@ describe('Prism first-party MCP STDIO server', () => {
     expect(spawned[0].command).toBe('/usr/bin/open')
     expect(spawned[0].args).toEqual(['-g', '/Applications/Prism Browser.app'])
     expect((spawned[0].opts.env as Record<string, string>).ELECTRON_RUN_AS_NODE).toBeUndefined()
+  })
+
+  it('executes prism_check_fingerprint via fingerprint bridge when running and rejects closed profiles', async () => {
+    const { statePath, suppressionPath } = await createTempRuntimeDir()
+    let profileStatus: 'closed' | 'running' = 'closed'
+    const mockBridge = await startMockPrismBridge((req) => {
+      if (req.url === '/v1/mcp/service/status') return { body: { result: { ok: true } } }
+      if (req.url.startsWith('/v1/mcp/sessions/') && req.url.endsWith('/start')) {
+        return { body: { result: { state: 'running' } } }
+      }
+      if (req.url === `/v1/mcp/profiles/${TEST_PROFILE_ID}/status`) {
+        return { body: { result: { id: TEST_PROFILE_ID, status: profileStatus } } }
+      }
+      return { status: 404, body: { error: `Unhandled ${req.method} ${req.url}` } }
+    })
+
+    const fingerprintBridge = await startMockPrismBridge((req) => {
+      if (req.url === `/v1/mcp/profiles/${TEST_PROFILE_ID}/check-fingerprint` && req.method === 'POST') {
+        return {
+          body: {
+            result: {
+              profileId: TEST_PROFILE_ID,
+              profileName: 'Test Profile',
+              checkedAt: '2026-11-24T00:00:00.000Z',
+              overallStatus: 'pass',
+              summary: { matchCount: 8, mismatchCount: 0, infoCount: 5, highlights: [] },
+              checks: []
+            }
+          }
+        }
+      }
+      return { status: 404, body: { error: `Unhandled ${req.method} ${req.url}` } }
+    })
+
+    await writeConnectionState(statePath, mockBridge.endpoint)
+    await writeFile(
+      join(dirname(statePath), 'fingerprint-check-bridge.json'),
+      JSON.stringify({ endpoint: fingerprintBridge.endpoint, token: TEST_TOKEN }),
+      'utf8'
+    )
+
+    const { client } = await connectTestRuntime({ statePath, suppressionPath })
+
+    const closedResult = await client.callTool({
+      name: 'prism_check_fingerprint',
+      arguments: { profileId: TEST_PROFILE_ID }
+    })
+    expect(closedResult.isError).toBe(true)
+    expect((closedResult.content[0] as { text: string }).text).toContain('PROFILE_NOT_RUNNING')
+
+    profileStatus = 'running'
+    const runningResult = await client.callTool({
+      name: 'prism_check_fingerprint',
+      arguments: { profileId: TEST_PROFILE_ID }
+    })
+    expect(runningResult.isError).toBeFalsy()
+    const report = JSON.parse((runningResult.content[0] as { text: string }).text) as { overallStatus: string; summary: { matchCount: number } }
+    expect(report.overallStatus).toBe('pass')
+    expect(report.summary.matchCount).toBe(8)
   })
 })
